@@ -7,4 +7,8 @@ description = "AI Systems Architect: agent infrastructure, standards-as-code, go
 
 AI Systems Architect. I build the standards gates, guardrails, memory systems, and review loops that let AI agents do real engineering work someone else can verify.
 
-The verified v3 resume PDF is in final review before it replaces the site's public copy — every number in it carries its own measurement method, same rule as this site, and that verification pass isn't done yet. Until it lands here as a button, [email cody@ardent.tools](mailto:cody@ardent.tools?subject=Resume%20request) directly for the current copy.
+Every number in it carries its own measurement method — the same rule as the rest of this site. It went through an adversarial verification pass against the underlying repos and records before landing here; several claims got smaller in that pass, none got bigger.
+
+[Download the resume (PDF)](/files/cody-kickertz-resume.pdf)
+
+Questions about anything in it: [email cody@ardent.tools](mailto:cody@ardent.tools?subject=Resume).
