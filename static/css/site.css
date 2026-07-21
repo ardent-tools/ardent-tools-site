@@ -519,7 +519,7 @@ a.badge:focus-visible {
 }
 
 .receipt-table-wrap table {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums slashed-zero;
 }
 
 .receipt-table-wrap .ok::before {
@@ -535,6 +535,7 @@ a.badge:focus-visible {
   gap: var(--space-s);
   font-family: var(--font-mono);
   font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;   /* mono is inherently tabular; covers any serif span landing in a fact row */
   color: var(--text-light);
   margin-bottom: var(--space-l);
 }
