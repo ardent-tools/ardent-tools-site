@@ -41,7 +41,7 @@ Two models that behave differently enough that a third party built and published
 
 ---
 
-What the result falsifies is specific: routing separability as a linear-subspace property of the Q/K projections in this teacher, under this operationalization, on these two model variants. It doesn't rule out structure a linear method can't see, and it doesn't answer whether the architecture has any reason left to exist once the mechanism it was built around is gone. That's a separate question, and it got a separate answer.
+What the result falsifies is specific: routing separability as a linear-subspace property of the Q/K projections in this teacher, under this operationalization, on these two model variants. It doesn't rule out structure a linear method can't see, and it doesn't answer whether the architecture has any reason left to exist once the mechanism it was built around is gone.
 
 ---
 

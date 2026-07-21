@@ -31,6 +31,7 @@ When a sentence lands, the reader notices nothing. That is the definition of suc
 - **Banned vocabulary** - the fleet lint's WRITING ban list applies in full, plus the book contract's additions; enforced by `kanon lint`, not restated here (the vault copy at theke `site-design/VOICE-WEB.md` carries the verbatim list). Quoting a banned word to ban it still ships the word.
 - **No transitions.** Transition words — the section break does the work.
 - **No generic conclusions.** Generic conclusion phrases — never. A page may end with an action (a link, a contact line); it never ends with a summary of itself.
+- **No mic-drop closers.** No mirrored two-clause aphorism ("X replaced Y; Z replaced W."), no triumphant stinger, no epigram ending. A paragraph ends when its information ends, not when the rhythm calls for applause. A two-clause mirror that carries new information may stay; one that restates the paragraph for effect is cut. Consecutive sections must not share a closing rhythm — if the last section ended on a compressed antithesis, the next one doesn't.
 - **No exclamation marks.**
 - **The summary of what was just said** — never restate a paragraph at its own end. Trust the paragraph.
 - **Concrete grounds the abstract.** No capability claim without a mechanical anchor nearby — a number with a method, a command, a commit, a demo slot. If the anchor doesn't exist, the claim doesn't ship.
