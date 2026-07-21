@@ -63,15 +63,7 @@ placeholder = "RECORDING FORTHCOMING: cargo test -p hamma-core && cargo test -p 
 shows = "The Noise-handshake and control-protocol-type tests passing — modest, explicitly test-suite-shaped."
 not_shows = "Two peers joining a tailnet. That moment doesn't exist yet."
 
-[[extra.placards]]
-system = "ergon-tools"
-note = "No recording — private system, employer property."
-href = "/systems/ergon-tools/"
 
-[[extra.placards]]
-system = "nosologia"
-note = "No recording — private system, employer property."
-href = "/systems/nosologia/"
 +++
 
 Every recording on this page is a scripted run of real commands, regenerated when the code changes. The `.tape` link on each is the script that produced it. Nothing here is staged to look better than what the command actually does.

@@ -13,7 +13,7 @@ That bet is most of what I've built since: agent infrastructure for a healthcare
 
 Ardent Tools is the sibling of [Ardent Leatherworks](https://ardentleatherworks.com), where the same rule holds for belts as for build gates: process is the proof.
 
-Current resume: [/resume/](/resume/). Direct contact: [/contact/](/contact/).
+Current resume: [resume](/resume/). Direct contact: [contact](/contact/).
 
 ## Influences
 
