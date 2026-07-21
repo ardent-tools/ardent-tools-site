@@ -545,6 +545,18 @@ a.badge:focus-visible {
   margin-bottom: var(--space-xs);
 }
 
+/* T6 (§7) — /demos/ passes heading=true so the meta line's system·action
+   text is an <h3> (the missing per-figure heading-navigation landmark),
+   not a <span>. Reset it back to the meta line's own typography so it
+   renders identically to the span it replaces everywhere else. */
+.term-meta h3 {
+  display: inline;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  margin: 0;
+}
+
 .term-meta a {
   color: var(--text-light);
 }

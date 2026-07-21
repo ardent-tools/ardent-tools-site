@@ -21,7 +21,7 @@
 {{ page.content | safe }}
 
 {%- for demo in page.extra.demos | default(value=[]) %}
-{{ term_panel::panel(demo=demo, hero=false, label=demo.system ~ " " ~ demo.action) }}
+{{ term_panel::panel(demo=demo, hero=false, label=demo.system ~ " " ~ demo.action, heading=true) }}
 {%- endfor %}
 
 {%- for p in page.extra.placards | default(value=[]) %}

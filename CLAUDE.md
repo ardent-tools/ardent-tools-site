@@ -72,6 +72,7 @@ Not wired in this scaffold. The fleet convention (matching typikon and the sibli
 ## Open items from the build pass
 
 - Three casts are launch-blocking per DESIGN.md §9 (thumos-boot, kanon-gate, aletheia-memory) and none are recorded yet — every demo on the site renders as an honest placeholder, not a fake, until a cast lands.
-- The resume PDF (`resume/_build/kickertz_resume_2026_v3.pdf`) hasn't cleared operator review; `/resume/` links nothing yet, by design — no broken asset reference.
+- The resume PDF is live: `content/resume.md` links `/files/cody-kickertz-resume.pdf`, the file is present under `static/files/`, and it builds through.
 - `about.md` carries no `## Influences` section (removed in v1.1 phase A pending the operator's actual 5-8 entries; add it back only with real content).
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared — see the build-pass report for current status of each.
+- T8 (DESIGN-v1.1 §7): the `_headers` `'wasm-unsafe-eval'` carve-out still carries its `PENDING: in-browser QA` comment — the real-browser check that the vendored player initializes under this exact CSP has not run. The colophon's CSP-script-src row states the same open status; both need the QA pass (or a disposition) before this reads as resolved, not the pre-v1.1 placeholder.
