@@ -44,15 +44,14 @@
   --ok: #49704E;
   --warn: #8A6318;
 
-  /* Catalog zone tints (design-delta-dye.md, DESIGN-v1.1 Decisions item 1
-     — full dye system). Backgrounds only, never text/borders/badges — the
-     one-interactive-accent discipline is unaffected (§1 of the dye doc).
-     Not yet wired to any template (the catalog group zones land with the
-     Phase C catalog rebuild); tokens + utility classes ship now so that
-     work has them ready. */
-  --zone-systems:   #EEE7DD;
-  --zone-libraries: #ECE7DE;
-  --zone-web:       #E7E8DA;
+  /* Catalog zone inks (replaces the six flat zone hexes) — theme-invariant,
+     never redeclared in the dark block: the wash formula below mixes each
+     ink over var(--bg), so dark derives automatically. Backgrounds only,
+     never text/borders/badges (design-delta-dye.md §1's one-interactive-
+     accent discipline is unaffected). */
+  --zone-systems-ink:   #7C3A18;   /* = --accent-aged: the flagship zone wears the brand ink */
+  --zone-libraries-ink: #4A4055;   /* muted violet, family nod to thanatochromia-aged */
+  --zone-web-ink:       #4A7A5A;   /* sage, family nod to aporia-aged */
 
   /* Terminal plate — theme-invariant across light/dark (§2.2, §2.3). */
   --term-bg: #16181A;
@@ -124,11 +123,15 @@
     --ok: #7DA582;
     --warn: #C9A44C;
     --panel-edge: #4A4843;
-
-    --zone-systems:   #2C1E1E;
-    --zone-libraries: #231F23;
-    --zone-web:       #272A24;
   }
+}
+
+/* Explicit canvas layer (W7 grain sits above this) + overshoot clip for
+   the full-bleed band/zone ::before layers below (W6) — each overshoots
+   by half a scrollbar width via 50vw math; this trims it flush. */
+html {
+  background: var(--bg);
+  overflow-x: clip;
 }
 
 /* === Width tiers (§1.2) — two-tier shell replacing typikon's single
@@ -221,13 +224,12 @@ h1, h2, h3 {
 }
 
 /* === Section band (§1.4) — a zone-shift primitive: --bg-accent spanning
-   the wide shell, radius 0, no border, --space-l padding-block. Call
-   sites (home selected-work, home consulting CTA, /demos/ interactive
-   panel intro) land with their respective content-restructure phases;
-   the class ships now so that work has it ready. Max 2-3 per page; never
-   nested, never two adjacent (DESIGN-v1.1 §1.4). */
+   the wide shell, radius 0, no border, --space-l padding-block. Max 2-3
+   per page; never nested, never two adjacent (DESIGN-v1.1 §1.4). Fill
+   moves to the ::before layer below (full-bleed, no layout math); this
+   rule keeps only the padding. */
 .section-band {
-  background: var(--bg-accent);
+  background: none;
   padding-block: var(--space-l);
 }
 
@@ -240,11 +242,63 @@ h1, h2, h3 {
   margin-top: var(--space-l);
 }
 
-/* Catalog zone tints (design-delta-dye.md §8) — backgrounds only. */
-.zone-systems   { background: var(--zone-systems); }
-.zone-libraries { background: var(--zone-libraries); }
-.zone-web       { background: var(--zone-web); }
-/* In-design zone: no class, no tint — plain --bg is the treatment. */
+/* === Full-bleed band/zone fill (W6) — a background layer instead of
+   layout padding: zone color runs to the viewport edge, content stays
+   shell-aligned, no padding rebalancing or scrollbar-width risk. Paints
+   above the grain (W7's body::before) — both sit at z-index: -1 in the
+   root stacking context, tree order puts these later, so tinted zones
+   read as opaque dye baths over the paper grain, which is correct. */
+.section-band,
+.catalog-group {
+  position: relative;
+}
+
+.section-band::before,
+.catalog-group[class*="zone-"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+}
+
+.section-band::before {
+  background: var(--bg-accent);
+  border-block: 1px solid var(--rule);   /* the recessed panel's hairline edge */
+}
+
+/* Seam only where two dyed zones abut directly (the /systems/ catalog). */
+.catalog-group[class*="zone-"] + .catalog-group[class*="zone-"]::before {
+  border-top: 1px solid var(--rule);
+}
+
+/* Catalog zone washes (design-delta-dye.md §8, reworked as a Leatherworks
+   dye-entry gradient — 145deg, 3 stops, peak 6% ink — instead of a flat
+   hex). Mixing over var(--bg) means dark derives automatically; peak
+   capped at 6% so --text-light copy stays AA on every zone (verified:
+   the 6% peak stays lighter than the old flat hex's darkest point in
+   every zone, both themes). Background lands on the ::before layer
+   above, not the .catalog-group itself. */
+.zone-systems::before {
+  background: linear-gradient(145deg,
+    color-mix(in oklab, var(--zone-systems-ink) 3%, var(--bg)) 0%,
+    color-mix(in oklab, var(--zone-systems-ink) 6%, var(--bg)) 55%,
+    color-mix(in oklab, var(--zone-systems-ink) 4%, var(--bg)) 100%);
+}
+
+.zone-libraries::before {
+  background: linear-gradient(145deg,
+    color-mix(in oklab, var(--zone-libraries-ink) 3%, var(--bg)) 0%,
+    color-mix(in oklab, var(--zone-libraries-ink) 6%, var(--bg)) 55%,
+    color-mix(in oklab, var(--zone-libraries-ink) 4%, var(--bg)) 100%);
+}
+
+.zone-web::before {
+  background: linear-gradient(145deg,
+    color-mix(in oklab, var(--zone-web-ink) 3%, var(--bg)) 0%,
+    color-mix(in oklab, var(--zone-web-ink) 6%, var(--bg)) 55%,
+    color-mix(in oklab, var(--zone-web-ink) 4%, var(--bg)) 100%);
+}
+/* In-design zone: no class, no ::before — plain --bg is the treatment. */
 
 /* === Catalog groups (§3.2) — the /systems/ zone wrapper. Shared
    padding-block regardless of tint; .zone-* above supplies the
