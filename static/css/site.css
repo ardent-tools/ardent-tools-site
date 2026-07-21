@@ -18,6 +18,7 @@
  */
 
 :root {
+  color-scheme: light;
   /* === Width tiers (§1.2, DESIGN-v1.1) — two-tier shell: prose keeps a
      reading measure, everything structural gets structural room. Replaces
      typikon's single 780px --max-width for nav/main/footer (see the shell
@@ -101,35 +102,7 @@
   unicode-range: U+0000-00FF;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Re-derived with a warm cast to match the light-mode paper shift
-       (§5.1). --text/--text-mid/--accent/--accent-aged/--warn were
-       already at their resolved values pre-v1.1 (verified against
-       design-delta-dye.md §5/§6's literal hex pairs — the whole matrix
-       checks out unchanged for those four); --bg/--bg-accent/
-       --text-light/--ok move to the resolved dye-doc values. */
-    --bg: #21201D;
-    --bg-accent: #2A2926;
-    --text: #DDD9D0;
-    --text-mid: #B3AFA6;
-    --text-light: #949089;
-    /* --rule: not resolved by DESIGN-v1.1 or design-delta-dye.md (both
-       leave dark --rule as mechanical work) — derived by re-applying the
-       pre-v1.1 bg-accent→rule delta (#282826→#3A3A37, +18/+18/+17 per
-       channel) to the new dark --bg-accent. Decorative hairline only
-       (design-delta-dye.md §7: not a WCAG non-text surface), so no AA
-       gate applies; re-derive if --bg-accent(dark) moves again. */
-    --rule: #3C3B37;
-    --accent: #D07A45;
-    --accent-aged: #B96534;
-    --ok: #7DA582;
-    --warn: #C9A44C;
-    --panel-edge: #4A4843;
 
-    --grain-opacity: 0.03;   /* same noise reads louder on dark; halve it */
-  }
-}
 
 /* Explicit canvas layer (W7 grain sits above this) + overshoot clip for
    the full-bleed band/zone ::before layers below (W6) — each overshoots
@@ -885,12 +858,7 @@ a:active {
    declared above). Dark keeps the already-AA hover fill (5.08:1)
    instead of stepping to aged on press; light's aged step is unaffected
    (7.65:1, comfortably AA). */
-@media (prefers-color-scheme: dark) {
-  .button:active,
-  .nav-links a:last-child:active {
-    background: var(--accent);
-  }
-}
+
 
 .catalog-row-name {
   font-family: var(--font-mono);
