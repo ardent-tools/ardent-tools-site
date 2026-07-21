@@ -19,6 +19,7 @@ system = "thumos"
 action = "kernel boot"
 target = "qemu-system-arm -machine virt"
 duration = "0:52"
+tape = "/tapes/thumos-boot.tape"
 placeholder = "RECORDING FORTHCOMING: full QEMU boot — MMU/cache init, GIC, scheduler, first timer interrupt, CSPRNG, every subsystem's init step, boot-to-service handoff, banner, service loop ticking"
 shows = "The exact command sequence CI already runs on every push, ending on the service loop visibly ticking."
 not_shows = "Hardware bring-up on the physical AGM M7 — that stays open regardless of what the recording shows; QEMU proves the boot path, not the modem/WiFi/BT/GPS vendor blobs."
@@ -34,11 +35,11 @@ The one thing the modem, WiFi, Bluetooth, and GPS radios have in common is that 
 
 ### No Linux, full Rust, one cross-compile target
 
-The kernel is excluded from the main Cargo workspace so it can cross-compile cleanly to `armv7a-none-eabi` bare metal, while the userspace crates (input, radios, telephony, security, crypto, UI) build against the host toolchain for testing. The trade-off: no existing Linux driver ecosystem to lean on, which means every subsystem — including ones a Linux port would get for free — gets written and tested from scratch. The upside is a kernel with no surface area beyond what's actually implemented.
+The kernel is excluded from the main Cargo workspace so it can cross-compile cleanly to `armv7a-none-eabi` bare metal, while the userspace crates (input, radios, telephony, security, crypto, UI) build against the host toolchain for testing. The trade-off: no existing Linux driver ecosystem to lean on, so every subsystem, including ones a Linux port would get for free, gets written and tested from scratch. The upside is a kernel with no surface area beyond what's actually implemented.
 
 ### Prove the boot path in emulation before the hardware exists
 
-Rather than wait for reliable access to physical AGM M7 hardware to validate anything, the kernel boots under QEMU (`qemu-system-arm -machine virt`) and CI asserts that boot on every push. This was a deliberate call: an emulated boot that runs on every commit is worth more than an occasional manual test against real hardware, even though QEMU can't exercise the MT6739's actual radio silicon. The rejected alternative — waiting for stable hardware access before standing up any CI signal — would have meant months with no automated proof the kernel even starts.
+Rather than wait for reliable access to physical AGM M7 hardware to validate anything, the kernel boots under QEMU (`qemu-system-arm -machine virt`) and CI asserts that boot on every push. This was a deliberate call: an emulated boot that runs on every commit is worth more than an occasional manual test against real hardware, even though QEMU can't exercise the MT6739's actual radio silicon. The rejected alternative, waiting for stable hardware access before standing up any CI signal, would have meant months with no automated proof the kernel even starts.
 
 ### Compiled-and-tested is not the same claim as wired-to-boot
 
@@ -48,7 +49,7 @@ Several higher-level capabilities (multi-screen UI routing, Bluetooth/GPS usersp
 
 **Solid:** the kernel boots end-to-end under QEMU — MMU and cache setup, the GIC, the scheduler, the first timer interrupt, the CSPRNG, every subsystem's init step degrading cleanly where the emulated board lacks real hardware, the boot-to-service handoff, and a cooperative service loop running as PID 0 off a 100 Hz timer. CI gates every push on three things: the kernel's host test suite, the bare-metal cross-compile, and the QEMU boot itself. The kernel implements and unit-tests the core of an OS: memory management, interrupts and scheduling, IPC and signals, syscalls, a VFS over persistent and in-memory filesystems, a CSPRNG, capabilities, power management, a watchdog.
 
-**Open:** hardware validation on a physical AGM M7 is the frontier — QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. Several implemented capabilities aren't wired to the boot/service loop yet (tracked as the boot-wiring epic). Real radio I/O (WiFi TX/RX, scan, association) is hardware work; the boot degrades to a fail-closed loopback path when the data path is absent. A live Aletheia runtime bridge (`metaxu`) is future work — the thin-client protocol surface exists, but nothing embeds a live agent runtime yet.
+**Open:** hardware validation on a physical AGM M7 is the frontier. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. Several implemented capabilities aren't wired to the boot/service loop yet (tracked as the boot-wiring epic). Real radio I/O (WiFi TX/RX, scan, association) is hardware work; the boot degrades to a fail-closed loopback path when the data path is absent. A live Aletheia runtime bridge (`metaxu`) is future work — the thin-client protocol surface exists, but nothing embeds a live agent runtime yet.
 
 ## Numbers, and how they were measured
 

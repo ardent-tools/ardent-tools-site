@@ -14,7 +14,7 @@ svg_diagram_caption = "No demo. This system is employer property; the patterns a
 
 [extra.headline_claim]
 claim = "137-tool MCP surface, triple-independently verified"
-receipt = "source attribute count, the auto-regenerated tool catalog, and a catalog-entry grep all agree · measured 2026-07-17"
+receipt = "stated in the system's own portfolio-cleared scale summary"
 +++
 
 ## What it is
@@ -27,7 +27,7 @@ This system is employer property. No repository link exists on this page and non
 
 ### Deferred-schema tool loading instead of front-loading everything
 
-A 137-tool MCP surface, loaded naively, means every agent turn pays the context cost of every tool's schema whether it uses it or not. Instead, tool discovery is gated — a `ToolSearch`-style pattern that only pulls a tool's schema into context when something actually needs it — enforced by a 10-verb naming canon and a drift-detecting audit gate. The audit gate wasn't decorative: at its first run it caught 105 of 128 tools sitting on non-canon verbs, which is real evidence the discipline was needed, not just a nice idea.
+A 137-tool MCP surface, loaded naively, means every agent turn pays the context cost of every tool's schema whether it uses it or not. Instead, tool discovery is gated: a `ToolSearch`-style pattern that only pulls a tool's schema into context when something actually needs it, enforced by a 10-verb naming canon and a drift-detecting audit gate. The audit gate wasn't decorative: at its first run it caught 105 of 128 tools sitting on non-canon verbs, which is real evidence the discipline was needed, not just a nice idea.
 
 ### Three write-guard layers, and an explicit decision not to add a fourth
 
@@ -49,15 +49,14 @@ Runbooks (the system's SME-encoded execution recipes) track their own per-phase 
 
 | Claim | Method | Where to check |
 |---|---|---|
-| 10-crate Rust workspace | crate count in `Cargo.toml`, 486 source files (`fd -e rs`) | private repo; artifact available on request |
-| 145,038 lines Rust (code-only), ~186K including embedded doc comments | `tokei` Code column, cross-checked by two independent measurement passes · 2026-07-17 | private repo; artifact available on request |
-| 2,885 test functions | `rg -c '#\[(tokio::)?test'` (2,797 plain + 88 async) · 2026-07-17 | private repo; artifact available on request |
-| 137-tool MCP surface | triple-confirmed: source attribute count, the auto-regenerated tool catalog (sourced from the live daemon), and a catalog-entry grep, all agreeing | private repo; artifact available on request |
-| 284 enforced rules across 13 machine-readable registries | `rg -c '^\[\[rule\]\]'` summed across registry files · 2026-07-17 | private repo; artifact available on request |
+| 10-crate Rust workspace | stated in the system's own portfolio-cleared scale summary | private repo; artifact available on request |
+| ~145K lines Rust (code-only) | stated in the system's own portfolio-cleared scale summary | private repo; artifact available on request |
+| 2,885 tests | stated in the system's own portfolio-cleared scale summary | private repo; artifact available on request |
+| 137-tool self-regenerating MCP catalog, triple-independently verified | stated in the system's own portfolio-cleared scale summary | private repo; artifact available on request |
+| 13 machine-enforced rule registries, 284 rules, verified zero-override track record | stated in the system's own portfolio-cleared scale summary | private repo; artifact available on request |
+| 9-stage local CI pipeline, designed to minimize metered CI spend | stated in the system's own portfolio-cleared scale summary | private repo; artifact available on request |
 
 </div>
-
-Where a stale or inflated figure exists elsewhere (an earlier internal deck cited 145 tools and 12 crates), this table uses the directly re-measured number, not the deck's.
 
 ## Where to look
 

@@ -37,10 +37,6 @@
 <p><a href="/systems/{{ section.extra.hero_demo.system }}/">Read the system &rarr;</a></p>
 {%- endif %}
 
-<div class="home-ctas">
-  <a href="/consulting/">Work with Ardent Tools &rarr;</a>
-</div>
-
 <h2>Selected work</h2>
 {%- set systems = get_section(path="systems/_index.md") %}
 {%- set selected = section.extra.selected_work | default(value=[]) %}
@@ -52,6 +48,12 @@
   {%- endfor %}
 </ul>
 <p class="selected-work-close"><a href="/systems/">All systems &rarr;</a> &middot; <a href="/demos/">Every recording on one page &rarr;</a> &middot; <a href="/writing/">Writing &rarr;</a></p>
+{#- Quiet second CTA (Addendum), beside — not inside — the portfolio
+   entry-point line above: same quiet mono treatment, own row, so the
+   hiring-manager path stays visually primary during the W2 search. #}
+<div class="home-ctas">
+  <a href="/consulting/">Work with Ardent Tools &rarr;</a>
+</div>
 
 <div class="practice-paragraph">
 {{ section.content | safe }}
