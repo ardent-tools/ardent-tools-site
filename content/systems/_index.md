@@ -8,4 +8,4 @@ template = "systems.html"
 list_caption = "Order is a weight in each page's own frontmatter — reorderable at zero design cost."
 +++
 
-Eight systems: five public repos, one private tool with a public track record (kanon), and two Summus case studies (ergon-tools, nosologia) written entirely inside what's been cleared for public description. The order below is deliberate: it runs from the deepest proof (a kernel booting, on camera, on every CI push) down through case studies where the proof is a write-up instead of a repo.
+Six systems: five public repos and one private tool with a public track record (kanon). The order below is deliberate: it runs from the deepest proof (a kernel booting, on camera, on every CI push) toward the design-phase end of the fleet. Systems built in employment are described under professional experience, not here.

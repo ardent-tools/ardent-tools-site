@@ -5,7 +5,7 @@ template = "faq.html"
 
 [[extra.questions]]
 q = "Why are some repos private?"
-a = "Two different reasons. kanon is private by choice — it's not yet hardened for public traffic, even though five other repos on this site depend on it in production. ergon-tools and nosologia are private because they're employer property, full stop; nothing about their privacy is a maturity judgment. The case-study pages for all three exist so the design thinking is visible without the source."
+a = "Two different reasons. kanon is private by choice — it's not yet hardened for public traffic, even though five other repos on this site depend on it in production; its case-study page exists so the design thinking is visible without the source. Systems I built in employment belong to that employer and are described only as professional experience, never presented as portfolio."
 anchor = "private-repos"
 
 [[extra.questions]]
@@ -15,7 +15,7 @@ anchor = "labeling"
 
 [[extra.questions]]
 q = "Are you open to relocation or remote work?"
-a = "Remote-first now, based in Austin, Texas. That needs to stay compatible with a move planned for around 2027 — happy to talk specifics directly rather than list them here."
+a = "Remote-first, based in Austin, Texas. Happy to talk specifics directly."
 anchor = "remote"
 
 [[extra.questions]]
