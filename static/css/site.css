@@ -188,7 +188,7 @@ main {
    considered middle column: home/system-page ledes, the consulting line,
    demos' intro paragraph. Replaces each class's own scattered 60ch cap
    with the one shared token. */
-.home-lede, .page-lede, .consulting-line, .demos-intro {
+.home-lede, .page-lede, .consulting-line, .demos-intro, .consulting-header {
   max-width: var(--width-display);
 }
 
@@ -1059,11 +1059,22 @@ footer {
   padding-block: var(--space-m) var(--space-l);   /* the close gets room to land */
 }
 
-/* === Consulting (§Addendum) === */
+/* === Consulting (§Addendum, §1.3 DESIGN-v1.3) === */
 .engagement-shapes {
   display: grid;
   gap: var(--space-m);
   margin: var(--space-m) 0 var(--space-l);
+}
+
+/* Shell-width 3-col grid (§1.3 table: engagement_shapes exits .prose to
+   shell tier). Own breakpoint, not a reuse of .ledger-grid's class (that
+   grid steps 2-col at 1024px / 3-col at 1680px) -- same grid+media-query
+   idiom, three shapes fit one row at the width the reading-prose column
+   would otherwise leave idle. */
+@media (min-width: 1024px) {
+  .engagement-shapes {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .engagement-shape h3 {
