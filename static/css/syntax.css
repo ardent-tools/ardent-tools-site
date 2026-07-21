@@ -54,19 +54,7 @@ pre.giallo code {
   font-style: italic;
 }
 
-@media (prefers-color-scheme: dark) {
-  /* --accent-aged(dark) on --bg-accent(dark) is 3.45:1 — fails AA for
-     this component specifically (it's tuned as a hover-state color,
-     §2.1, not for small syntax-highlighted text on a panel; DESIGN-v1.1
-     §5.1 names this as the one known undispositioned failure — re-checked
-     against the v1.1 dark palette, still fails, same disposition holds).
-     --accent itself clears 4.54:1 in the same pairing; swap only here,
-     the shared token is unchanged. */
-  .z-keyword,
-  .z-storage {
-    color: var(--accent);
-  }
-}
+
 
 /* Inline code (single backticks, not fenced) */
 code:not(pre code) {
