@@ -80,7 +80,7 @@ uri = "https://ardent.tools/about/"
 # renderings, per the fleet's centralized-config rule.
 [extra.person]
 name = "Cody Kickertz"
-job_title = "Agent harness engineer"
+job_title = "AI Systems Architect"
 email = "cody@ardent.tools"
 github = "https://github.com/forkwright"
 linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
