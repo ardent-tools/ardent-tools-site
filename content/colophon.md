@@ -7,7 +7,7 @@ description = "How this site is built: Zola and typikon, self-hosted fonts and p
 
 Static site. Zola. Self-hosted fonts and player. No trackers, no analytics, no CDN.
 
-This site is its own receipt: the repo is public, so the gate config, the CSP, and the recording scripts are all inspectable. [View source →](https://github.com/forkwright/ardent-tools)
+This site is its own receipt: the repo is public, so the gate config, the CSP, and the recording scripts are all inspectable. [View source →](https://github.com/ardent-tools/site)
 
 <div class="receipt-table-wrap">
 
