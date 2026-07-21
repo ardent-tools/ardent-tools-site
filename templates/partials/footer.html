@@ -2,11 +2,13 @@
    footer renders one brand line + one flat footer_links row — this site
    needs three mono clusters + a sibling-brand line (DESIGN §3.7), which
    a flat link list can't produce. Reads config.toml [extra.person] and
-   [extra.footer]. #}
+   [extra.footer]. Each cluster carries a one-word kicker label (§W9 —
+   the designed close): Reach / Site. #}
 <footer>
   <div class="site-footer-clusters">
     {%- if config.extra.person %}
     <div class="site-footer-cluster">
+      <span class="footer-kicker">Reach</span>
       {%- set p = config.extra.person %}
       {%- if p.email %}<a href="mailto:{{ p.email }}">{{ p.email }}</a>{% endif %}
       {%- if p.github %} &middot; <a href="{{ p.github | safe }}" rel="me">GitHub</a>{% endif %}
@@ -15,6 +17,7 @@
     {%- endif %}
     {%- if config.extra.footer.site_links %}
     <div class="site-footer-cluster">
+      <span class="footer-kicker">Site</span>
       {%- for link in config.extra.footer.site_links -%}
         {%- if not loop.first %} &middot; {% endif -%}
         <a href="{{ link.url | safe }}">{{ link.label }}</a>
