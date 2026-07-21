@@ -19,14 +19,20 @@
 
 :root {
   color-scheme: light;
-  /* === Width tiers (§1.2, DESIGN-v1.1) — two-tier shell: prose keeps a
-     reading measure, everything structural gets structural room. Replaces
-     typikon's single 780px --max-width for nav/main/footer (see the shell
-     rule + .prose below); --max-width itself is left untouched so any
-     un-shadowed typikon partial that still reads it doesn't break. */
-  --width-prose: 820px;   /* body copy: system-page prose, about, writing, faq answers */
-  --width-wide:  1200px;  /* nav, footer, main shell, catalog, receipt tables,
-                             terminal panels, demos stack, home composition, bands */
+  /* === Width tiers (§1.2, DESIGN-v1.3) — three-tier shell: prose keeps a
+     narrow, larger-set reading measure; display claims a considered middle
+     column for short editorial text; everything structural gets structural
+     room. Replaces typikon's single 780px --max-width for nav/main/footer
+     (see the shell rule + .prose below); --max-width itself is left
+     untouched so any un-shadowed typikon partial that still reads it
+     doesn't break. */
+  --width-prose:   680px;   /* was 820px — pairs with the 19px prose size below:
+                               680px @ 19px = 80 real characters per line */
+  --width-display: 940px;   /* ledes, consulting line, demos intro — ~geometric
+                               mean of prose and shell */
+  --width-wide:    1200px;  /* nav, footer, main shell, catalog, receipt tables,
+                               terminal panels, demos stack, home composition,
+                               bands; steps to 1360px at >=1680px (below) */
 
   /* === Palette — light ("bond paper") === Leatherworks family stock,
      worn professionally (DESIGN-v1.1 §5.1). --accent/--accent-aged/--warn
@@ -157,6 +163,9 @@ main {
    Catalog, demos stack, home composition, and terminal panels stay
    unwrapped at shell width (DESIGN-v1.1 §1.2's own width-wide list). */
 .prose {
+  font-size: 1.1875rem;     /* 19px — load-bearing: 680px @ 16px is 95 real
+                               chars, back past every guideline. Width and
+                               size move together or the fix doesn't hold. */
   max-width: var(--width-prose);
   margin-inline: auto;
 }
@@ -173,6 +182,22 @@ main {
 .prose > .receipt-table-wrap {
   width: 100cqw;
   margin-inline: calc(50% - 50cqw);
+}
+
+/* Display tier (§1.2, §1.3) — short editorial text that claims a
+   considered middle column: home/system-page ledes, the consulting line,
+   demos' intro paragraph. Replaces each class's own scattered 60ch cap
+   with the one shared token. */
+.home-lede, .page-lede, .consulting-line, .demos-intro {
+  max-width: var(--width-display);
+}
+
+/* Shell ceiling step (§1.2) — the viewport band where dead margin is
+   worst gains real room; the ledger grid gains a real column rather than
+   the shell just growing its margins. */
+@media (min-width: 1680px) {
+  :root { --width-wide: 1360px; }
+  .ledger-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* === Radius discipline: 0 everywhere except badges (2px) === */
@@ -641,7 +666,6 @@ a.badge:focus-visible {
   font-family: var(--font-body);
   font-size: var(--step-1);
   color: var(--text-mid);
-  max-width: 60ch;
 }
 
 /* === Terminal panel (§3.1) — the base primitive === */
@@ -919,7 +943,6 @@ a:active {
   font-family: var(--font-body);
   font-size: var(--step-1);
   color: var(--text-mid);
-  max-width: 60ch;
   margin-bottom: var(--space-l);
 }
 
@@ -934,9 +957,9 @@ a:active {
 
 .practice-paragraph {
   font-family: var(--font-body);
-  font-size: var(--step-0);
+  font-size: 1.1875rem;    /* prose tier (§1.3) — reading prose in home dress */
   color: var(--text-mid);
-  max-width: 70ch;
+  max-width: var(--width-prose);
   margin: var(--space-xl) 0;
   padding-top: var(--space-l);
   border-top: 1px solid var(--rule);
@@ -946,7 +969,6 @@ a:active {
   font-family: var(--font-body);
   font-size: var(--step-0);
   color: var(--text-mid);
-  max-width: 60ch;
   margin: 0;
 }
 
