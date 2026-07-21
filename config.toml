@@ -132,3 +132,11 @@ label = "Atom"
 # actually running it). The link works for a human visitor; this is
 # link-checker reality, not link rot.
 skip_prefixes = ["https://www.linkedin.com/"]
+
+# WHY: external-link failures WARN rather than ERROR in `zola check`. External
+# hosts return transient 5xx/timeouts (getzola.org 503'd mid-deploy, failing
+# the gate on a valid link). The dedicated lychee gate owns external-link
+# enforcement with retries (max_retries=3) + accept-codes; zola check's
+# retry-less external pass is redundant and flaky, so it warns, not blocks.
+# Internal links stay ERROR (Zola default).
+external_level = "warn"
