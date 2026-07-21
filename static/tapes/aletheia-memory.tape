@@ -14,8 +14,7 @@
 #               separately from source, not the default onboarding path
 #               this recording uses.
 #
-# WHY: recorded on the active build box (fleet/topology.toml) -- never
-#      metis (NO-BUILD). Run from the aletheia repo root:
+# Run from the aletheia repo root:
 #        vhs static/tapes/aletheia-memory.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's
 #           data-cols="80" data-rows="24"; confirm the actual PTY size on

@@ -12,8 +12,7 @@
 # Doesn't show: kanon's own source. Private by choice, not by necessity --
 #               artifact available on request.
 #
-# WHY: recorded on the active build box (fleet/topology.toml) -- never
-#      metis (NO-BUILD). Run from wherever both kanon and a public aletheia
+# Run from wherever both kanon and a public aletheia
 #      clone are reachable:
 #        vhs static/tapes/kanon-gate.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's
@@ -42,7 +41,7 @@ Type "clear"
 Enter
 # ALETHEIA points at a public aletheia clone on the build box -- never
 # kanon's own (private) source. Override the env var if the clone lives
-# somewhere other than the standard ~/dev/aletheia layout.
+# somewhere other than $HOME/dev/aletheia.
 Type "ALETHEIA=\"${ALETHEIA:-$HOME/dev/aletheia}\""
 Enter
 Show

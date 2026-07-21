@@ -12,8 +12,7 @@
 #               -- the WireGuard data plane isn't wired in; this recording
 #               won't stage a fake version of it.
 #
-# WHY: recorded on the active build box (fleet/topology.toml) -- never
-#      metis (NO-BUILD). Run from the hamma repo root:
+# Run from the hamma repo root:
 #        vhs static/tapes/hamma-tests.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's
 #           data-cols="80" data-rows="24"; confirm the actual PTY size on

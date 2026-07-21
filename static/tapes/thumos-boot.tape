@@ -12,8 +12,7 @@
 # Doesn't show: hardware bring-up on the physical AGM M7 -- still open;
 #               the recording claims exactly what CI proves, nothing more.
 #
-# WHY: recorded on the active build box (fleet/topology.toml) -- never
-#      metis (NO-BUILD). Run from the thumos repo root:
+# Run from the thumos repo root:
 #        vhs static/tapes/thumos-boot.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's
 #           data-cols="80" data-rows="24"; confirm the actual PTY size on
