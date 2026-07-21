@@ -70,11 +70,16 @@
   <p><a href="{{ page.extra.related_writing.href | safe }}">{{ page.extra.related_writing.label }}</a></p>
   {%- endif %}
   <a href="/systems/" class="up-link">&uarr; All systems</a>
-  {%- if page.higher %}
-  <a href="{{ page.higher.permalink | safe }}" rel="prev">&larr; {{ page.higher.title }}</a>
-  {%- endif %}
+  {#- Zola: page.lower = lighter weight (earlier in the §3.1 catalog
+     order thumos->...->hamma), page.higher = heavier weight (later).
+     "prev"/"<-" must point to the lighter/earlier page, "next"/"->" to
+     the heavier/later one, or the chain reads backwards against the
+     catalog's own top-to-bottom order. #}
   {%- if page.lower %}
-  <a href="{{ page.lower.permalink | safe }}" rel="next">{{ page.lower.title }} &rarr;</a>
+  <a href="{{ page.lower.permalink | safe }}" rel="prev">&larr; {{ page.lower.title }}</a>
+  {%- endif %}
+  {%- if page.higher %}
+  <a href="{{ page.higher.permalink | safe }}" rel="next">{{ page.higher.title }} &rarr;</a>
   {%- endif %}
 </nav>
 {% endblock content %}
