@@ -18,6 +18,12 @@
 #   - form-action carries no third-party entry. ardent-site's Buttondown
 #     allowlist entry doesn't apply here — this site has no form of any
 #     kind, so form-action stays 'self' only.
+#   - Speculation-Rules header (DESIGN-v1.3 §2.2) points at the external
+#     JSON file below. The header delivery path carries no CSP dependency
+#     at all (per MDN) — the inline <script type=speculationrules>
+#     alternative would need an 'inline-speculation-rules' script-src
+#     widening and is rejected for exactly that; Firefox/Safari ignore
+#     this header silently.
 
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
@@ -26,6 +32,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()
   Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+  Speculation-Rules: "/speculation-rules.json"
 
 # Long-cache for content-addressable static assets.
 # Cloudflare Pages adds the cache-busting query string in production
@@ -51,3 +58,10 @@
 
 /tapes/*
   Cache-Control: public, max-age=2592000, immutable
+
+# Speculation-Rules JSON (DESIGN-v1.3 §2.2) — the MIME override is
+# required, not optional: Cloudflare Pages defaults .json to
+# application/json, and the Speculation Rules API only honors the file
+# as valid rules under this exact content type.
+/speculation-rules.json
+  Content-Type: application/speculationrules+json

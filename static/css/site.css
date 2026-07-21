@@ -200,6 +200,35 @@ main {
   .ledger-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
+/* === Cross-document view transitions (§2.1, DESIGN-v1.3) — pure CSS,
+   no JS, same-origin navigation only. Default cross-fade only, no
+   slide/morph choreography (§2.5 rejects bespoke transition libraries).
+   Unsupported browsers navigate normally — total degradation. */
+@view-transition {
+  navigation: auto;
+}
+
+/* typikon's blanket reduced-motion sweep (style.css) zeroes
+   animation-duration/transition-duration on every element; it has no
+   reach into the @view-transition at-rule, which needs its own
+   opt-out. Both the outgoing and incoming document need this present —
+   site.css loads on every page, so one rule covers the whole site. */
+@media (prefers-reduced-motion) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
+/* Persistent chrome gets its own transition group so it doesn't
+   visually flicker inside the whole-page cross-fade. This site's nav
+   partial carries both the wordmark and the links in one <nav> (no
+   separate masthead element) — the aria-label is the stable, unique
+   selector; .entry-nav (system-page prev/next footer) carries a
+   different aria-label and is unaffected. */
+nav[aria-label="Main navigation"] {
+  view-transition-name: chrome;
+}
+
 /* === Radius discipline: 0 everywhere except badges (2px) === */
 .ap-player,
 div.ap-wrapper div.ap-player,

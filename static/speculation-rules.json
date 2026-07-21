@@ -1,0 +1,13 @@
+{
+  "prerender": [
+    { "source": "document",
+      "where": { "and": [
+        { "href_matches": "/*" },
+        { "not": { "href_matches": ["/", "/demos/*", "/systems/*", "/files/*"] } }
+      ] },
+      "eagerness": "moderate" },
+    { "source": "document",
+      "where": { "href_matches": ["/", "/demos/*", "/systems/*"] },
+      "eagerness": "conservative" }
+  ]
+}
