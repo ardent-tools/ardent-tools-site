@@ -27,6 +27,7 @@ When a sentence lands, the reader notices nothing. That is the definition of suc
 ## The floor (non-negotiable; violations are bugs)
 
 - **No hedging.** Hedge phrases — cut (the linter names them). If the writer isn't sure, the sentence isn't ready. Honest uncertainty is stated as fact ("hardware validation has not run yet"), never parked as a hedge next to a claim.
+- **No authorship flourish.** Describe the artifact and what it does; do not claim authorship as achievement ("a bare-metal OS I wrote, booting" -> "a bare-metal OS, booting"). The system exhibits the competence; naming the author declares it. Role statements in the resume/about ("I build X") are fine as fact; achievement-flourishes attached to a specific artifact are not, and under AI-driven development a solo-authorship claim on a complex artifact is also not honest.
 - **No self-grading.** The site never says its own work is *impressive, rigorous, elegant, high-quality* — the reader judges. Describe what was done; show what it produced. (This subsumes the banned self-assessing adjectives and the no-"production-ready" rule.)
 - **Banned vocabulary** - the fleet lint's WRITING ban list applies in full, plus the book contract's additions; enforced by `kanon lint`, not restated here (the vault copy at theke `site-design/VOICE-WEB.md` carries the verbatim list). Quoting a banned word to ban it still ships the word.
 - **No transitions.** Transition words — the section break does the work.
