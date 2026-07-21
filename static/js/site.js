@@ -49,6 +49,13 @@
       initPanel(el);
       el.removeEventListener("click", onActivate);
       el.removeEventListener("keydown", onKeydown);
+      // The live AsciinemaPlayer mounted by initPanel() is its own
+      // separately-interactive widget now; the placeholder's
+      // "Play recording" button semantics no longer describe this
+      // element and must not linger (WCAG 4.1.2 name/role/value).
+      el.removeAttribute("role");
+      el.removeAttribute("aria-label");
+      el.removeAttribute("tabindex");
     }
     function onKeydown(ev) {
       if (ev.key === "Enter" || ev.key === " ") {
