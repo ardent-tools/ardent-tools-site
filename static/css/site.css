@@ -616,8 +616,9 @@ a.badge:focus-visible {
 /* Wraps every receipt table's rendered <table> (§6: "own overflow-x:
    auto; the page body never scrolls horizontally"). Markdown tables have
    no attribute syntax to put a class directly on <table>, so every rule
-   below is scoped through this wrapper div instead. */
-/* Receipt plate (§W5) — the matted-frame treatment extended to the
+   below is scoped through this wrapper div instead.
+
+   Receipt plate (§W5) — the matted-frame treatment extended to the
    third evidence artifact: terminal = screen under mat, diagram = paper
    plate, receipts = ledger plate. Reserved for terminal panels, diagram
    plates, and receipt tables only - never prose, catalogs, or FAQ items. */
