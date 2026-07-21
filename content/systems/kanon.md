@@ -39,7 +39,7 @@ Every repo in the fleet could have carried its own clippy config, its own commit
 
 ### Private by choice, not by necessity
 
-kanon stays private not because the source is sensitive, but because it isn't yet hardened for public traffic the way the fleet's other repos are. That's a different reason than ergon-tools' or nosologia's privacy (those are employer property, not a choice). The trade-off accepted here: a stronger portfolio artifact would be a public repo with real stars and real issues; the current call prioritizes not shipping a standards tool to strangers before it's ready for that audience.
+kanon stays private not because the source is sensitive, but because it isn't yet hardened for public traffic the way the fleet's other repos are. Systems built in employment are a different case entirely — employer property, described on this site only as experience. The trade-off accepted here: a stronger portfolio artifact would be a public repo with real stars and real issues; the current call prioritizes not shipping a standards tool to strangers before it's ready for that audience.
 
 ### Demo against a public repo, never kanon's own source
 

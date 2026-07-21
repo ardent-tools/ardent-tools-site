@@ -3,10 +3,10 @@ title = "Ardent Tools"
 template = "index.html"
 
 [extra]
-kicker = "CODY KICKERTZ · AGENT HARNESS ENGINEERING · REMOTE (AUSTIN, TX)"
+kicker = "CODY KICKERTZ · AI SYSTEMS ARCHITECTURE · REMOTE (AUSTIN, TX)"
 h1 = "Systems you can watch working."
 lede = "I build agent infrastructure: the standards gates, guardrails, memory, and review loops that let AI agents do real engineering work you can verify. Claims on this site come with recordings or measurement methods attached. The first one is below — a bare-metal OS I wrote, booting."
-selected_work = ["aletheia", "kanon", "ergon-tools"]
+selected_work = ["aletheia", "kanon", "thumos"]
 
 [extra.hero_demo]
 system = "thumos"
