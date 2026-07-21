@@ -4,7 +4,7 @@ template = "index.html"
 
 [extra]
 kicker = "CODY KICKERTZ · AI SYSTEMS ARCHITECTURE · REMOTE (AUSTIN, TX)"
-h1 = "Systems you can watch working."
+h1 = "Working systems, recorded."
 lede = "Agent infrastructure: the gates, guardrails, memory, and review loops that make AI-driven engineering verifiable. The first proof is below — a bare-metal OS, booting."
 selected_work = ["aletheia", "kanon", "thumos"]
 consulting_line = "Ardent Tools takes a small number of consulting engagements: agent infrastructure, governed AI platforms, standards-as-code."
