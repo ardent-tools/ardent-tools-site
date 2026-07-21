@@ -8,7 +8,7 @@
   <polygon points="474,130 486,130 480,142" fill="#1C1917"/>
 
   <rect x="60" y="145" width="840" height="90" fill="#F3F2ED" stroke="#9E4A1E" stroke-width="1.5"/>
-  <text x="480" y="180" text-anchor="middle" font-size="18" font-weight="600" fill="#7C3A18">FINE-TUNED EMBEDDING MODEL (Eidos v3)</text>
+  <text x="480" y="180" text-anchor="middle" font-size="18" font-weight="600" fill="#7C3A18">FINE-TUNED EMBEDDING MODEL</text>
   <text x="480" y="207" text-anchor="middle" font-size="14" fill="#45423C">MNRL + Matryoshka, fresh from a stock checkpoint &#183; 1.35M training pairs, 28 sources</text>
 
   <line x1="480" y1="235" x2="480" y2="260" stroke="#1C1917" stroke-width="1.5"/>

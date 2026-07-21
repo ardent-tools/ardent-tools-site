@@ -19,6 +19,7 @@ system = "aletheia"
 action = "memory recall across turns"
 target = "local model, no cloud key"
 duration = "1:30"
+tape = "/tapes/aletheia-memory.tape"
 placeholder = "RECORDING FORTHCOMING: TUI session — state a fact in turn 1, ask something unrelated in turn 2, ask for recall in turn 3, agent cites the turn-1 fact back correctly"
 shows = "A fact stated in turn 1, recalled correctly and cited back in turn 3, running against a local model with no cloud API key."
 not_shows = "The desktop app — it's a v1.0-target preview, installed separately from source, not the default onboarding path this recording uses."
@@ -34,7 +35,7 @@ It ships as a single binary — no containers, no external database, no sidecar 
 
 ### TUI first, desktop app as a preview, not the default path
 
-The terminal dashboard is the default onboarding surface today; a Dioxus desktop app exists and can be installed as a preview from a source checkout, but it's explicitly the v1.0 target, not what a new user is pointed at first. The alternative — leading with the desktop app before it's ready for that role — would have shipped a worse first impression in exchange for a flashier README. The project didn't take that trade.
+The terminal dashboard is the default onboarding surface today; a Dioxus desktop app exists and can be installed as a preview from a source checkout, but it's explicitly the v1.0 target, not what a new user is pointed at first. The alternative, leading with the desktop app before it's ready for that role, would have shipped a worse first impression in exchange for a flashier README. The project didn't take that trade.
 
 ### One binary over an external-database architecture
 
@@ -56,9 +57,9 @@ Every tool call carries an HMAC-SHA256 receipt, and loop detection combines thre
 
 | Claim | Method | Where to check |
 |---|---|---|
-| 548,531 lines Rust (code-only), 620,898 including comments | `tokei` against a local clone HEAD, 2026-07-20 | reproducible: `tokei` on a fresh clone |
+| 550,309 lines Rust (code-only), 622,922 including comments | `tokei` against a local clone HEAD, 2026-07-20 | reproducible: `tokei` on a fresh clone |
 | 30 workspace crates | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
-| ~12,094 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
+| ~12,124 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
 | No telemetry, no phone-home, no crash reports | stated network posture, enumerated | `docs/NETWORK.md` in the repo — every outbound call the binary makes |
 
 </div>

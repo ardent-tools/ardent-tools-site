@@ -24,7 +24,11 @@ This site is its own receipt: the repo is public, so the gate config, the CSP, a
 
 ## CSP posture
 
-`script-src 'self'` — every script is a first-party file, nothing inline, nothing from a CDN. The one carve-out is `'wasm-unsafe-eval'`, required because the vendored recording player compiles a WebAssembly module inline for its terminal-rendering core; see `_headers` for the exact directive and the note on its in-browser verification status. `style-src 'self'` — no inline `style="..."` attributes anywhere; code listings use Zola's class-based syntax highlighting rather than inline colors specifically so this holds. `form-action 'self'` only — this site carries no third-party form destination, because it carries no form at all.
+`script-src 'self'` — every script is a first-party file, nothing inline, nothing from a CDN. The one carve-out is `'wasm-unsafe-eval'`, required because the vendored recording player compiles a WebAssembly module inline for its terminal-rendering core; see `_headers` for the exact directive and the note on its in-browser verification status.
+
+`style-src 'self'`: no inline `style="..."` attributes anywhere. Code listings use Zola's class-based syntax highlighting rather than inline colors specifically so this holds.
+
+`form-action 'self'` only. This site carries no third-party form destination, because it carries no form at all.
 
 ## The gate
 

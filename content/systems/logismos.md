@@ -8,17 +8,18 @@ template = "system.html"
 badge = "PHASE 4 BLOCKED ON HARDWARE"
 repo = "https://github.com/forkwright/logismos"
 stack = "Rust · HIP/hipBLASLt · AMD gfx1100"
-demo_len = "0:60"
+demo_len = "1:00"
 
 [extra.headline_claim]
-claim = "Phases 0-3 complete — Stella 1.5B runs end-to-end on CPU with golden-fixture parity"
+claim = "Phases 0-3 complete — Stella 1.5B v5 runs end-to-end on CPU with golden-fixture parity"
 receipt = "logismos/README.md status line; crates/logismos/tests/phase_3_stella_parity.rs"
 
 [extra.demo]
 system = "logismos"
 action = "CPU golden-fixture parity test"
 target = "phase_3_stella_parity, against a committed fixture"
-duration = "0:60"
+duration = "1:00"
+tape = "/tapes/logismos-parity.tape"
 placeholder = "RECORDING FORTHCOMING: cargo test -p logismos --test phase_3_stella_parity passing against the committed CPU baseline fixture"
 shows = "The correctness harness passing on CPU, against a fixture committed to the repo — proof the inference path is correct independent of GPU hardware."
 not_shows = "Any GPU run. Phase 4 is hardware-blocked; this recording won't stage one to imply otherwise."
@@ -55,7 +56,7 @@ The project is scoped to exactly what its consumer (a knowledge substrate needin
 | Claim | Method | Where to check |
 |---|---|---|
 | CPU golden-fixture parity test passes | `cargo test -p logismos --test phase_3_stella_parity` | `phases/03-stella/golden/` in the repo — the fixture itself |
-| 10,941 lines Rust (code-only), 12,663 including comments | `tokei` against a local clone, 2026-07-20 | reproducible: `tokei` on a fresh clone |
+| 10,947 lines Rust (code-only), 12,689 including comments | `tokei` against a local clone, 2026-07-20 | reproducible: `tokei` on a fresh clone |
 | 27 workspace crates, deliberately small and tightly scoped | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
 
 </div>
