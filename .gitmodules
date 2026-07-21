@@ -1,0 +1,3 @@
+[submodule "themes/typikon"]
+	path = themes/typikon
+	url = https://github.com/forkwright/typikon.git

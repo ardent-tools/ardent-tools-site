@@ -1,0 +1,64 @@
+{# system.html — one page per system (§4.2). Extends typikon's own
+   page.html (open `page` schema is legal today per typikon-capabilities
+   §3 — extra.additionalProperties is true; a strict `system` content
+   schema is the documented v2 upgrade path, not required to build this).
+   Order is the thesis: fact row, then the demo (or the ergon-tools/
+   nosologia SVG-diagram variant, §4.2), then the markdown body carries
+   "What it is" through "Where to look," then the mechanical prev/next
+   footer row.
+#}
+{% extends "page.html" %}
+{% import "partials/term-panel.html" as term_panel %}
+
+{% block content %}
+<header>
+  <h1>{{ page.title }}</h1>
+  {%- if page.description %}
+  <p class="page-lede">{{ page.description }}</p>
+  {%- endif %}
+  <div class="fact-row">
+    {%- if page.extra.badge %}
+    <a href="/faq/#labeling" class="badge">{{ page.extra.badge }}</a>
+    {%- endif %}
+    {%- if page.extra.repo %}
+    <a href="{{ page.extra.repo | safe }}">Repo &rarr;</a>
+    {%- elif page.extra.private %}
+    <span class="private-chip">PRIVATE &middot; CASE STUDY</span>
+    {%- endif %}
+    {%- if page.extra.stack %}
+    <span>{{ page.extra.stack }}</span>
+    {%- endif %}
+    {%- if page.extra.headline_claim %}
+    <span><span class="claim">{{ page.extra.headline_claim.claim }}</span> <span class="receipt">&middot; {{ page.extra.headline_claim.receipt }}</span></span>
+    {%- endif %}
+  </div>
+</header>
+
+{%- if page.extra.svg_diagram %}
+<figure class="term-panel breakout">
+  <div class="term-meta">
+    <span>{{ page.title }} &middot; architecture</span>
+  </div>
+  <div class="term-mat diagram-plate">
+    <img class="diagram-img" src="/{{ page.extra.svg_diagram | safe }}" alt="{{ page.extra.svg_diagram_alt | default(value=page.title ~ ' architecture diagram') }}" width="960" height="540">
+  </div>
+  <figcaption class="term-caption">{{ page.extra.svg_diagram_caption | default(value="No demo. This system is employer property; the patterns are the transferable part.") }}</figcaption>
+</figure>
+{%- elif page.extra.demo %}
+{{ term_panel::panel(demo=page.extra.demo, hero=false, label=page.title ~ " demo") }}
+{%- endif %}
+
+{{ page.content | safe }}
+
+<nav class="entry-nav" aria-label="System navigation">
+  {%- if page.extra.related_writing %}
+  <p><a href="{{ page.extra.related_writing.href | safe }}">{{ page.extra.related_writing.label }}</a></p>
+  {%- endif %}
+  {%- if page.higher %}
+  <a href="{{ page.higher.permalink | safe }}" rel="prev">&larr; {{ page.higher.title }}</a>
+  {%- endif %}
+  {%- if page.lower %}
+  <a href="{{ page.lower.permalink | safe }}" rel="next">{{ page.lower.title }} &rarr;</a>
+  {%- endif %}
+</nav>
+{% endblock content %}

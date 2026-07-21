@@ -1,0 +1,21 @@
+{# demos.html — every recording on one page, click-to-play (§4.3). The
+   cold-outreach URL. Data-driven from content/demos.md's
+   [[extra.demos]] array (each item is a term-panel `demo` object) plus
+   [[extra.placards]] for systems that cannot have a demo by policy
+   (private repos — ergon-tools, nosologia).
+#}
+{% extends "page.html" %}
+{% import "partials/term-panel.html" as term_panel %}
+
+{% block content %}
+<h1>{{ page.title }}</h1>
+{{ page.content | safe }}
+
+{%- for demo in page.extra.demos | default(value=[]) %}
+{{ term_panel::panel(demo=demo, hero=false, label=demo.system ~ " " ~ demo.action) }}
+{%- endfor %}
+
+{%- for p in page.extra.placards | default(value=[]) %}
+{{ term_panel::placard(system=p.system, note=p.note, href=p.href) }}
+{%- endfor %}
+{% endblock content %}

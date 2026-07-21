@@ -1,0 +1,34 @@
+{# Schema.org/Person JSON-LD (consumer-added, same ld-*.html pattern
+   typikon ships six of). A solo portfolio is a person; recruiters search
+   the person, not the brand string (DESIGN §1). Included by default from
+   the base.html ld_json block alongside typikon's stock Organization
+   partial — both ship in v1 per the consulting-surface addendum.
+
+   Inputs from config.toml [extra.person]:
+     name, job_title, email, github, linkedin
+#}
+{%- if config.extra.person %}
+{%- set p = config.extra.person -%}
+{%- set person_url = config.base_url ~ "/about/" -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": {{ p.name | json_encode | safe }},
+  "url": {{ person_url | json_encode | safe }}
+  {%- if p.job_title -%},
+  "jobTitle": {{ p.job_title | json_encode | safe }}
+  {%- endif -%}
+  {%- if p.email -%}
+  {%- set person_email = "mailto:" ~ p.email -%},
+  "email": {{ person_email | json_encode | safe }}
+  {%- endif -%}
+  {%- set sameas = [] -%}
+  {%- if p.github -%}{%- set_global sameas = sameas | concat(with=p.github) -%}{%- endif -%}
+  {%- if p.linkedin -%}{%- set_global sameas = sameas | concat(with=p.linkedin) -%}{%- endif -%}
+  {%- if sameas | length > 0 -%},
+  "sameAs": {{ sameas | json_encode | safe }}
+  {%- endif %}
+}
+</script>
+{%- endif %}

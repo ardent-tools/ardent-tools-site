@@ -1,0 +1,121 @@
+# Ardent Tools — site config (Zola + typikon).
+title = "Ardent Tools"
+description = "Agent infrastructure engineering. Recordings and receipts, not claims."
+base_url = "https://ardent.tools"
+default_language = "en"
+output_dir = "public"
+theme = "typikon"
+generate_feeds = true
+feed_filenames = ["atom.xml"]
+
+[markdown]
+smart_punctuation = true
+
+[markdown.highlighting]
+# Class-based highlighting only. Zola's default (`style = "inline"`)
+# emits style="color:#xxxxxx" per token, which ci/csp-enforce.sh
+# hard-fails (strict CSP carries no style-src 'unsafe-inline'). NOTE:
+# DESIGN.md and typikon-capabilities.md both name this as a flat
+# `[markdown] highlight_code = true, highlight_theme = "css"` pair —
+# that was Zola's pre-0.22 syntect-based config. Zola 0.22 replaced the
+# highlighter with Giallo (VSCode TextMate grammars) and moved
+# everything under this nested [markdown.highlighting] table with
+# `style = "class"|"inline"`; verified against the installed zola 0.22.1
+# binary, which rejects the old flat keys outright. `theme` is required
+# by Zola even in class mode (it still auto-generates a same-named
+# giallo.css into the build output) but this site never links that
+# file — static/css/syntax.css supplies its own three-ink pass (§3.5)
+# over the emitted `z-*` classes instead of any stock theme's colors.
+style = "class"
+theme = "github-light"
+
+[extra]
+# Brand strings — read by typikon's base.html / nav.html / footer.html.
+# No brand_greek, no triad, no home_logo: plain-English register, no
+# Greek-branch templates activated (every Greek path in typikon is
+# {% if %}-gated on a config field this site never sets).
+brand_name = "ardent.tools"
+logo_path = "img/favicon.svg"
+theme_color = "#F3F2ED"
+og_locale = "en_US"
+og_image = "img/og-card.svg"
+
+# Self-hosted font preload — the two highest-frequency files. Plex Mono
+# 400 and Spectral 400 are typikon-vendored already; Plex Mono 600 (the
+# one new file this site adds) preloads too since it carries every
+# headline on the site.
+font_preload = [
+  "/fonts/ibm-plex-mono-400.woff2",
+  "/fonts/spectral-400.woff2",
+  "/fonts/plex-mono-600-latin.woff2",
+]
+
+# Top-nav structure (IA §1). No dropdowns, no hamburger, not sticky.
+# Resume is last by position — static/css/site.css styles
+# .nav-links a:last-child as the one filled button on the site.
+nav_items = [
+  { url = "/systems/", label = "Systems" },
+  { url = "/demos/",   label = "Demos" },
+  { url = "/writing/", label = "Writing" },
+  { url = "/about/",   label = "About" },
+  { url = "/contact/", label = "Contact" },
+  { url = "/resume/",  label = "Resume" },
+]
+
+# typikon's stock ld-organization.html partial (kept, unshadowed — see
+# partials/ld-person.html for the added Person JSON-LD) reads this key
+# for Organization.sameAs. This site's footer is a consumer shadow using
+# [extra.footer] instead (below), so this stays empty — sameAs lives on
+# the Person entity via [extra.person] instead, per DESIGN §1.
+footer_links = []
+
+# Author — used by typikon's Article JSON-LD (journal entries) and the
+# atom feed's <author>.
+[extra.author]
+name = "Cody Kickertz"
+uri = "https://ardent.tools/about/"
+
+# Person JSON-LD (partials/ld-person.html, consumer-added) + the
+# footer's reach cluster both read this one table — one source, two
+# renderings, per the fleet's centralized-config rule.
+[extra.person]
+name = "Cody Kickertz"
+job_title = "Agent harness engineer"
+email = "cody@ardent.tools"
+github = "https://github.com/forkwright"
+linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
+
+# Footer (partials/footer.html, consumer-shadowed — three mono clusters
+# per DESIGN §3.7, more structure than typikon's stock flat footer_links
+# list can carry).
+[extra.footer]
+colophon_summary = "Static site. Zola. Self-hosted fonts and player. No trackers, no analytics, no CDN."
+sibling_url = "https://ardentleatherworks.com"
+sibling_label = "SIBLING WORKSHOP: ARDENT LEATHERWORKS"
+
+[[extra.footer.site_links]]
+url = "/faq/"
+label = "FAQ"
+
+[[extra.footer.site_links]]
+url = "/colophon/"
+label = "Colophon"
+
+[[extra.footer.site_links]]
+url = "/resume/"
+label = "Resume"
+
+[[extra.footer.site_links]]
+url = "/atom.xml"
+label = "Atom"
+
+[link_checker]
+# LinkedIn returns a fake "999" status to automated HEAD/GET requests
+# regardless of cadence (same class of false positive as lychee.toml's
+# existing Instagram skip, kept there for the CI-side lychee pass — this
+# is the equivalent for zola's own built-in `zola check` external-link
+# validation, a Zola capability newer than what DESIGN.md/
+# typikon-capabilities.md describe zola check as covering; verified by
+# actually running it). The link works for a human visitor; this is
+# link-checker reality, not link rot.
+skip_prefixes = ["https://www.linkedin.com/"]

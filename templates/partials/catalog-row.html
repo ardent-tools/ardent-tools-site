@@ -1,0 +1,46 @@
+{# Catalog row (DESIGN §3.2) — a typographic ledger row, not a card.
+   Data-driven from a page's own frontmatter; adding a system is one
+   frontmatter edit, no hand-authored HTML. Used by systems.html (loops
+   every page in content/systems/) and index.html's "selected work"
+   block (a filtered subset of the same section, same macro).
+
+   Reads from `page`: title, description, permalink, and:
+     extra.badge       — maturity stamp text (§3.3), quoted from the
+                          repo's own status line
+     extra.repo        — public repo URL, when one exists
+     extra.private     — true when there is no public repo (renders
+                          "PRIVATE · CASE STUDY" in its place)
+     extra.demo_len    — recording duration, e.g. "0:52"
+     extra.demo_href   — link target for the watch link (defaults to
+                          the page itself)
+#}
+{% macro row(page) %}
+<li class="catalog-row">
+  <div class="catalog-row-name"><a href="{{ page.permalink | safe }}">{{ page.title }}</a></div>
+  {%- if page.description %}
+  <p class="catalog-row-desc">{{ page.description }}</p>
+  {%- endif %}
+  <div class="catalog-row-meta">
+    {%- if page.extra.badge %}
+    <span><a href="/faq/#labeling">{{ page.extra.badge }}</a></span>
+    {%- endif %}
+    {%- if page.extra.repo %}
+    <span><a href="{{ page.extra.repo | safe }}">PUBLIC REPO</a></span>
+    {%- elif page.extra.private %}
+    <span>PRIVATE &middot; CASE STUDY</span>
+    {%- endif %}
+    {%- if page.extra.demo_len %}
+    {%- set watch_href = page.extra.demo_href | default(value=page.permalink) %}
+    {# WHY: `default()`'s fallback branch drops a trailing `| safe` on the
+       SAME expression (verified against the installed zola 0.22.1 —
+       reproducible with any `x | default(value=y) | safe` where x is
+       undefined: the fallback renders HTML-entity-escaped, e.g. `/` as
+       `&#x2F;`, even with `safe` chained after). Capturing the result via
+       `set` first, then piping that variable through `safe` in its own
+       `{{ }}` expression, avoids it — this is not a typo, don't "simplify"
+       it back to one line. #}
+    <span><a href="{{ watch_href | safe }}">WATCH: {{ page.extra.demo_len }} &rarr;</a></span>
+    {%- endif %}
+  </div>
+</li>
+{% endmacro row %}

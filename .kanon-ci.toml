@@ -1,0 +1,26 @@
+# archetype:
+# forge-only: false
+# spdx:
+
+# ardent-tools CI pipeline — sentinel for the forge post-receive hook.
+#
+# The full strict gate (typikon-validate + zola check + zola build +
+# csp-enforce + lychee + pa11y + playwright + Cloudflare Pages deploy)
+# lives in .github/workflows/deploy.yml — that's where the real CI runs,
+# on the GitHub mirror, since wrangler is the only tested Cloudflare
+# Pages deploy path (matches the pinned typikon SHA's own scaffold
+# output — ci/kanon-ci.toml.tmpl doesn't exist yet at this pin; a later
+# typikon-refresh may replace this sentinel with a rendered multi-stage
+# file once that template lands). The forge post-receive trigger needs
+# *something* though, so this sentinel keeps the hook honest without
+# duplicating the real gate.
+
+[pipeline]
+stages = ["checkout-ok"]
+
+[stages.checkout-ok]
+cmd = "true"
+timeout_secs = 10
+
+[verifier]
+enabled = false
