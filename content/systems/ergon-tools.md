@@ -21,17 +21,17 @@ receipt = "stated in the system's own portfolio-cleared scale summary"
 
 ergon-tools is an agent-native Rust harness I built for a healthcare-analytics team: a 10-crate workspace exposing a 137-tool MCP surface and a 47-subcommand CLI over a regulated data warehouse, with SQL write-guards, fail-closed data-hygiene enforcement, a machine-enforced standards registry, and a deterministic self-improvement loop that doesn't rely on an LLM grading its own work.
 
-This system is employer property. No repository link exists on this page and none will — the write-up below stays entirely within what's already been cleared for public description; the warehouse schema, product names, and stakeholder names all stay out. What's public here is the shape of the engineering, not the domain it runs in.
+This system is employer property. No repository link exists on this page and none will — the write-up below stays entirely within what's already been cleared for public description; the warehouse schema, internal naming, and stakeholder names all stay out. What's public here is the shape of the engineering, not the domain it runs in.
 
 ## Decisions and trade-offs
 
 ### Deferred-schema tool loading instead of front-loading everything
 
-A 137-tool MCP surface, loaded naively, means every agent turn pays the context cost of every tool's schema whether it uses it or not. Instead, tool discovery is gated: a `ToolSearch`-style pattern that only pulls a tool's schema into context when something actually needs it, enforced by a 10-verb naming canon and a drift-detecting audit gate. The audit gate wasn't decorative: at its first run it caught 105 of 128 tools sitting on non-canon verbs, which is real evidence the discipline was needed, not just a nice idea.
+A 137-tool MCP surface, loaded naively, means every agent turn pays the context cost of every tool's schema whether it uses it or not. Instead, tool discovery is gated: a `ToolSearch`-style pattern that only pulls a tool's schema into context when something actually needs it, enforced by a 10-verb naming canon and a drift-detecting audit gate. The audit gate wasn't decorative: at its first run it caught 105 of 128 tools sitting on non-canon verbs, which is real evidence the discipline was needed, not an assumption.
 
 ### Three write-guard layers, and an explicit decision not to add a fourth
 
-Writes into a regulated data warehouse behind an LLM agent get three independent layers of protection: an infra-policy layer (read-only at the platform level), an application-level validator, and a raw-CLI-grep layer — each one catching what the layer below it can't see. A fourth layer was considered and explicitly rejected once an existing compliance boundary (already in place for unrelated reasons) was confirmed to cover that specific residual risk. Building the fourth layer anyway would have been easy to justify on "more guardrails is always safer" grounds; the actual decision was to check whether it was load-bearing first, and skip it once the answer was no.
+Writes into a regulated data warehouse behind an LLM agent get three independent layers of protection: an infra-policy layer (read-only at the platform level), an application-level validator, and a raw-CLI-grep layer — each one catching what the layer below it can't see. A fourth layer was considered and explicitly rejected once an existing compliance boundary (already in place for unrelated reasons) was confirmed to cover that specific residual risk. Building the fourth layer anyway had an obvious justification on "more guardrails is always safer" grounds; the actual decision was to check whether it was load-bearing first, and skip it once the answer was no.
 
 ### A self-improvement loop that measures instead of promoting on faith
 

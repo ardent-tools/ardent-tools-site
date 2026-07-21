@@ -20,11 +20,11 @@ anchor = "remote"
 
 [[extra.questions]]
 q = "What's the comp range or availability?"
-a = "Depends on the role and scope. Short version: currently in a W2 search alongside a part-time consulting engagement through October. Ask directly at /contact/ and I'll give a straight answer."
+a = "Depends on the role and scope. Short version: in a W2 search alongside a part-time consulting engagement through October. Ask directly at /contact/ and I'll give a straight answer."
 anchor = "availability"
 
 [[extra.questions]]
-q = "Why so many independent systems instead of one product?"
+q = "Why so many independent systems instead of one thing?"
 a = "Because the thing being demonstrated is a systems-engineering practice, not a single startup pitch. The same standards, gates, and naming discipline gets applied across an agent substrate, an agent runtime, a bare-metal OS, a networking stack, and a media platform — on purpose, so the pattern is visible across domains instead of being a one-off feature of a single codebase. That's the thesis of the whole site, stated once, here, plainly."
 anchor = "why-many-systems"
 +++

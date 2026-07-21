@@ -1,12 +1,12 @@
 # ardent.tools
 
-Portfolio and consulting site for Ardent Tools — agent infrastructure engineering. Live at [ardent.tools](https://ardent.tools).
+Portfolio and consulting site for Ardent Tools - agent infrastructure engineering. Live at [ardent.tools](https://ardent.tools).
 
 The thesis: the demo is the page, prose is the caption. Every system page leads with a recording or a diagram, states what the recording proves and what it doesn't, and every number on the site carries a measurement method next to it.
 
 ## Substrate
 
-Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme consumed here as a git submodule (`themes/typikon/`, pinned by commit — see `.gitmodules`). This repo holds only the site-specific content, brand tokens, and the small set of consumer-side template shadows the design needs beyond typikon's defaults (see `CLAUDE.md` for the exact delta and why each override exists).
+Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme consumed here as a git submodule (`themes/typikon/`, pinned by commit - see `.gitmodules`). This repo holds only the site-specific content, brand tokens, and the small set of consumer-side template shadows the design needs beyond typikon's defaults (see `CLAUDE.md` for the exact delta and why each override exists).
 
 ## Build / run
 

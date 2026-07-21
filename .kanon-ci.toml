@@ -2,7 +2,7 @@
 # forge-only: false
 # spdx:
 
-# ardent-tools CI pipeline — sentinel for the forge post-receive hook.
+# ardent-tools-site CI pipeline for the forge post-receive hook.
 #
 # The full strict gate (typikon-validate + zola check + zola build +
 # csp-enforce + lychee + pa11y + playwright + Cloudflare Pages deploy)
@@ -10,17 +10,18 @@
 # on the GitHub mirror, since wrangler is the only tested Cloudflare
 # Pages deploy path (matches the pinned typikon SHA's own scaffold
 # output — ci/kanon-ci.toml.tmpl doesn't exist yet at this pin; a later
-# typikon-refresh may replace this sentinel with a rendered multi-stage
-# file once that template lands). The forge post-receive trigger needs
-# *something* though, so this sentinel keeps the hook honest without
-# duplicating the real gate.
+# typikon-refresh may replace this stage with a rendered multi-stage
+# file once that template lands). The forge post-receive trigger runs
+# kanon lint against this repo's own tracked files, scoped away from
+# themes/typikon (a separate repo, gated by its own CI) via a
+# git-ls-files pathspec exclusion piped into --paths-from.
 
 [pipeline]
-stages = ["checkout-ok"]
+stages = ["kanon-lint"]
 
-[stages.checkout-ok]
-cmd = "true"
-timeout_secs = 10
+[stages."kanon-lint"]
+cmd = "sh -c 'git ls-files -- . \":!themes/typikon\" > /tmp/ardent-tools-site-lint-files.txt && kanon lint --paths-from /tmp/ardent-tools-site-lint-files.txt .'"
+timeout_secs = 120
 
 [verifier]
 enabled = false

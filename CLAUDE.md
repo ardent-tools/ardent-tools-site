@@ -1,3 +1,9 @@
+<!--
+scope: ardent-tools-site project conventions
+defers_to: none
+tightens: content authoring rules for this repo may add site-specific constraints beyond typikon's own docs/AGENTIC.md
+-->
+
 # CLAUDE.md: ardent-tools
 
 Consumer of typikon (`forkwright/typikon`, pinned by commit under `themes/typikon/`). The structural contract — templates, schemas, the CSP-enforcing gate — comes from typikon; this repo holds site-specific content, brand tokens, and the consumer-side template shadows the design needs.
@@ -34,7 +40,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 
 `templates/partials/nav.html` is NOT shadowed — the Resume button is pure CSS (`.nav-links a:last-child`), and the Greek-hover mechanic in the stock partial stays dormant because no `greek`/`brand_greek` fields are ever set.
 
-**No `partials/assert.html` import anywhere.** The pinned typikon commit predates that macro (added later in typikon's history); templates here that extend typikon's `page.html`/`section.html`/etc. still work fine without it — those theme templates simply skip the extra required-field assertions at this pin. Importing it from a consumer template would break the build outright (the file doesn't exist at this pin). Check this again before bumping the submodule.
+**No `partials/assert.html` import anywhere.** The pinned typikon commit predates that macro (added later in typikon's history); templates here that extend typikon's `page.html`/`section.html`/etc. still work fine without it — those theme templates skip the extra required-field assertions at this pin. Importing it from a consumer template would break the build outright (the file doesn't exist at this pin). Check this again before bumping the submodule.
 
 ## Refreshing the typikon theme
 
@@ -60,7 +66,7 @@ Not wired in this scaffold. The fleet convention (matching typikon and the sibli
 
 ## Open items from the build pass
 
-- Three casts are launch-blocking per DESIGN.md §9 (thumos-boot, kanon-gate, aletheia-memory) and none are recorded yet — every demo on the site currently renders as an honest placeholder, not a fake.
+- Three casts are launch-blocking per DESIGN.md §9 (thumos-boot, kanon-gate, aletheia-memory) and none are recorded yet — every demo on the site renders as an honest placeholder, not a fake, until a cast lands.
 - The resume PDF (`resume/_build/kickertz_resume_2026_v3.pdf`) hasn't cleared operator review; `/resume/` links nothing yet, by design — no broken asset reference.
 - `about.md`'s `## Influences` section is a structural placeholder, not five to eight invented entries — needs the operator's actual list.
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared — see the build-pass report for current status of each.
