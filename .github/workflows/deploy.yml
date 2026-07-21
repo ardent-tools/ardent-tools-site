@@ -55,7 +55,7 @@ jobs:
 
       - name: Install Python deps for typikon-validate
         run: |
-          python3 -m pip install --user jsonschema
+          python3 -m pip install --user jsonschema==4.26.0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -70,7 +70,7 @@ jobs:
           LYCHEE_VERSION: 0.24.2
           LYCHEE_SHA256: 1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a
         run: |
-          npm install -g pa11y-ci@latest @playwright/test@latest
+          npm install -g pa11y-ci@4.1.1 @playwright/test@1.61.1
           npx playwright install --with-deps chromium
           curl -L "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" \
             -o lychee.tar.gz
@@ -169,5 +169,5 @@ jobs:
             > /tmp/cf-edit.json
           echo "production_branch set to: $(jq -r '.result.production_branch // .errors' /tmp/cf-edit.json)"
 
-          npm install -g wrangler
+          npm install -g wrangler@4.112.0
           wrangler pages deploy public --project-name=ardent-tools --branch="${BRANCH}"

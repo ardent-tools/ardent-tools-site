@@ -15,8 +15,7 @@
 #               curation) -- named directly in the page's solid/open list,
 #               not hidden behind this demo.
 #
-# WHY: recorded on the active build box (fleet/topology.toml) -- never
-#      metis (NO-BUILD). Run from the harmonia repo root, with a small
+# Run from the harmonia repo root, with a small
 #      seeded sample-media directory already in place:
 #        vhs static/tapes/harmonia-serve.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's

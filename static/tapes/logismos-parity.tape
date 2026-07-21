@@ -13,8 +13,7 @@
 # Doesn't show: any GPU run. Phase 4 is hardware-blocked; this recording
 #               won't stage one to imply otherwise.
 #
-# WHY: recorded on the active build box (fleet/topology.toml) -- never
-#      metis (NO-BUILD). Run from the logismos repo root:
+# Run from the logismos repo root:
 #        vhs static/tapes/logismos-parity.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's
 #           data-cols="80" data-rows="24"; confirm the actual PTY size on
