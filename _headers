@@ -3,14 +3,24 @@
 # site edits the instance directly, not the template).
 #
 # Deltas from the typikon baseline:
-#   - script-src carries a 'wasm-unsafe-eval' carve-out. asciinema-player
-#     v3's terminal-rendering core is a Rust-compiled WebAssembly module,
-#     base64-decoded and compiled inline from the vendored JS (verified
-#     by reading static/vendor/asciinema/asciinema-player.min.js: the
-#     wasm bytes are embedded, not fetched — WebAssembly.instantiate()
-#     runs on an in-memory buffer). A bare `script-src 'self'` blocks
-#     WASM compilation in Chrome; this carve-out is what makes the
-#     player's terminal core work at all under this site's strict CSP.
+#   - script-src carries a 'wasm-unsafe-eval' carve-out, scoped to only the
+#     three player-bearing routes (/, /demos/*, /systems/* — the only
+#     templates that render templates/partials/term-panel.html's player_css/
+#     player_js blocks: index.html, demos.html, system.html). Every other
+#     route gets the tightened default below with no carve-out. Cloudflare
+#     Pages merges same-named headers across matching blocks by joining
+#     values with a comma rather than letting a later block override an
+#     earlier one, so each scoped block below unsets the blanket CSP with
+#     `! Content-Security-Policy` before restating it in full — see
+#     https://developers.cloudflare.com/pages/configuration/headers/.
+#     asciinema-player v3's terminal-rendering core is a Rust-compiled
+#     WebAssembly module, base64-decoded and compiled inline from the
+#     vendored JS (verified by reading
+#     static/vendor/asciinema/asciinema-player.min.js: the wasm bytes are
+#     embedded, not fetched — WebAssembly.instantiate() runs on an
+#     in-memory buffer). A bare `script-src 'self'` blocks WASM compilation
+#     in Chrome; this carve-out is what makes the player's terminal core
+#     work at all under this site's strict CSP.
 #     PENDING: in-browser QA (DESIGN.md §8.4) — confirm in a real browser
 #     that the player initializes cleanly under this exact policy before
 #     treating this line as fully verified; if QA finds it unnecessary or
@@ -31,8 +41,24 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()
-  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
   Speculation-Rules: "/speculation-rules.json"
+
+# Player-bearing routes only (index.html, demos.html, system.html — the
+# three templates with player_css/player_js blocks). Unsets the blanket
+# CSP above and restates it with the 'wasm-unsafe-eval' carve-out; every
+# other route keeps the tightened default with no carve-out.
+/
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+
+/demos/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+
+/systems/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
 
 # Long-cache for content-addressable static assets.
 # Cloudflare Pages adds the cache-busting query string in production
