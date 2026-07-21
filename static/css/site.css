@@ -847,6 +847,7 @@ a.badge:focus-visible {
   padding-block: var(--space-s);
   text-decoration: none;
   color: inherit;
+  transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
 }
 
 .catalog-row:last-child {
@@ -856,6 +857,25 @@ a.badge:focus-visible {
 .catalog-row:has(a:hover),
 .catalog-row:has(a:focus-visible) {
   background: color-mix(in oklab, var(--accent) 4%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);   /* the ledger-margin tick */
+}
+
+/* Deep-link landing gets the same mark as a hovered row. */
+.faq-item:target {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Aged-accent ladder (§W8) — Leatherworks' rest -> base -> aged
+   progression, on click. box-shadow: inset (not border-left) so the
+   tick causes zero layout shift; the 120ms transitions collapse under
+   typikon's global reduced-motion rule for free. */
+a:active {
+  text-decoration-color: var(--accent-aged);
+}
+
+.button:active,
+.nav-links a:last-child:active {
+  background: var(--accent-aged);
 }
 
 .catalog-row-name {
