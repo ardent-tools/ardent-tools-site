@@ -53,7 +53,7 @@ Like the other systems on this site, nosologia has no Postgres, no Redis, no Doc
 | 97.5% cluster purity, 85% retrieval recovery | v3 model eval, corroborated across three independent sources (session notes, memory record, an independent cross-repo citation) | private repo; artifact available on request |
 | 1,352,223 training pairs from 28 sources | session notes + memory record, cross-corroborated | private repo; artifact available on request |
 | Full 301K-code embedding: 43s on GPU; full projection: 12s; SQLite load: 2.8s | directly measured against a committed pipeline run | private repo; artifact available on request |
-| 3,971 lines Rust across 14 source files, built in ~8 calendar days (36 commits) | `wc -l` + git log, directly counted | private repo; artifact available on request |
+| Working engine built in an ~8-calendar-day sprint | dated commit history | private repo; artifact available on request |
 
 </div>
 
