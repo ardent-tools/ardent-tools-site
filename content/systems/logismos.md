@@ -1,7 +1,7 @@
 +++
 title = "logismos"
 description = "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven; GPU cutover waits on hardware access."
-weight = 7
+weight = 6
 template = "system.html"
 
 [extra]

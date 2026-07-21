@@ -1,7 +1,7 @@
 +++
 title = "hamma"
 description = "A clean-room Rust implementation of a Tailscale-compatible mesh networking stack. Pre-alpha, actively implementing the peer client against a real reference control plane."
-weight = 8
+weight = 7
 template = "system.html"
 
 [extra]
