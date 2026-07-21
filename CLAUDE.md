@@ -31,7 +31,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/index.html` | Shadow | Typikon's own `index.html` is the sibling site's hidden-nav home; this site's home keeps nav visible and has a fully different composition (DESIGN §4.1). |
 | `templates/page.html` | Shadow | Wraps `page.content` (+ product-gallery/video) in `.prose` (DESIGN-v1.1 §1.2) — the reading-measure cap for generic content pages (about, colophon, contact, resume, 404). Templates that override `{% block content %}` themselves (`system.html`, `faq.html`, `consulting.html`) do their own `.prose` wrap instead; this file's content block only renders for pages using `page.html` as-is. |
 | `templates/faq.html` | Shadow | `.faq-page` article carries `.prose` too (DESIGN-v1.1 §1.2 — faq answers are an explicit prose context). Otherwise identical to typikon's own `faq.html`. |
-| `templates/systems.html` | New | Data-driven systems index — loops `section.pages` through the catalog-row partial. |
+| `templates/systems.html` | New | Data-driven full-fleet catalog (DESIGN-v1.1 §3): four zone groups — Systems loops `section.pages` through `catalog-row.html`, Libraries/Web/In-design loop `content/systems/_index.md`'s `[[extra.ledger]]` through `catalog-ledger.html`. Group counts computed in-template via `set_global` accumulators, never hand-typed. |
 | `templates/system.html` | New | `{% extends "page.html" %}`. Fact-row header + demo/diagram slot from `extra.*`, ahead of the markdown body; the body prose (`page.content`) is `.prose`-wrapped (DESIGN-v1.1 §1.2), the header/demo/nav stay at shell width. |
 | `templates/demos.html` | New | `{% extends "page.html" %}`. Loops `extra.demos` / `extra.placards`. |
 | `templates/consulting.html` | New | `{% extends "page.html" %}`. One data-driven block (`extra.engagement_shapes`) over otherwise-plain page content; the whole content block is `.prose`-wrapped (DESIGN-v1.1 §1.2). |
@@ -40,7 +40,8 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/partials/footer.html` | Shadow | Typikon's stock footer is one brand line + one flat link list; this site's footer needs three mono clusters + a sibling-brand line (DESIGN §3.7), which the flat list can't produce. |
 | `templates/partials/ld-person.html` | New | Person JSON-LD, same pattern as typikon's six `ld-*.html` partials. |
 | `templates/partials/term-panel.html` | New | The terminal-panel macro (real recording / honest placeholder / placard-without-panel) — the base primitive for every demo on the site. |
-| `templates/partials/catalog-row.html` | New | The ledger-row macro `systems.html` and `index.html`'s selected-work block both call. |
+| `templates/partials/catalog-row.html` | New | The Tier-1 flagship ledger-row macro `systems.html` and `index.html`'s selected-work block both call. |
+| `templates/partials/catalog-ledger.html` | New | Tier-2 (`grid()`, Libraries/Web) and Tier-3 (`register()`, In-design) ledger-row macros, both data-driven from `content/systems/_index.md`'s `[[extra.ledger]]` array — no hand-authored per-repo HTML. |
 
 `templates/section.html` is NOT shadowed — every current `_index.md` in this repo sets an explicit `template =` (`systems.html`, `journal-section.html`) or is the root home (`index.html`); nothing renders through typikon's generic `section.html` today, so there is nothing for a `.prose` wrap to affect. Add the shadow if a future section index needs one.
 
@@ -72,5 +73,5 @@ Not wired in this scaffold. The fleet convention (matching typikon and the sibli
 
 - Three casts are launch-blocking per DESIGN.md §9 (thumos-boot, kanon-gate, aletheia-memory) and none are recorded yet — every demo on the site renders as an honest placeholder, not a fake, until a cast lands.
 - The resume PDF (`resume/_build/kickertz_resume_2026_v3.pdf`) hasn't cleared operator review; `/resume/` links nothing yet, by design — no broken asset reference.
-- `about.md`'s `## Influences` section is a structural placeholder, not five to eight invented entries — needs the operator's actual list.
+- `about.md` carries no `## Influences` section (removed in v1.1 phase A pending the operator's actual 5-8 entries; add it back only with real content).
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared — see the build-pass report for current status of each.
