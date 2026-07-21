@@ -188,7 +188,7 @@ main {
    considered middle column: home/system-page ledes, the consulting line,
    demos' intro paragraph. Replaces each class's own scattered 60ch cap
    with the one shared token. */
-.home-lede, .page-lede, .consulting-line, .demos-intro, .consulting-header {
+.home-lede, .page-lede, .consulting-line, .demos-intro, .consulting-header, .systems-intro {
   max-width: var(--width-display);
 }
 

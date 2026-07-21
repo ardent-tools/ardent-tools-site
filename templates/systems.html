@@ -38,8 +38,12 @@
   {%- if item.group == "in-design" %}{% set_global design_count = design_count + 1 %}{% endif %}
 {%- endfor %}
 
+{# Intro paragraph to the display tier (DESIGN-v1.3 §1.3/§5) — short
+   editorial text claiming the considered middle column, same treatment
+   as .demos-intro, not the narrow reading measure a one-sentence intro
+   doesn't need. #}
 <h1>{{ section.title }}</h1>
-<div class="prose">
+<div class="systems-intro">
 {{ section.content | safe }}
 </div>
 
