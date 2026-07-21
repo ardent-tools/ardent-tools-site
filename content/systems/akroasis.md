@@ -26,7 +26,7 @@ not_shows = "Live mesh traffic or radio programming. The mesh CLI is static unti
 
 ## What it is
 
-Every tool for radio, mesh networking, or spectrum monitoring tends to be its own interface with its own data model. akroasis is one Rust workspace that treats them as one system instead: a typed signal model shared across domains, so a mesh node going quiet and a frequency spike nearby read as one event, not two unrelated logs. The mesh stack — a clean-room reimplementation of the Meshtastic protocol — runs live today. The rest of the workspace is scored by what actually ships: kerykeion carries the mesh, syntonia handles radio programming, kryphos is the encrypted credential vault, and the shared signal model (its koinon crate) defines the typed contract the others write into. Everything runs offline, every protocol implemented in-repo rather than bound to a vendor library.
+Every tool for radio, mesh networking, or spectrum monitoring tends to be its own interface with its own data model. akroasis folds them into one Rust workspace instead: a typed signal model shared across domains, so a mesh node going quiet and a frequency spike nearby read as one event, not two unrelated logs. The mesh stack — a clean-room reimplementation of the Meshtastic protocol — runs live today. The rest of the workspace is scored by what actually ships: kerykeion carries the mesh, syntonia handles radio programming, kryphos is the encrypted credential vault, and the shared signal model (its koinon crate) defines the typed contract the others write into. Everything runs offline, every protocol implemented in-repo rather than bound to a vendor library.
 
 ## Decisions and trade-offs
 
