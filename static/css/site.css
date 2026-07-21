@@ -206,6 +206,15 @@ h2 {
   padding-block: var(--space-l);
 }
 
+/* Two bands placed back to back (home's Selected-work + Consulting
+   bands, §2) would otherwise share one identical --bg-accent fill with
+   no visible seam — the same color abutting itself reads as one merged
+   band, not two (§1.4's "never two adjacent" rule). A plain-paper gap
+   between them keeps each band legible as its own zone. */
+.section-band + .section-band {
+  margin-top: var(--space-l);
+}
+
 /* Catalog zone tints (design-delta-dye.md §8) — backgrounds only. */
 .zone-systems   { background: var(--zone-systems); }
 .zone-libraries { background: var(--zone-libraries); }
@@ -774,6 +783,14 @@ a.badge:focus-visible {
   margin: var(--space-xl) 0;
   padding-top: var(--space-l);
   border-top: 1px solid var(--rule);
+}
+
+.consulting-line {
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  color: var(--text-mid);
+  max-width: 60ch;
+  margin: 0;
 }
 
 .home-ctas {
