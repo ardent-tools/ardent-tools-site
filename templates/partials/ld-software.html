@@ -1,0 +1,52 @@
+{# SoftwareSourceCode / CreativeWork JSON-LD, one per system page
+   (DESIGN-v1.3 §4 item 7, research-agent-friendly §3.3). Same
+   ld-*.html include pattern as ld-person.html/ld-product.html — wired
+   into system.html's ld_json block alongside, not instead of, the
+   default Organization/Person/Breadcrumb stack.
+
+   Inputs from page.extra (system.html frontmatter): repo, stack, badge,
+   license, private.
+
+   @type is SoftwareSourceCode when a public repo exists, CreativeWork
+   for the private case-study page (kanon today) — same repo-or-private
+   branch templates/partials/catalog-row.html already renders.
+
+   programmingLanguage: first " · "-delimited segment of `stack`,
+   verified (not assumed) against all seven tier-1 pages today — every
+   one starts "Rust". Degrades to omission the day a non-Rust system
+   lands.
+
+   license: page.extra.license — no tier-1 page carries this field yet
+   (content-model gap, DESIGN-v1.3 §4 item 6, deliberately out of this
+   phase's scope; akroasis's `stack` string is NOT parsed for a license
+   value — the design spec is explicit that inferring from the stack
+   string is wrong). The property is simply omitted until item 6 lands.
+#}
+{%- if page.extra.repo or page.extra.private %}
+{%- set lang = "" -%}
+{%- if page.extra.stack -%}
+{%- set lang = page.extra.stack | split(pat=" · ") | first -%}
+{%- endif -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": {% if page.extra.repo %}"SoftwareSourceCode"{% else %}"CreativeWork"{% endif %},
+  "name": {{ page.title | json_encode | safe }},
+  "description": {{ page.description | json_encode | safe }},
+  "url": {{ page.permalink | json_encode | safe }}
+  {%- if page.extra.repo -%},
+  "codeRepository": {{ page.extra.repo | json_encode | safe }}
+  {%- endif -%}
+  {%- if lang -%},
+  "programmingLanguage": {{ lang | json_encode | safe }}
+  {%- endif -%}
+  {%- if page.extra.license -%},
+  "license": {{ page.extra.license | json_encode | safe }}
+  {%- endif -%},
+  "author": { "@type": "Person", "name": {{ config.extra.person.name | json_encode | safe }} },
+  "additionalProperty": [
+    { "@type": "PropertyValue", "name": "maturity", "value": {{ page.extra.badge | json_encode | safe }} }
+  ]
+}
+</script>
+{%- endif %}

@@ -6,6 +6,18 @@
 
    Inputs from config.toml [extra.person]:
      name, job_title, email, github, linkedin
+
+   sameAs (DESIGN-v1.3 §4 item 8) adds the site itself alongside GitHub
+   and LinkedIn — a third representation of the same identity, not a
+   duplicate of the `url` field above (which is the /about/ page).
+
+   knowsAbout (DESIGN-v1.3 §4 item 8, research-agent-friendly §3.2) links
+   to the site's own seven system pages — the receipt for each topic
+   claimed, not an adjective — plus the one real external reference every
+   tier-1 `stack` line shares (grep-verified: all seven start "Rust").
+   Hardcoded list, not section.pages: this partial has no `section` in
+   scope on page-typed templates, and the list is the same one
+   systems.html already loops by weight order (thumos..hamma).
 #}
 {%- if config.extra.person %}
 {%- set p = config.extra.person -%}
@@ -26,9 +38,16 @@
   {%- set sameas = [] -%}
   {%- if p.github -%}{%- set_global sameas = sameas | concat(with=p.github) -%}{%- endif -%}
   {%- if p.linkedin -%}{%- set_global sameas = sameas | concat(with=p.linkedin) -%}{%- endif -%}
+  {%- set_global sameas = sameas | concat(with=config.base_url) -%}
   {%- if sameas | length > 0 -%},
   "sameAs": {{ sameas | json_encode | safe }}
-  {%- endif %}
+  {%- endif -%}
+  {%- set knows = [] -%}
+  {%- for sys in ["thumos", "aletheia", "kanon", "harmonia", "akroasis", "logismos", "hamma"] -%}
+  {%- set_global knows = knows | concat(with=(config.base_url ~ "/systems/" ~ sys ~ "/")) -%}
+  {%- endfor -%}
+  {%- set_global knows = knows | concat(with="https://en.wikipedia.org/wiki/Rust_(programming_language)") -%},
+  "knowsAbout": {{ knows | json_encode | safe }}
 }
 </script>
 {%- endif %}

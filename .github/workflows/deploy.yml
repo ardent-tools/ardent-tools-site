@@ -87,6 +87,12 @@ jobs:
       - name: zola check (internal links + assets)
         run: zola check
 
+      - name: Generate systems.json from content frontmatter
+        # DESIGN-v1.3 §4 item 5 — derived from the same content/systems/*.md
+        # frontmatter systems.html/catalog-ledger.html already render; must
+        # run before zola build so static/systems.json copies through.
+        run: python3 bin/generate-systems-json.py
+
       - name: zola build
         run: zola build
 

@@ -22,6 +22,12 @@
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
 
+{# Autodiscovery for the machine-readable catalog (DESIGN-v1.3 §4 item 5)
+   — same pattern as base.html's atom-feed <link>. #}
+{% block head_extra %}
+<link rel="alternate" type="application/json" href="/systems.json" title="Systems catalog (JSON)">
+{% endblock head_extra %}
+
 {% block content %}
 {%- set_global lib_count = 0 %}
 {%- set_global web_count = 0 %}

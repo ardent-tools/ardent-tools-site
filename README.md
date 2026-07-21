@@ -6,7 +6,9 @@ The thesis: the demo is the page, prose is the caption. Every system page leads 
 
 ## Substrate
 
-Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme consumed here as a git submodule (`themes/typikon/`, pinned by commit - see `.gitmodules`). This repo holds only the site-specific content, brand tokens, and the small set of consumer-side template shadows the design needs beyond typikon's defaults (see `CLAUDE.md` for the exact delta and why each override exists).
+Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme consumed here as a git submodule (`themes/typikon/`, pinned by commit - see `.gitmodules`). This repo holds only the site-specific content, brand tokens, and the small set of consumer-side template shadows the design needs beyond typikon's defaults (see `AGENTS.md` for the exact delta and why each override exists; `CLAUDE.md` is a one-line import stub pointing at it).
+
+Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat nav index for an agent fetching the live site; `AGENTS.md` is the equivalent for an agent cloning the repo.
 
 ## Build / run
 
