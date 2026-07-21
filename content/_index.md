@@ -19,4 +19,4 @@ shows = "The boot banner and the first serviced ticks, once recorded — the exa
 not_shows = "Hardware bring-up on the physical AGM M7 — still open; the recording will claim exactly what CI proves, no more."
 +++
 
-Ardent Tools is where I build and publish agent infrastructure: the guardrails, memory systems, and review loops that make AI-driven engineering checkable rather than trusted on faith. Ardent Tools is the sibling of Ardent Leatherworks, where the same rule holds for belts as for build gates: process is the proof.
+Ardent Tools is where I build and publish agent infrastructure: the guardrails, memory systems, and review loops that make AI-driven engineering checkable rather than trusted on faith. Ardent Tools is the sibling of Ardent Leatherworks, a small-batch leather goods maker under the same name.

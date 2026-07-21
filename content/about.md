@@ -19,6 +19,6 @@ The first: a 145,000-line Rust platform with a 137-tool MCP agent surface over a
 
 The second: a medical-code taxonomy engine, solo-built in an eight-day intensive sprint in March 2026 after upstream research and planning — a from-scratch Rust embedding pipeline over 301,000 medical codes, fine-tuned on 1.35 million training pairs, landing 97.5% cluster purity (measured against the shipped model).
 
-Ardent Tools shares its name with [Ardent Leatherworks](https://ardentleatherworks.com), small-batch leather goods built under the motto "the hand remembers what the mind tries to forget." Different material, same conviction: attention is the actual work.
+Ardent Tools shares its name with [Ardent Leatherworks](https://ardentleatherworks.com), small-batch leather goods built under the motto "the hand remembers what the mind tries to forget."
 
 Current resume: [resume](/resume/). Direct contact: [contact](/contact/).
