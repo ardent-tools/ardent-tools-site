@@ -879,6 +879,19 @@ a:active {
   background: var(--accent-aged);
 }
 
+/* --accent-aged's dark value (#B96534) under --bg text drops to 3.86:1,
+   below AA's 4.5:1 floor for this filled button's normal-size label
+   (verified: WCAG relative-luminance formula, both dark tokens as
+   declared above). Dark keeps the already-AA hover fill (5.08:1)
+   instead of stepping to aged on press; light's aged step is unaffected
+   (7.65:1, comfortably AA). */
+@media (prefers-color-scheme: dark) {
+  .button:active,
+  .nav-links a:last-child:active {
+    background: var(--accent);
+  }
+}
+
 .catalog-row-name {
   font-family: var(--font-mono);
   font-weight: 600;
