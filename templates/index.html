@@ -16,6 +16,15 @@
 {% import "partials/term-panel.html" as term_panel %}
 {% import "partials/catalog-row.html" as catalog_row %}
 
+{# Home renders the hero term-panel — one of the three panel-bearing
+   templates (base.html T2 scoping); the player loads here. #}
+{% block player_css %}
+  <link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css">
+{% endblock player_css %}
+{% block player_js %}
+  <script src="/vendor/asciinema/asciinema-player.min.js" defer></script>
+{% endblock player_js %}
+
 {% block title %}{{ section.extra.seo_title | default(value=config.title) }}{% endblock title %}
 {% block og_title %}{{ section.extra.seo_title | default(value=config.title) }}{% endblock og_title %}
 

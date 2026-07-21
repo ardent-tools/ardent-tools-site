@@ -49,11 +49,13 @@
   --ansi-7: #D6D4CC;  --ansi-15: #ECEBE8;
 
   /* Fonts — Cormorant Garamond dropped entirely; two families, hard
-     split (§2.4). --font-display is left pointing at typikon's default
-     so nothing errors if a future partial reads it, but no template
-     this site renders uses it. */
+     split (§2.4). --font-display is re-pointed at --font-mono (not left
+     at typikon's Cormorant default) so a future theme partial that
+     reads var(--font-display) can't silently resurrect the third
+     family this site never ships a rendered use for. */
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --font-body: 'Spectral', Georgia, serif;
+  --font-display: var(--font-mono);
 
   /* Layout */
   --breakout: 960px;

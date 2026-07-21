@@ -1,6 +1,6 @@
 +++
 title = "Systems"
-description = "Eight systems, ordered by evidence strength: the thing you can watch outranks the thing you have to trust."
+description = "Six systems, ordered by evidence strength: the thing you can watch outranks the thing you have to trust."
 sort_by = "weight"
 template = "systems.html"
 

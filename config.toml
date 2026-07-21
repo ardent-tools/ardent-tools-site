@@ -37,8 +37,13 @@ theme = "github-light"
 brand_name = "ardent.tools"
 logo_path = "img/favicon.svg"
 theme_color = "#F3F2ED"
+theme_color_dark = "#1F1F1E"
 og_locale = "en_US"
-og_image = "img/og-card.svg"
+# PNG, not the source SVG (img/og-card.svg) — Twitter/LinkedIn/Slack
+# unfurlers don't render SVG og:image; twitter:card is
+# summary_large_image, which requires a raster image. Rendered from the
+# SVG at 1200x630 with the site's own vendored fonts (T3).
+og_image = "img/og-card.png"
 
 # Self-hosted font preload — the two highest-frequency files. Plex Mono
 # 400 and Spectral 400 are typikon-vendored already; Plex Mono 600 (the

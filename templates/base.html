@@ -1,10 +1,13 @@
 {# Consumer shadow of typikon's templates/base.html (theme.toml's Zola
    template-shadow rule: a same-path file in the consumer's own
-   templates/ wins). Delta from the theme copy, marked below, is exactly
-   two <link> tags — the documented AGENTIC.md override path (config.toml's
-   `consumer_css` comment is not actually wired; see typikon-capabilities.md
-   §2). Re-diff this file against themes/typikon/templates/base.html on
-   every typikon-refresh.
+   templates/ wins). Delta from the theme copy, marked inline below:
+   the site.css/syntax.css token-override links (the documented
+   AGENTIC.md path — config.toml's `consumer_css` comment is not
+   actually wired; see typikon-capabilities.md §2), a light/dark
+   theme-color meta pair, twitter:image mirroring og:image, and the
+   player_css/player_js blocks that keep the vendored recording player
+   off pages with no panel to play. Re-diff this file against
+   themes/typikon/templates/base.html on every typikon-refresh.
 #}
 {% import "partials/ld-breadcrumb.html" as crumb %}
 <!DOCTYPE html>
@@ -12,7 +15,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="{{ config.extra.theme_color | default(value="#F7F3E8") }}">
+  <meta name="theme-color" content="{{ config.extra.theme_color | default(value="#F3F2ED") }}" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="{{ config.extra.theme_color_dark | default(value="#1F1F1E") }}" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
 
   {%- set site_title = config.title | default(value="") -%}
@@ -30,7 +34,14 @@
   <meta property="og:image" content="{{ get_url(path=config.extra.og_image, trailing_slash=false) }}">
     {%- endif %}
   {%- endblock og_image %}
+  {% block twitter_image -%}
+    {%- if config.extra.og_image %}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ get_url(path=config.extra.og_image, trailing_slash=false) }}">
+    {%- else %}
   <meta name="twitter:card" content="summary">
+    {%- endif %}
+  {%- endblock twitter_image %}
   <meta property="og:url" content="{{ current_url | default(value=config.base_url) | safe }}">
   <link rel="canonical" href="{{ current_url | default(value=config.base_url) | safe }}">
 
@@ -55,8 +66,11 @@
      header comment). --- #}
   <link rel="stylesheet" href="/css/site.css">
   <link rel="stylesheet" href="/css/syntax.css">
-  <link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css">
   {# --- ardent.tools delta ends --- #}
+  {# Vendored player CSS: only the templates that actually render a
+     term-panel populate this (index.html, demos.html, system.html) —
+     the other 8 panel-less pages skip the ~69 KB. #}
+  {% block player_css %}{% endblock player_css %}
 
   {# Default JSON-LD: Organization on every page. Consumer page templates
      override this block to layer on Product/Article/BreadcrumbList. #}
@@ -78,9 +92,11 @@
 
   {% block footer %}{% include "partials/footer.html" %}{% endblock footer %}
 
-  {# --- ardent.tools delta: the vendored player + the one site script,
-     both external files (CSP script-src 'self' — no inline). --- #}
-  <script src="/vendor/asciinema/asciinema-player.min.js" defer></script>
+  {# --- ardent.tools delta: the vendored player (panel-bearing templates
+     only, see player_css above) + the one site script, always loaded —
+     both external files (CSP script-src 'self' — no inline). site.js
+     itself no-ops when window.AsciinemaPlayer is undefined. --- #}
+  {% block player_js %}{% endblock player_js %}
   <script src="/js/site.js" defer></script>
   {% block scripts %}{% endblock scripts %}
 </body>
