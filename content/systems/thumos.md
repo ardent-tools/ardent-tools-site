@@ -27,9 +27,9 @@ not_shows = "Hardware bring-up on the physical AGM M7 — that stays open regard
 
 ## What it is
 
-thumos is a phone operating system written from the kernel up in Rust, targeting a $90 dumbphone (the AGM M7 — MediaTek MT6739, 1 GB RAM, 240x320 screen). There is no Linux underneath it — kernel, memory manager, scheduler, and userspace crates are all Rust, cross-compiled to bare metal. The feature set targets secure communication and counter-surveillance: on-device detection for IMSI-catcher-shaped cell towers, MAC/IMEI randomization at the register level, encrypted storage, and a cellular modem firewalled at the driver boundary rather than trusted directly.
+thumos is a phone operating system written from the kernel up in Rust, targeting a $90 dumbphone (the AGM M7 — MediaTek MT6739, 1 GB RAM, 240x320 screen). There is no Linux underneath it — kernel, memory manager, scheduler, and userspace crates are all Rust, cross-compiled to bare metal. The feature set targets secure communication and counter-surveillance: on-device detection for IMSI-catcher-shaped cell towers, MAC/IMEI randomization at the register level, encrypted storage, and a cellular modem firewalled at the driver boundary.
 
-The one thing the modem, WiFi, Bluetooth, and GPS radios have in common is that MediaTek ships them as binary-only vendor blobs — there's no way to replace them with Rust, so thumos treats them as an untrusted peripheral behind a driver boundary instead of pretending they don't exist.
+The one thing the modem, WiFi, Bluetooth, and GPS radios have in common is that MediaTek ships them as binary-only vendor blobs — there's no way to replace them with Rust, so thumos treats them as an untrusted peripheral behind a driver boundary.
 
 ## Decisions and trade-offs
 
@@ -46,7 +46,7 @@ Rather than wait for reliable access to physical AGM M7 hardware to validate any
 
 **Solid:** the kernel boots end-to-end under QEMU — MMU/cache setup, the GIC, the scheduler, the first timer interrupt, the CSPRNG, every subsystem's init step, the boot-to-service handoff, and a cooperative service loop running as PID 0 off a 100 Hz timer. CI gates every push on the kernel's host test suite, the bare-metal cross-compile, and the boot itself. The kernel implements and unit-tests an OS core: memory management, interrupts and scheduling, IPC and signals, syscalls, a VFS, a CSPRNG, capabilities, power management, a watchdog.
 
-**Open:** hardware validation on a physical AGM M7 is the frontier. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. Several implemented capabilities aren't wired to the boot/service loop yet (tracked as the boot-wiring epic). Real radio I/O is hardware work; the boot degrades to a fail-closed loopback path when the data path is absent. A live Aletheia runtime bridge (`metaxu`) is future work — the protocol surface exists, nothing embeds a live agent runtime yet.
+**Open:** Hardware validation on a physical AGM M7 has not run yet. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. Several implemented capabilities aren't wired to the boot/service loop yet (tracked as the boot-wiring epic). Real radio I/O is hardware work; the boot degrades to a fail-closed loopback path when the data path is absent. A live Aletheia runtime bridge (`metaxu`) is future work — the protocol surface exists, nothing embeds a live agent runtime yet.
 
 ## Numbers, and how they were measured
 

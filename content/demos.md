@@ -11,7 +11,7 @@ duration = "0:52"
 tape = "/tapes/thumos-boot.tape"
 placeholder = "RECORDING FORTHCOMING: full QEMU boot — MMU/cache init, GIC, scheduler, first timer interrupt, CSPRNG, every subsystem's init step, boot-to-service handoff, banner, service loop ticking"
 shows = "The exact command sequence CI already runs on every push, ending on the service loop visibly ticking."
-not_shows = "Hardware bring-up on the physical AGM M7 — that stays open regardless of what the recording shows."
+not_shows = "Hardware bring-up on the physical AGM M7 — that stays open."
 
 [[extra.demos]]
 system = "kanon"
@@ -21,7 +21,7 @@ duration = "1:15"
 tape = "/tapes/kanon-gate.tape"
 placeholder = "RECORDING FORTHCOMING: kanon lint finds a violation (seeded, labeled on-screen as SEEDED VIOLATION — LABELED IN-CAST) → kanon lint --fix clears the mechanical class → kanon gate runs clean"
 shows = "The standards engine finding and fixing a real violation class, then passing a clean gate — against a public repo."
-not_shows = "kanon's own source. Private by choice, not by necessity."
+not_shows = "kanon's own source."
 
 [[extra.demos]]
 system = "aletheia"
@@ -60,8 +60,8 @@ target = "hamma-core, dictyon"
 duration = "0:45"
 tape = "/tapes/hamma-tests.tape"
 placeholder = "RECORDING FORTHCOMING: cargo test -p hamma-core && cargo test -p dictyon — the Noise-handshake and control-protocol-type tests passing"
-shows = "The Noise-handshake and control-protocol-type tests passing — modest, explicitly test-suite-shaped."
-not_shows = "Two peers joining a tailnet. That moment doesn't exist yet."
+shows = "The Noise-handshake and control-protocol-type tests passing."
+not_shows = "Two peers joining a tailnet. The mesh CLI doesn't implement that yet."
 
 [[extra.demos]]
 system = "akroasis"
@@ -75,4 +75,4 @@ not_shows = "Live mesh traffic or radio programming. The mesh CLI is static unti
 
 +++
 
-Every recording on this page is a scripted run of real commands, regenerated when the code changes. The `.tape` link on each is the script that produced it. Nothing here is staged to look better than what the command actually does.
+Every recording on this page is a scripted run of real commands, regenerated when the code changes. The `.tape` link on each is the script that produced it.

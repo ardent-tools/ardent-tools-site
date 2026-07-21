@@ -26,13 +26,13 @@ not_shows = "Live mesh traffic or radio programming. The mesh CLI is static unti
 
 ## What it is
 
-Radio, mesh networking, and spectrum-monitoring tools tend to be separate interfaces with separate data models. akroasis folds them into one Rust workspace instead: a typed signal model shared across domains, so a mesh node going quiet and a frequency spike nearby read as one event, not two unrelated logs. The mesh stack — a clean-room reimplementation of the Meshtastic protocol — runs live today. The rest is scored by what ships: kerykeion carries the mesh, syntonia handles radio programming, kryphos is the vault, and the shared signal model (its koinon crate) defines the typed contract the others write into. Everything runs offline, every protocol implemented in-repo rather than bound to a vendor library.
+Radio, mesh networking, and spectrum-monitoring tools tend to be separate interfaces with separate data models. akroasis folds them into one Rust workspace instead: a typed signal model shared across domains, so a mesh node going quiet and a frequency spike nearby read as one event, not two unrelated logs. The mesh stack — a clean-room reimplementation of the Meshtastic protocol — runs live today. The rest is scored by what ships: kerykeion carries the mesh, syntonia handles radio programming, kryphos is the vault, and the shared signal model (its koinon crate) defines the typed contract the others write into.
 
 ## Decisions and trade-offs
 
 ### The clean-room Meshtastic stack
 
-kerykeion reimplements the protocol in Rust: protobuf framing, transports, encryption, the node database, routing, store-and-forward, rather than binding the vendor's firmware libraries. The cost is months rebuilding what a binding hands over for free; `cargo tree` confirms no upstream Meshtastic crate in the dependency graph. The return: the one domain that graduated from planned to live is inspectable and testable end to end, with no C++ under the safety-critical layer. The rejected alternative — wrapping the official library and inheriting its release cadence — was available and passed over.
+kerykeion reimplements the protocol in Rust: protobuf framing, transports, encryption, the node database, routing, store-and-forward, rather than binding the vendor's firmware libraries. The cost is months rebuilding what a binding hands over for free; `cargo tree` confirms no upstream Meshtastic crate in the dependency graph. kerykeion is the one domain live end to end, with no C++ in the mesh protocol path. The rejected alternative — wrapping the official library and inheriting its release cadence — was available and passed over.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -43,7 +43,7 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 
 **Solid:** kerykeion end to end — protobuf framing, serial/TCP transports, handshake, encryption, the node database, topology, discovery, routing, delivery tracking, store-and-forward, a gateway bridge. syntonia's CHIRP CSV/IMG import, validation, and Baofeng UV-5R export, with opt-in live serial detection. The kryphos vault, with its tamper-evident mutation log beside the store. Typed JSON throughout: every CLI carries `--json`, and `akroasis-server` exposes the same surface over `/api/v1/*`.
 
-**Open:** eleven of seventeen declared domains have no shipped code — the README's own table is the ledger. The mesh CLI is static until daemon mode lands. Radio read/program wait on a protocol session backend that doesn't exist yet; `StubHardware` is the default. Aggregation has one live producer; cross-domain convergence runs synthetic everywhere else. No build/test workflow runs on GitHub Actions — issue #262 says so, and this page won't imply otherwise while it's true.
+**Open:** eleven of seventeen declared domains have no shipped code — the README's own table is the ledger. The mesh CLI is static until daemon mode lands. Radio read/program wait on a protocol session backend that doesn't exist yet; `StubHardware` is the default. Aggregation has one live producer; cross-domain convergence runs synthetic everywhere else. No build/test workflow runs on GitHub Actions — issue #262 says so.
 
 ## Numbers, and how they were measured
 

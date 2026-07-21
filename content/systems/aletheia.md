@@ -27,7 +27,7 @@ not_shows = "The desktop app — it's a v1.0-target preview, installed separatel
 
 ## What it is
 
-aletheia is a self-hosted runtime for AI agents that remember. An agent carries the conversation forward: what was said last week, preferences stated once, a knowledge graph it builds from every session rather than starting cold each time. Each agent gets its own character, goals, and memory, and agents can coordinate with each other rather than existing as isolated chat sessions.
+aletheia is a self-hosted runtime for AI agents that remember. An agent carries the conversation forward: what was said last week, preferences stated once, a knowledge graph it builds from every session rather than starting cold each time. Each agent gets its own character, goals, and memory, and agents can coordinate with each other.
 
 It ships as a single binary — no containers, no external database, no sidecar processes. The only outbound network dependency at runtime is the configured LLM provider; on first run it downloads embedding-model files from Hugging Face, then runs fully offline after that. It's reachable from a terminal dashboard, an HTTP/SSE API, or Signal.
 
@@ -35,7 +35,7 @@ It ships as a single binary — no containers, no external database, no sidecar 
 
 ### One binary over an external-database architecture
 
-Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real: an external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling. The single-binary model wins instead because it's what makes "no containers, no sidecars" true rather than aspirational — the deployment story only holds together if the data layer doesn't reach outside the process.
+Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real: an external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|

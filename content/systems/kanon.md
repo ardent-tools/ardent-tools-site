@@ -22,12 +22,12 @@ duration = "1:15"
 tape = "/tapes/kanon-gate.tape"
 placeholder = "RECORDING FORTHCOMING: kanon lint finds a violation (seeded for the recording, labeled on-screen as SEEDED VIOLATION — LABELED IN-CAST) → kanon lint --fix clears the mechanical class → kanon gate runs clean"
 shows = "The standards engine finding and fixing a real violation class, then passing a clean gate against a public repo, so nothing of kanon's own source is exposed."
-not_shows = "kanon's own source. This is a private repo by choice, not because the tool doesn't work — the case-study framing exists precisely so the design is visible without the code."
+not_shows = "kanon's own source."
 +++
 
 ## What it is
 
-kanon is the standards and dispatch control plane the rest of this fleet is built and gated against: a lint engine, a CI-exact gate system, a code-intelligence layer, and a PR/issue-orchestration MCP server. It's private, but not because it doesn't work — every other public repo on this site (aletheia, thumos, hamma, harmonia, logismos) points its own `standards/` directory at kanon's canonical rule set and runs kanon's gate before anything merges. This page is a case study rather than a source tour: the design thinking is visible without exposing the tool itself.
+kanon is the standards and dispatch control plane the rest of this fleet is built and gated against: a lint engine, a CI-exact gate system, a code-intelligence layer, and a PR/issue-orchestration MCP server. It's private, but not because it doesn't work — every other public repo on this site (aletheia, thumos, hamma, harmonia, logismos) points its own `standards/` directory at kanon's canonical rule set and runs kanon's gate before anything merges.
 
 Concretely, `kanon lint` finds mechanical rule violations across a repo (`--fix` auto-resolves the fixable class, `--diff-base` scopes it to a PR's actual diff), and `kanon gate` runs the fast-feedback check (format, compile check, lint), with a `--full` mode that adds clippy, the full test suite, and a Gate-Passed commit trailer once everything's clean.
 
@@ -40,7 +40,7 @@ kanon stays private not because the source is sensitive, but because it isn't ye
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
 | Rule enforcement | One shared rule registry, enforced identically across every repo in the fleet | Each repo carrying its own clippy config and ad hoc CI script | Coupling — a rule change in kanon can, in principle, break a gate in a repo untouched for months |
-| Recording target | Run `kanon lint` / `kanon gate` against the public aletheia repo | Recording against kanon's own source | Proves the engine works without exposing a single line of private source; a seeded violation, if used, is labeled on-screen as seeded |
+| Recording target | Run `kanon lint` / `kanon gate` against the public aletheia repo | Recording against kanon's own source | A seeded violation, if used, is labeled on-screen as seeded |
 
 ## What's solid / what's open
 
