@@ -26,13 +26,11 @@
      (see the shell rule + .prose below); --max-width itself is left
      untouched so any un-shadowed typikon partial that still reads it
      doesn't break. */
-  --width-prose:   680px;   /* was 820px — pairs with the 19px prose size below:
-                               680px @ 19px = 80 real characters per line */
-  --width-display: 940px;   /* ledes, consulting line, demos intro — ~geometric
-                               mean of prose and shell */
-  --width-wide:    1200px;  /* nav, footer, main shell, catalog, receipt tables,
-                               terminal panels, demos stack, home composition,
-                               bands; steps to 1360px at >=1680px (below) */
+  --width-prose:   clamp(40rem, 52vw, 50rem);  /* FLUID reading measure (operator: dynamic, not a fixed
+                                                   column): ~640px floor → ~750px @1440px → 800px cap */
+  --width-display: clamp(48rem, 64vw, 60rem);  /* ledes / short editorial — fluid, a step above prose */
+  --width-wide:    clamp(60rem, 92vw, 80rem);  /* nav, footer, shell, catalog, panels, bands — fluid;
+                                                   steps to 1360px at >=1680px (below) */
 
   /* === Palette — light ("bond paper") === Leatherworks family stock,
      worn professionally (DESIGN-v1.1 §5.1). --accent/--accent-aged/--warn
@@ -827,6 +825,7 @@ a.badge:focus-visible {
   font-size: var(--step--1);
   color: var(--text-mid);
   margin-top: var(--space-xs);
+  max-width: var(--width-prose);   /* WHY: was unbounded → ran full shell width (~140 chars); cap to the reading measure */
 }
 
 .term-transcript {
