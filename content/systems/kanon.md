@@ -33,17 +33,14 @@ Concretely, `kanon lint` finds mechanical rule violations across a repo (`--fix`
 
 ## Decisions and trade-offs
 
-### One standards engine, not five copy-pasted lint configs
-
-Every repo in the fleet could have carried its own clippy config, its own commit-message convention, its own ad hoc CI script. Instead they all point at one shared rule registry that kanon enforces identically everywhere. The cost is coupling: a rule change in kanon can, in principle, break a gate in a repo that hasn't been touched in months. The alternative, five repos slowly drifting toward five different conventions, was judged worse, because "consistent standards across a fleet of independent systems" is the actual thesis kanon exists to prove.
-
 ### Private by choice, not by necessity
 
 kanon stays private not because the source is sensitive, but because it isn't yet hardened for public traffic the way the fleet's other repos are. Systems built in employment are a different case entirely — employer property, described on this site only as experience. The trade-off accepted here: a stronger portfolio artifact would be a public repo with real stars and real issues; the current call prioritizes not shipping a standards tool to strangers before it's ready for that audience.
 
-### Demo against a public repo, never kanon's own source
-
-The recording plan for this page runs `kanon lint` / `kanon gate` against the public aletheia repo rather than kanon itself. This proves the engine actually does something (finds a violation, fixes it, gates clean) without exposing a single line of kanon's private source. A seeded violation, if one is used to make the recording deterministic, is labeled on-screen as seeded; the alternative (silently staging a fake finding) would undercut the whole site's "no fabricated demos" rule.
+| Decision | Chose | Rejected | Cost accepted |
+|---|---|---|---|
+| Rule enforcement | One shared rule registry, enforced identically across every repo in the fleet | Each repo carrying its own clippy config and ad hoc CI script | Coupling — a rule change in kanon can, in principle, break a gate in a repo untouched for months |
+| Recording target | Run `kanon lint` / `kanon gate` against the public aletheia repo | Recording against kanon's own source | Proves the engine works without exposing a single line of private source; a seeded violation, if used, is labeled on-screen as seeded |
 
 ## What's solid / what's open
 

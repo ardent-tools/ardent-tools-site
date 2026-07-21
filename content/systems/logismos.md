@@ -35,13 +35,10 @@ logismos is a GPU inference stack for transformer embedding models, built from t
 
 Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware — the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first. A team without that discipline would have GPU code with nothing to check it against once hardware access resumed; this one has a golden fixture already waiting.
 
-### Explicit scope discipline, stated as boundaries rather than left implicit
-
-In scope: tensor operations on HIP, transformer inference, Stella 1.5B end to end, and the `EmbeddingModel` contract the fleet's knowledge substrate consumes. Explicitly out of scope: training, non-AMD GPUs, runtime graph optimization, multi-GPU. Each of those exclusions is a real capability logismos could have grown toward; naming them as out-of-scope up front is what keeps a 27-crate, ~11K-line project that small on purpose instead of by accident.
-
-### One transformer family, one GPU family, not a general-purpose framework
-
-The project is scoped to exactly what its consumer (a knowledge substrate needing a GPU-accelerated embedder) needs, not built as a general inference framework that happens to support that case. The trade-off: less reusable for someone with a different model or a different GPU vendor. The benefit: nothing in the design is generalized past what's actually been built and tested.
+| Decision | Chose | Rejected | Cost accepted |
+|---|---|---|---|
+| Scope boundary | Tensor ops on HIP, transformer inference, Stella 1.5B end to end, the `EmbeddingModel` contract — named explicitly | Growing into training, non-AMD GPUs, runtime graph optimization, multi-GPU | Real capabilities left out on purpose, keeping a 27-crate, ~11K-line project that small by choice |
+| Framework scope | Scoped exactly to the knowledge substrate's actual consumer need | Building a general-purpose inference framework | Less reusable for a different model or a different GPU vendor |
 
 ## What's solid / what's open
 

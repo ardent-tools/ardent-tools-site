@@ -35,13 +35,10 @@ harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite ser
 
 The *arr-stack pattern (a separate app per media type, each with its own database, its own auth, its own web UI, wired together by the user) is well-established and has a large plugin ecosystem behind it. harmonia rejects that shape on purpose: one server, one auth layer, one database, 21 crates organized by concern (core, auth, media ops, acquisition, serving, audio, UI) rather than by deployable unit. The cost is losing the *arr ecosystem's existing plugin surface; the benefit is a media manager that doesn't require reasoning about five services' worth of drift between each other.
 
-### A capability table that names its own stubs, instead of one "it works" claim
-
-Rather than describe the server as "working," the project's own documentation distinguishes shipped-and-wired-to-routes capabilities from initialized-but-adapter-backed-or-fallback-only ones, down to naming the exact count of remaining null placeholders. That's a harder thing to keep honest than a blanket status claim, and it's reproduced on this page rather than collapsed into something vaguer.
-
-### Native audio pipeline instead of shelling out to an external decoder
-
-The audio layer (`akouo-core`) does bit-perfect decode and its own DSP (EQ, crossfeed, ReplayGain) natively rather than piping through an external tool. On Linux this pulls in ALSA development headers at build time (a real, stated prerequisite, not hidden in a "just works" claim); the trade-off buys tighter control over the exact signal path from decode to output.
+| Decision | Chose | Rejected | Cost accepted |
+|---|---|---|---|
+| Status reporting | A capability table naming shipped-and-wired vs. stubbed capabilities, down to the exact stub count | A blanket "it works" status claim | Harder to keep honest than a vague claim — the count has to stay current |
+| Audio decode | Native bit-perfect decode and DSP (`akouo-core`), in-process | Piping through an external decoder tool | ALSA development headers required at build time on Linux, a real stated prerequisite |
 
 ## What's solid / what's open
 
