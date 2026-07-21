@@ -33,6 +33,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/system.html` | New | `{% extends "page.html" %}`. Fact-row header + demo/diagram slot from `extra.*`, ahead of the markdown body. |
 | `templates/demos.html` | New | `{% extends "page.html" %}`. Loops `extra.demos` / `extra.placards`. |
 | `templates/consulting.html` | New | `{% extends "page.html" %}`. One data-driven block (`extra.engagement_shapes`) over otherwise-plain page content. |
+| `templates/journal-entry.html` | Shadow | Drops the substrate's hardcoded `/lexicon/` link on the components line - sibling-site furniture this site does not have (upstream: typikon#27 thread). |
 | `templates/partials/footer.html` | Shadow | Typikon's stock footer is one brand line + one flat link list; this site's footer needs three mono clusters + a sibling-brand line (DESIGN §3.7), which the flat list can't produce. |
 | `templates/partials/ld-person.html` | New | Person JSON-LD, same pattern as typikon's six `ld-*.html` partials. |
 | `templates/partials/term-panel.html` | New | The terminal-panel macro (real recording / honest placeholder / placard-without-panel) — the base primitive for every demo on the site. |
