@@ -1,16 +1,17 @@
 {# Consumer shadow of typikon's templates/index.html. Typikon's own home
    template is Leatherworks-specific (hidden nav/footer, logo, triad
-   mark) — this site's home is a fully custom composition per DESIGN
-   §4.1: masthead (nav stays visible, unlike the sibling site), kicker,
-   h1 + lede, hero terminal panel, three selected-work catalog rows,
-   practice paragraph, footer. Nav/footer blocks are left un-overridden
-   so base.html's defaults (visible top nav + the shadowed footer
-   partial) render normally.
+   mark) — this site's home is a fully custom composition per DESIGN-v1.1
+   §2's 8-element order: masthead, kicker, h1+lede, hero panel, a
+   Selected-work band, a Consulting band, the practice line, footer.
+   Nav/footer blocks are left un-overridden so base.html's defaults
+   (visible top nav + the shadowed footer partial) render normally.
 
-   content/_index.md frontmatter: title, description, [extra] kicker,
-   h1, lede, [extra.hero_demo] (term-panel macro input, §3.1),
-   extra.selected_work (array of systems/<slug> filenames). Body markdown
-   is the practice paragraph.
+   content/_index.md frontmatter: title, [extra] kicker, h1, lede,
+   [extra.hero_demo] (term-panel macro input), extra.selected_work
+   (array of systems/<slug> filenames), extra.consulting_line. Body
+   markdown is the practice paragraph (§2 item 7 — home owns the
+   sibling-Leatherworks sentence; the USMC/MBA/AI sentence and the
+   receipts-promise sentence both left home per §2's closing note).
 #}
 {% extends "base.html" %}
 {% import "partials/term-panel.html" as term_panel %}
@@ -46,22 +47,33 @@
 <p><a href="/systems/{{ section.extra.hero_demo.system }}/">Read the system &rarr;</a></p>
 {%- endif %}
 
-<h2>Selected work</h2>
+{# Two bands, back to back (§1.4 exception noted at the CSS level —
+   .section-band + .section-band carries its own separating margin so
+   two consecutive bands read as two zones, not one merged mass). #}
 {%- set systems = get_section(path="systems/_index.md") %}
 {%- set selected = section.extra.selected_work | default(value=[]) %}
-<ul class="catalog">
-  {%- for p in systems.pages %}
-    {%- if p.slug in selected %}
-      {{ catalog_row::row(page=p) }}
-    {%- endif %}
-  {%- endfor %}
-</ul>
-<p class="selected-work-close"><a href="/systems/">All systems &rarr;</a> &middot; <a href="/demos/">Every recording on one page &rarr;</a> &middot; <a href="/writing/">Writing &rarr;</a></p>
-{#- Quiet second CTA (Addendum), beside — not inside — the portfolio
-   entry-point line above: same quiet mono treatment, own row, so the
-   hiring-manager path stays visually primary during the W2 search. #}
-<div class="home-ctas">
-  <a href="/consulting/">Work with Ardent Tools &rarr;</a>
+{%- set_global public_count = 0 %}
+{%- for p in systems.pages %}{% if not p.extra.private %}{% set_global public_count = public_count + 1 %}{% endif %}{% endfor %}
+{%- set ledger_count = systems.extra.ledger | length %}
+{%- set total_public = public_count + ledger_count %}
+
+<div class="section-band">
+  <h2>Selected work</h2>
+  <ul class="catalog">
+    {%- for p in systems.pages %}
+      {%- if p.slug in selected %}
+        {{ catalog_row::row(page=p) }}
+      {%- endif %}
+    {%- endfor %}
+  </ul>
+  <p class="selected-work-close"><a href="/systems/">THE FLEET: {{ total_public }} PUBLIC REPOSITORIES &rarr;</a> &middot; <a href="/demos/">EVERY RECORDING &rarr;</a> &middot; <a href="/writing/">WRITING &rarr;</a></p>
+</div>
+
+<div class="section-band">
+  <p class="consulting-line">{{ section.extra.consulting_line }}</p>
+  <div class="home-ctas">
+    <a href="/consulting/" class="button">Work with Ardent Tools &rarr;</a>
+  </div>
 </div>
 
 <div class="practice-paragraph">
