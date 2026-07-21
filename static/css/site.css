@@ -983,7 +983,10 @@ a:active {
   letter-spacing: 0.04em;
 }
 
-/* === Footer (§3.7) — three mono clusters + sibling line === */
+/* === Footer (§3.7, §W9) — three mono clusters + sibling line, closed
+   out with a designed sign-off: kicker labels, links lifted one ink
+   tier above their labels, a top rule, and the flame's second and
+   final appearance per page (masthead, then here — never per-section). */
 .site-footer-clusters {
   display: flex;
   flex-wrap: wrap;
@@ -999,8 +1002,16 @@ a:active {
   color: var(--text-light);
 }
 
-.site-footer-cluster a {
+.footer-kicker {
+  display: block;
+  font-size: var(--step--2);
+  letter-spacing: 0.08em;
   color: var(--text-light);
+  margin-bottom: var(--space-3xs);
+}
+
+.site-footer-cluster a {
+  color: var(--text-mid);   /* links lift one ink tier above their labels */
 }
 
 .site-footer-cluster a:hover {
@@ -1021,6 +1032,27 @@ a:active {
   color: var(--text-light);
   text-transform: none;
   letter-spacing: normal;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-s);
+  margin-top: var(--space-s);
+}
+
+/* The seal: the flame's second and final appearance per page. Same mask
+   technique as the masthead (.logo::before above). */
+.site-footer-colophon::before {
+  content: "";
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.4em;
+  vertical-align: -0.08em;
+  background-color: var(--accent);
+  -webkit-mask: url('/img/logo-flame.svg') no-repeat center / contain;
+  mask: url('/img/logo-flame.svg') no-repeat center / contain;
+}
+
+footer {
+  padding-block: var(--space-m) var(--space-l);   /* the close gets room to land */
 }
 
 /* === Consulting (§Addendum) === */
