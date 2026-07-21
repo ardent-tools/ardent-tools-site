@@ -8,17 +8,22 @@
 {% extends "page.html" %}
 
 {% block content %}
-{# Consulting reads as body prose throughout (§1.2) — h1 through the
-   engagement-shapes grid narrows to the reading measure; the grid is a
-   single column at every width today (no grid-template-columns set), so
-   the narrower measure only tightens its own text, no layout change. #}
-<div class="prose">
+{# Consulting recomposition (DESIGN-v1.3 §1.3, §5) — h1+lede claim the
+   display tier (940px, same tier as home/system-page ledes) instead of
+   reading-prose width; the offer body stays reading prose (680px@19);
+   engagement_shapes exits .prose entirely to a shell-width 3-col grid
+   (§1.3 table) — the template's most visible differentiation for the
+   least CSS. #}
+<header class="consulting-header">
 <h1>{{ page.title }}</h1>
 {%- if page.description %}
 <p class="page-lede">{{ page.description }}</p>
 {%- endif %}
+</header>
 
+<div class="prose">
 {{ page.content | safe }}
+</div>
 
 {%- if page.extra.engagement_shapes %}
 <h2>Engagement shapes</h2>
@@ -31,5 +36,4 @@
   {%- endfor %}
 </div>
 {%- endif %}
-</div>
 {% endblock content %}

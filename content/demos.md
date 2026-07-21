@@ -63,6 +63,15 @@ placeholder = "RECORDING FORTHCOMING: cargo test -p hamma-core && cargo test -p 
 shows = "The Noise-handshake and control-protocol-type tests passing — modest, explicitly test-suite-shaped."
 not_shows = "Two peers joining a tailnet. That moment doesn't exist yet."
 
+[[extra.demos]]
+system = "akroasis"
+action = "CHIRP import, then vault verify"
+target = "akroasis radio import / vault identity"
+duration = "0:50"
+placeholder = "RECORDING FORTHCOMING: CHIRP CSV import, validation, Baofeng UV-5R export, then vault identity and tamper-log check — the CLI paths that run today, no radio hardware in frame"
+shows = "Real CLI sessions against the shipped crates: syntonia's CHIRP workflow and kryphos's vault, --json output included."
+not_shows = "Live mesh traffic or radio programming. The mesh CLI is static until daemon mode lands, and radio read/program waits on the protocol session backend. StubHardware is the default; the caption says so."
+
 
 +++
 

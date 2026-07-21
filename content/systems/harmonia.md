@@ -27,7 +27,7 @@ not_shows = "The two HTTP-layer resolvers that are still null placeholders (meta
 
 ## What it is
 
-harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite server spanning 21 workspace crates, aimed at replacing the pattern where you run five or six separate *arr-style applications (one for movies, one for TV, one for music, one for indexing, one for requests) and wire them together yourself. Instead it's one coherent server covering the full media lifecycle: import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household request handling, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
+harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite server spanning 21 workspace crates, aimed at replacing the pattern of five or six separate *arr-style applications (one for movies, one for TV, one for music, one for indexing, one for requests) wired together by hand. Instead it's one coherent server covering the full media lifecycle: import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household request handling, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
 
 ## Decisions and trade-offs
 

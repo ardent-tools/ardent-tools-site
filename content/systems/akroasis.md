@@ -5,7 +5,7 @@ weight = 5
 template = "system.html"
 
 [extra]
-badge = "MESH LIVE · 10 OF 17 DOMAINS PLANNED"
+badge = "MESH LIVE · 11 OF 17 DOMAINS PLANNED"
 repo = "https://github.com/forkwright/akroasis"
 stack = "Rust workspace · 7 crates · AGPL-3.0"
 demo_len = "0:50"
@@ -36,14 +36,14 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
-| Signal model before collectors | A 7-domain typed signal contract, synthetic pipeline tests holding it | A schema grown per domain as collectors landed | 10 of 17 domains declared stubs, in public |
+| Signal model before collectors | A 7-domain typed signal contract, synthetic pipeline tests holding it | A schema grown per domain as collectors landed | 11 of 17 domains declared stubs, in public |
 | Encrypted by default | Argon2id, ChaCha20-Poly1305, Ed25519, and a BLAKE3 hash-chain tamper log | Plaintext credentials, encryption as an opt-in | Vault commands stay TTY-interactive until service surfaces ship |
 
 ## What's solid / what's open
 
 **Solid:** kerykeion end to end — protobuf framing, serial/TCP transports, handshake, encryption, the node database, topology, discovery, routing, delivery tracking, store-and-forward, a gateway bridge. syntonia's CHIRP CSV/IMG import, validation, and Baofeng UV-5R export, with opt-in live serial detection. The kryphos vault, with its tamper-evident mutation log beside the store. Typed JSON throughout: every CLI carries `--json`, and `akroasis-server` exposes the same surface over `/api/v1/*`.
 
-**Open:** ten of seventeen declared domains have no shipped code — the README's own table is the ledger. The mesh CLI is static until daemon mode lands. Radio read/program wait on a protocol session backend that doesn't exist yet; `StubHardware` is the default. Aggregation has one live producer; cross-domain convergence runs synthetic everywhere else. No build/test workflow runs on GitHub Actions — issue #262 says so, and this page won't imply otherwise while it's true.
+**Open:** eleven of seventeen declared domains have no shipped code — the README's own table is the ledger. The mesh CLI is static until daemon mode lands. Radio read/program wait on a protocol session backend that doesn't exist yet; `StubHardware` is the default. Aggregation has one live producer; cross-domain convergence runs synthetic everywhere else. No build/test workflow runs on GitHub Actions — issue #262 says so, and this page won't imply otherwise while it's true.
 
 ## Numbers, and how they were measured
 
@@ -53,7 +53,7 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 |---|---|---|
 | Clean-room Meshtastic stack, live as the one production signal producer | Read the crate; `cargo tree -p kerykeion` shows no upstream Meshtastic crate | `crates/kerykeion` |
 | 7 workspace crates shipped | `ls crates/` on a fresh clone | reproducible |
-| 17 capability domains declared; 10 with no shipped code | Count rows and stub marks in the README table | `README.md` domain table |
+| 17 capability domains declared; 11 with no shipped code | Count rows and stub marks in the README table | `README.md` domain table |
 | Vault mutations logged to a BLAKE3 hash-chain tamper log | kryphos dependency tree + the `tamper.log` contract | `crates/kryphos` |
 | 23,569 lines Rust (code-only), 24,538 including comments | `tokei` against a local clone, 2026-07-21 | reproducible: `tokei` on a fresh clone |
 | 809 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-21 | reproducible: same `rg` command on a fresh clone |

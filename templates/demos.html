@@ -18,8 +18,14 @@
 
 {% block content %}
 <h1>{{ page.title }}</h1>
+<div class="demos-intro">
 {{ page.content | safe }}
+</div>
 
+{# h2 landmark ahead of the per-demo h3 meta lines (term-panel's own
+   heading=true) — without it the page's heading sequence skips h1
+   straight to h3 with no h2 anywhere (WCAG 1.3.1). #}
+<h2>Every recording</h2>
 {%- for demo in page.extra.demos | default(value=[]) %}
 {{ term_panel::panel(demo=demo, hero=false, label=demo.system ~ " " ~ demo.action, heading=true) }}
 {%- endfor %}

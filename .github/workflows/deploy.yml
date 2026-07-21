@@ -87,6 +87,12 @@ jobs:
       - name: zola check (internal links + assets)
         run: zola check
 
+      - name: Generate systems.json from content frontmatter
+        # DESIGN-v1.3 §4 item 5 — derived from the same content/systems/*.md
+        # frontmatter systems.html/catalog-ledger.html already render; must
+        # run before zola build so static/systems.json copies through.
+        run: python3 bin/generate-systems-json.py
+
       - name: zola build
         run: zola build
 
@@ -124,9 +130,17 @@ jobs:
             --exclude "^https?://${ESCAPED_HOST}/" \
             public/
 
-      - name: Serve public/ for browser-based gates
+      - name: Serve site for browser-based gates
         run: |
-          cd public && python3 -m http.server 8080 &
+          # WHY: the deploy build uses the production base_url, so its HTML
+          # references assets at absolute https URLs. Serving that build would
+          # make pa11y + the prose-measure playwright gate load the ALREADY-
+          # DEPLOYED css/js instead of this commit's — a gate that can never
+          # pass a css change before it ships. Build a throwaway local-URL copy
+          # for the browser gates; public/ (prod) stays intact for deploy.
+          # (substrate gap — filed on typikon.)
+          zola build --base-url http://127.0.0.1:8080 --output-dir public-local
+          cd public-local && python3 -m http.server 8080 &
           echo $! > /tmp/server.pid
           sleep 2
 
@@ -137,6 +151,10 @@ jobs:
         if: ${{ hashFiles('tests/smoke/**/*.spec.ts') != '' }}
         run: |
           cp themes/typikon/ci/playwright.config.ts ./playwright.config.ts
+          # WHY: the copied root config's `import '@playwright/test'` can't resolve
+          # the global install from the repo root; NODE_PATH points Node at the
+          # global node_modules so the config loads (substrate gap — filed on typikon).
+          export NODE_PATH="$(npm root -g)"
           npx playwright test
 
       - name: Tear down static server

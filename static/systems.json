@@ -1,0 +1,194 @@
+{
+  "$schema_note": "Generated from content/systems/*.md — do not hand-edit.",
+  "site": "https://ardent.tools",
+  "catalog_url": "https://ardent.tools/systems/",
+  "systems": [
+    {
+      "name": "akroasis",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/akroasis/",
+      "one_liner": "An RF signals toolkit in Rust: a clean-room Meshtastic mesh stack running live, CHIRP radio workflows, an encrypted credential vault, and a 17-domain signal model labeled by what actually ships.",
+      "badge": "MESH LIVE · 11 OF 17 DOMAINS PLANNED",
+      "repo": "https://github.com/forkwright/akroasis",
+      "license": null,
+      "stack": "Rust workspace · 7 crates · AGPL-3.0",
+      "private": false
+    },
+    {
+      "name": "aletheia",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/aletheia/",
+      "one_liner": "Self-hosted AI agents with persistent memory. One binary, no containers, no external databases — a knowledge graph that carries forward across sessions.",
+      "badge": "TUI DEFAULT · DESKTOP IN PREVIEW",
+      "repo": "https://github.com/forkwright/aletheia",
+      "license": null,
+      "stack": "Rust · single binary · Datalog-backed memory",
+      "private": false
+    },
+    {
+      "name": "hamma",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/hamma/",
+      "one_liner": "A clean-room Rust implementation of a Tailscale-compatible mesh networking stack. Pre-alpha, actively implementing the peer client against a real reference control plane.",
+      "badge": "PRE-ALPHA",
+      "repo": "https://github.com/forkwright/hamma",
+      "license": null,
+      "stack": "Rust · WireGuard (boringtun) · Noise protocol",
+      "private": false
+    },
+    {
+      "name": "harmonia",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/harmonia/",
+      "one_liner": "A unified self-hosted media platform: one Rust server across 21 crates, replacing a stack of separate *arr-pattern services with one coherent media lifecycle manager.",
+      "badge": "SHIPPED CORE · 2 STUBS AT HTTP LAYER",
+      "repo": "https://github.com/forkwright/harmonia",
+      "license": null,
+      "stack": "Rust · Tokio/Axum/SQLite · 21 workspace crates",
+      "private": false
+    },
+    {
+      "name": "kanon",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/kanon/",
+      "one_liner": "The standards engine that gates every other repo on this site: a lint/gate CLI, code intelligence, and PR/issue orchestration, private by choice.",
+      "badge": "PRIVATE · CASE STUDY",
+      "repo": null,
+      "license": null,
+      "stack": "Rust · MCP server · standards-as-code",
+      "private": true
+    },
+    {
+      "name": "logismos",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/logismos/",
+      "one_liner": "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven; GPU cutover waits on hardware access.",
+      "badge": "PHASE 4 BLOCKED ON HARDWARE",
+      "repo": "https://github.com/forkwright/logismos",
+      "license": null,
+      "stack": "Rust · HIP/hipBLASLt · AMD gfx1100",
+      "private": false
+    },
+    {
+      "name": "thumos",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/thumos/",
+      "one_liner": "A bare-metal Rust phone OS for the AGM M7 — no Linux underneath. The kernel boots end-to-end under QEMU, and CI proves it on every push.",
+      "badge": "BOOTS UNDER EMULATION",
+      "repo": "https://github.com/forkwright/thumos",
+      "license": null,
+      "stack": "Rust · bare-metal armv7a · QEMU CI",
+      "private": false
+    },
+    {
+      "name": "theatron",
+      "group": "libraries",
+      "url": null,
+      "gloss": "θέατρον — the seeing-place",
+      "one_liner": "Desktop UI primitives for the fleet: Dioxus/Blitz components, design tokens, markdown rendering, HTTP/SSE, OS integration.",
+      "badge": "v1.4.0 · API FROZEN",
+      "repo": "https://github.com/forkwright/theatron",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "heurema",
+      "group": "libraries",
+      "url": null,
+      "gloss": "εὕρημα — a thing found",
+      "one_liner": "Contracts for vector search, full-text search, persistence, and rank fusion. Reciprocal-rank fusion is implemented; HNSW and BM25 land by extraction from their in-app implementations.",
+      "badge": "IMPLEMENTED: RRF · INTERFACES: HNSW, BM25",
+      "repo": "https://github.com/forkwright/heurema",
+      "license": "AGPL-3.0"
+    },
+    {
+      "name": "sphragis",
+      "group": "libraries",
+      "url": null,
+      "gloss": "σφραγίς — a seal",
+      "one_liner": "Post-quantum hybrid sealing: an X-Wing KEM (X25519 + ML-KEM-768) with a ChaCha20-Poly1305 envelope, behind an explicit feature flag.",
+      "badge": "UNAUDITED PREVIEW",
+      "repo": "https://github.com/forkwright/sphragis",
+      "license": "AGPL-3.0"
+    },
+    {
+      "name": "koinon",
+      "group": "libraries",
+      "url": null,
+      "gloss": "κοινόν — that which is shared",
+      "one_liner": "Fleet-common Rust scaffolding: tracing init, typed errors, config loading, a CLI prelude.",
+      "badge": "v0.1.0",
+      "repo": "https://github.com/forkwright/koinon",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "epitelesis",
+      "group": "libraries",
+      "url": null,
+      "gloss": "ἐπιτέλεσις — executing-to-completion",
+      "one_liner": "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors. Every fleet subprocess call goes through it.",
+      "badge": "v0.2.0",
+      "repo": "https://github.com/forkwright/epitelesis",
+      "license": "Apache-2.0 OR MIT"
+    },
+    {
+      "name": "zetesis",
+      "group": "libraries",
+      "url": null,
+      "gloss": "ζήτησις — systematic inquiry",
+      "one_liner": "Budget, cost, citation, and query contracts for agent research pipelines, with a fixture-driven deep-research loop.",
+      "badge": "PHASE 1 SCAFFOLD",
+      "repo": "https://github.com/forkwright/zetesis",
+      "license": "AGPL-3.0"
+    },
+    {
+      "name": "typikon",
+      "group": "web",
+      "url": null,
+      "gloss": "τυπικόν — the book of order",
+      "one_liner": "The Zola theme, frontmatter schemas, and CI gate bundle this site itself runs on: CSP enforcement, link checking, accessibility, smoke tests.",
+      "badge": "PINNED BY COMMIT · NO RELEASE TAG",
+      "repo": "https://github.com/forkwright/typikon",
+      "license": "AGPL-3.0"
+    },
+    {
+      "name": "epistole",
+      "group": "web",
+      "url": null,
+      "gloss": "ἐπιστολή — a letter",
+      "one_liner": "Subscriber lifecycle and archive flows over an embedded store; SMTP delivery is the next phase.",
+      "badge": "PHASE 1 · SMTP PENDING",
+      "repo": "https://github.com/forkwright/epistole",
+      "license": "AGPL-3.0"
+    },
+    {
+      "name": "pinax",
+      "group": "in-design",
+      "url": null,
+      "gloss": "πίναξ — the tablet, the register",
+      "one_liner": "A relational storage engine designed from scratch in Rust: multi-writer MVCC, per-page encryption, a causal changelog as a storage primitive. Design documents only; implementation not started.",
+      "badge": "DESIGN PHASE",
+      "repo": "https://github.com/forkwright/pinax",
+      "license": "PolyForm Shield 1.0.0"
+    },
+    {
+      "name": "mneme",
+      "group": "in-design",
+      "url": null,
+      "gloss": "μνήμη — memory as faculty",
+      "one_liner": "A Datalog engine for facts, rules, and inference: content-addressed facts, supersede-based retraction, incrementally maintained views. Design documents only; implementation not started.",
+      "badge": "DESIGN PHASE",
+      "repo": "https://github.com/forkwright/mneme",
+      "license": "PolyForm Shield 1.0.0"
+    },
+    {
+      "name": "dioptron",
+      "group": "in-design",
+      "url": null,
+      "gloss": "δίοπτρον — the instrument through which one sees",
+      "one_liner": "A specification for a web runtime where operator and agents share one capability surface: browsing, ingesting, querying, acting. Design documents only; implementation not started.",
+      "badge": "DESIGN PHASE",
+      "repo": "https://github.com/forkwright/dioptron",
+      "license": "AGPL-3.0"
+    }
+  ]
+}

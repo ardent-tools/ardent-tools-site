@@ -10,6 +10,14 @@
 {% extends "page.html" %}
 {% import "partials/term-panel.html" as term_panel %}
 
+{# SoftwareSourceCode/CreativeWork JSON-LD (DESIGN-v1.3 §4 item 7) ships
+   alongside page.html's default Organization/Person/Breadcrumb stack —
+   {{ super() }} preserves it, this only adds the per-system node. #}
+{% block ld_json %}
+{{ super() }}
+{%- include "partials/ld-software.html" -%}
+{% endblock ld_json %}
+
 {# Every system page may render a term-panel demo — one of the three
    panel-bearing templates (base.html T2 scoping); the player loads. #}
 {% block player_css %}
