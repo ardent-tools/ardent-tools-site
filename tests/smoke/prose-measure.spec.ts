@@ -13,8 +13,12 @@ import { test, expect } from '@playwright/test';
 
 const ROUTES = ['/writing/three-ways-to-count/', '/about/'];
 const VIEWPORT = { width: 1440, height: 1000 };
-const MIN_CHARS_PER_LINE = 70;
-const MAX_CHARS_PER_LINE = 85;
+// The prose measure is now FLUID (clamp(40rem, 52vw, 50rem)) per operator
+// preference — dynamic, not a fixed column. So this is a sanity band, not a
+// strict typographic measure: it still catches an unbounded/full-width regression
+// while allowing the fluid fullness (~88 chars at 1440px).
+const MIN_CHARS_PER_LINE = 60;
+const MAX_CHARS_PER_LINE = 100;
 // Paragraphs shorter than this rarely wrap to more than a line or two at
 // 680px and would skew the average toward noise rather than measure.
 const MIN_SAMPLE_CHARS = 200;
