@@ -18,4 +18,6 @@ detail = "Taking an existing agent system from prototype to something a team can
 
 Ardent Tools builds agent infrastructure: the standards gates, guardrails, memory systems, and review loops that let AI agents do real engineering work someone else can verify. The [systems on this site](/systems/) and the [recordings](/demos/) are the actual sales page — this page just states the shapes of engagement, not a pitch.
 
+No client list yet. This is a new practice — the systems and recordings above are the track record until there's a signed engagement and the client's own written permission to be named.
+
 Contact: [cody@ardent.tools](mailto:cody@ardent.tools?subject=Consulting%20inquiry).
