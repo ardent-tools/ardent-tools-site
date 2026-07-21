@@ -202,6 +202,28 @@ h2 {
   font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
+  position: relative;
+}
+
+/* h2 ink tick (§W5) — the two-tier hierarchy applied within one rule:
+   typikon's full-width content hairline stays; a short chrome-ink tick
+   anchors the section start on top of it. Same weight as the hairline,
+   darker ink - hierarchy from ink, not thickness. */
+h2::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 2.5rem;
+  border-top: 1px solid var(--text);
+}
+
+/* Inside a band/zone the band edge already carries a hairline (W6); the
+   first h2 drops its own top rule and keeps only the tick. */
+.section-band > h2:first-child,
+.catalog-group > h2:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 
 /* === Typographic craft (progressive enhancements) === Free browser
@@ -568,12 +590,24 @@ a.badge:focus-visible {
    auto; the page body never scrolls horizontally"). Markdown tables have
    no attribute syntax to put a class directly on <table>, so every rule
    below is scoped through this wrapper div instead. */
+/* Receipt plate (§W5) — the matted-frame treatment extended to the
+   third evidence artifact: terminal = screen under mat, diagram = paper
+   plate, receipts = ledger plate. Reserved for terminal panels, diagram
+   plates, and receipt tables only - never prose, catalogs, or FAQ items. */
 .receipt-table-wrap {
+  background: var(--bg-accent);
+  border: 1px solid var(--panel-edge);
+  padding: var(--space-s);
   overflow-x: auto;
 }
 
 .receipt-table-wrap table {
+  margin: 0;   /* the plate owns the spacing now */
   font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.receipt-table-wrap thead th {
+  border-bottom: 3px double var(--text-mid);   /* the ledger's double rule; 3px is the minimum that renders as two lines */
 }
 
 .receipt-table-wrap .ok::before {
