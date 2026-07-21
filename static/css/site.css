@@ -201,6 +201,25 @@ h2 {
   letter-spacing: normal;
 }
 
+/* === Typographic craft (progressive enhancements) === Free browser
+   craft: balanced/pretty wrapping, hanging punctuation (Safari-only,
+   ignored elsewhere), and the accent's wash tier doing selection work. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+.prose p, .page-lede, .catalog-row-desc, .term-caption {
+  text-wrap: pretty;
+}
+
+.prose {
+  hanging-punctuation: first allow-end;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, var(--bg));
+}
+
 /* === Section band (§1.4) — a zone-shift primitive: --bg-accent spanning
    the wide shell, radius 0, no border, --space-l padding-block. Call
    sites (home selected-work, home consulting CTA, /demos/ interactive
