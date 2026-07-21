@@ -1,6 +1,6 @@
 +++
 title = "Systems"
-description = "Six systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record."
+description = "Seven systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record."
 sort_by = "weight"
 template = "systems.html"
 
@@ -105,4 +105,4 @@ repo = "https://github.com/forkwright/dioptron"
 group = "in-design"
 +++
 
-Six systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record. Order within a group is each page's own weight — reorderable at zero design cost.
+Seven systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record. Order within a group is each page's own weight — reorderable at zero design cost.
