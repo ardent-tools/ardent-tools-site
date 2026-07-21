@@ -143,6 +143,10 @@ jobs:
         if: ${{ hashFiles('tests/smoke/**/*.spec.ts') != '' }}
         run: |
           cp themes/typikon/ci/playwright.config.ts ./playwright.config.ts
+          # WHY: the copied root config's `import '@playwright/test'` can't resolve
+          # the global install from the repo root; NODE_PATH points Node at the
+          # global node_modules so the config loads (substrate gap — filed on typikon).
+          export NODE_PATH="$(npm root -g)"
           npx playwright test
 
       - name: Tear down static server
