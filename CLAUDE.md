@@ -56,7 +56,7 @@ Runs validate + zola check + zola build + csp-enforce locally; emits `skip` for 
 
 ## Remotes
 
-Not wired in this scaffold. The fleet convention (matching typikon and the sibling `ardent-site` repo) is `origin` = the forkwright forge, `github` = a push-mirror; wire both before the first real push, and run `kanon forge init ardent-tools/site` to create the bare forge repo first (GitHub canonical: `github.com/ardent-tools/site`).
+Not wired in this scaffold. The fleet convention (matching typikon and the sibling `ardent-site` repo) is `origin` = the forkwright forge, `github` = a push-mirror; wire both before the first real push, and run `kanon forge init ardent-tools/ardent-tools-site` to create the bare forge repo first (GitHub canonical: `github.com/ardent-tools/ardent-tools-site`).
 
 ## Open items from the build pass
 
