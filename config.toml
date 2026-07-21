@@ -41,7 +41,7 @@ brand_name = "ardent.tools"
 # favicons; base.html links a raster set alongside this (favicon-32.png,
 # apple-touch-icon.png, icon-512.png via site.webmanifest).
 logo_path = "img/logo-flame.svg"
-theme_color = "#F7F3E8"
+theme_color = "#FBFAF6"
 theme_color_dark = "#21201D"
 og_locale = "en_US"
 # PNG, not the source SVG (img/og-card.svg) — Twitter/LinkedIn/Slack

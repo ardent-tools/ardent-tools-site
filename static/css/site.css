@@ -39,8 +39,8 @@
      unchanged from the pre-v1.1 palette (already the family's russet/ember
      thread); --bg/--bg-accent/--text-mid/--text-light/--rule/--ok are the
      resolved values from §5.1 + design-delta-dye.md §5. */
-  --bg: #F7F3E8;
-  --bg-accent: #EDE7D8;
+  --bg: #FBFAF6;
+  --bg-accent: #F1EEE7;
   --text: #1C1917;
   --text-mid: #44403C;
   --text-light: #6B6661;
