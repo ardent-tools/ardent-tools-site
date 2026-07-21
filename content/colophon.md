@@ -19,16 +19,12 @@ This site is its own receipt: the repo is public, so the gate config, the CSP, a
 | Recording player | [asciinema-player](https://github.com/asciinema/asciinema-player) v3.17.0, vendored under `/vendor/asciinema/`, Apache-2.0 |
 | Deploy | Cloudflare Pages, via GitHub Actions on green pushes to `main` |
 | Tracking | None. No analytics, no cookies, no third-party requests of any kind |
+| CSP — script-src | `'self'`, plus a `'wasm-unsafe-eval'` carve-out for the vendored player's inline-compiled WebAssembly core; in-browser QA against this exact policy is still open, see `_headers` |
+| CSP — style-src | `'self'` only, no inline `style="..."` anywhere — code listings use Zola's class-based syntax highlighting instead of inline colors |
+| CSP — form-action | `'self'` only. No third-party form destination, because the site carries no form at all |
+| Family | Sibling of [Ardent Leatherworks](https://ardentleatherworks.com) — shared paper stock, shared press ink, shared flame mark |
 
 </div>
-
-## CSP posture
-
-`script-src 'self'` — every script is a first-party file, nothing inline, nothing from a CDN. The one carve-out is `'wasm-unsafe-eval'`, required because the vendored recording player compiles a WebAssembly module inline for its terminal-rendering core; see `_headers` for the exact directive and the note on its in-browser verification status.
-
-`style-src 'self'`: no inline `style="..."` attributes anywhere. Code listings use Zola's class-based syntax highlighting rather than inline colors specifically so this holds.
-
-`form-action 'self'` only. This site carries no third-party form destination, because it carries no form at all.
 
 ## The gate
 
