@@ -27,19 +27,22 @@ Everything under `templates/` here is either a full shadow of a typikon template
 
 | File | Kind | Why |
 |---|---|---|
-| `templates/base.html` | Shadow | Adds `site.css`, `syntax.css`, the vendored player CSS/JS, and `site.js` after typikon's own stylesheet/scripts. Also layers Person JSON-LD onto the default Organization block. |
+| `templates/base.html` | Shadow | Adds `site.css`, `syntax.css`, the vendored player CSS/JS, and `site.js` after typikon's own stylesheet/scripts. Also layers Person JSON-LD onto the default Organization block, the flame-mark favicon set (SVG + PNG + apple-touch-icon + webmanifest, DESIGN-v1.1 §5.2), and the light/dark `theme-color` pair. |
 | `templates/index.html` | Shadow | Typikon's own `index.html` is the sibling site's hidden-nav home; this site's home keeps nav visible and has a fully different composition (DESIGN §4.1). |
+| `templates/page.html` | Shadow | Wraps `page.content` (+ product-gallery/video) in `.prose` (DESIGN-v1.1 §1.2) — the reading-measure cap for generic content pages (about, colophon, contact, resume, 404). Templates that override `{% block content %}` themselves (`system.html`, `faq.html`, `consulting.html`) do their own `.prose` wrap instead; this file's content block only renders for pages using `page.html` as-is. |
+| `templates/faq.html` | Shadow | `.faq-page` article carries `.prose` too (DESIGN-v1.1 §1.2 — faq answers are an explicit prose context). Otherwise identical to typikon's own `faq.html`. |
 | `templates/systems.html` | New | Data-driven systems index — loops `section.pages` through the catalog-row partial. |
-| `templates/system.html` | New | `{% extends "page.html" %}`. Fact-row header + demo/diagram slot from `extra.*`, ahead of the markdown body. |
+| `templates/system.html` | New | `{% extends "page.html" %}`. Fact-row header + demo/diagram slot from `extra.*`, ahead of the markdown body; the body prose (`page.content`) is `.prose`-wrapped (DESIGN-v1.1 §1.2), the header/demo/nav stay at shell width. |
 | `templates/demos.html` | New | `{% extends "page.html" %}`. Loops `extra.demos` / `extra.placards`. |
-| `templates/consulting.html` | New | `{% extends "page.html" %}`. One data-driven block (`extra.engagement_shapes`) over otherwise-plain page content. |
+| `templates/consulting.html` | New | `{% extends "page.html" %}`. One data-driven block (`extra.engagement_shapes`) over otherwise-plain page content; the whole content block is `.prose`-wrapped (DESIGN-v1.1 §1.2). |
 | `templates/journal-entry.html` | Shadow | Drops the substrate's hardcoded `/lexicon/` link on the components line - sibling-site furniture this site does not have (upstream: typikon#27 thread). |
+| `templates/partials/nav.html` | Shadow | Current-page indicator (DESIGN-v1.1 §1.6 — `aria-current="page"` on the nav item whose URL prefixes `current_path`, home exact-match only) — typikon's stock partial has no path-comparison logic at all (filed upstream, typikon#25-adjacent, §9). |
 | `templates/partials/footer.html` | Shadow | Typikon's stock footer is one brand line + one flat link list; this site's footer needs three mono clusters + a sibling-brand line (DESIGN §3.7), which the flat list can't produce. |
 | `templates/partials/ld-person.html` | New | Person JSON-LD, same pattern as typikon's six `ld-*.html` partials. |
 | `templates/partials/term-panel.html` | New | The terminal-panel macro (real recording / honest placeholder / placard-without-panel) — the base primitive for every demo on the site. |
 | `templates/partials/catalog-row.html` | New | The ledger-row macro `systems.html` and `index.html`'s selected-work block both call. |
 
-`templates/partials/nav.html` is NOT shadowed — the Resume button is pure CSS (`.nav-links a:last-child`), and the Greek-hover mechanic in the stock partial stays dormant because no `greek`/`brand_greek` fields are ever set.
+`templates/section.html` is NOT shadowed — every current `_index.md` in this repo sets an explicit `template =` (`systems.html`, `journal-section.html`) or is the root home (`index.html`); nothing renders through typikon's generic `section.html` today, so there is nothing for a `.prose` wrap to affect. Add the shadow if a future section index needs one.
 
 **No `partials/assert.html` import anywhere.** The pinned typikon commit predates that macro (added later in typikon's history); templates here that extend typikon's `page.html`/`section.html`/etc. still work fine without it — those theme templates skip the extra required-field assertions at this pin. Importing it from a consumer template would break the build outright (the file doesn't exist at this pin). Check this again before bumping the submodule.
 

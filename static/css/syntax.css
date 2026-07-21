@@ -45,19 +45,23 @@ pre.giallo code {
 
 .z-comment {
   /* text-mid, not text-light: on the pre.giallo `--bg-accent` panel,
-     text-light clears AA in light mode but only reaches 4.35:1 in dark
-     mode (checked against DESIGN's own §2.3 token table — a real fail,
-     not a hedge). text-mid clears comfortably in both. */
+     text-mid clears comfortably in both themes (6.65:1+ dark, 8+:1
+     light) with the larger margin. The v1.1 dark --text-light
+     (design-delta-dye.md §5) was raised specifically to clear this exact
+     surface too (now 4.58:1, passing) — text-mid is kept here regardless
+     for the wider margin, not because text-light still fails. */
   color: var(--text-mid);
   font-style: italic;
 }
 
 @media (prefers-color-scheme: dark) {
-  /* --accent-aged(dark) on --bg-accent(dark) is 3.5:1 — fails AA for
+  /* --accent-aged(dark) on --bg-accent(dark) is 3.45:1 — fails AA for
      this component specifically (it's tuned as a hover-state color,
-     §2.1, not for small syntax-highlighted text on a panel). --accent
-     itself clears 4.61:1 in the same pairing; swap only here, the
-     shared token is unchanged. */
+     §2.1, not for small syntax-highlighted text on a panel; DESIGN-v1.1
+     §5.1 names this as the one known undispositioned failure — re-checked
+     against the v1.1 dark palette, still fails, same disposition holds).
+     --accent itself clears 4.54:1 in the same pairing; swap only here,
+     the shared token is unchanged. */
   .z-keyword,
   .z-storage {
     color: var(--accent);

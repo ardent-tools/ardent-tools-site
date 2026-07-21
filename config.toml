@@ -35,9 +35,14 @@ theme = "github-light"
 # Greek-branch templates activated (every Greek path in typikon is
 # {% if %}-gated on a config field this site never sets).
 brand_name = "ardent.tools"
-logo_path = "img/favicon.svg"
-theme_color = "#F3F2ED"
-theme_color_dark = "#1F1F1E"
+# The flame mark (§5.2) — replaces the old accent-block favicon.svg
+# placeholder as both the Organization JSON-LD logo and (via base.html's
+# shadow) the SVG favicon href. Safari desktop/iOS don't render SVG
+# favicons; base.html links a raster set alongside this (favicon-32.png,
+# apple-touch-icon.png, icon-512.png via site.webmanifest).
+logo_path = "img/logo-flame.svg"
+theme_color = "#F7F3E8"
+theme_color_dark = "#21201D"
 og_locale = "en_US"
 # PNG, not the source SVG (img/og-card.svg) — Twitter/LinkedIn/Slack
 # unfurlers don't render SVG og:image; twitter:card is
@@ -55,16 +60,19 @@ font_preload = [
   "/fonts/plex-mono-600-latin.woff2",
 ]
 
-# Top-nav structure (IA §1). No dropdowns, no hamburger, not sticky.
-# Resume is last by position — static/css/site.css styles
-# .nav-links a:last-child as the one filled button on the site.
+# Top-nav structure (IA §1; Consulting added §1.6 note 14). No dropdowns,
+# no hamburger, not sticky. Resume is last by position —
+# static/css/site.css styles .nav-links a:last-child as the one filled
+# button on the site; the shadowed partials/nav.html marks whichever item
+# prefixes current_path with aria-current="page" (§1.6).
 nav_items = [
-  { url = "/systems/", label = "Systems" },
-  { url = "/demos/",   label = "Demos" },
-  { url = "/writing/", label = "Writing" },
-  { url = "/about/",   label = "About" },
-  { url = "/contact/", label = "Contact" },
-  { url = "/resume/",  label = "Resume" },
+  { url = "/systems/",    label = "Systems" },
+  { url = "/demos/",      label = "Demos" },
+  { url = "/consulting/", label = "Consulting" },
+  { url = "/writing/",    label = "Writing" },
+  { url = "/about/",      label = "About" },
+  { url = "/contact/",    label = "Contact" },
+  { url = "/resume/",     label = "Resume" },
 ]
 
 # typikon's stock ld-organization.html partial (kept, unshadowed — see

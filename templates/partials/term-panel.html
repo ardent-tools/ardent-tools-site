@@ -18,7 +18,7 @@
      (required when cast is absent).
 #}
 {% macro panel(demo, hero=false, label="") %}
-<figure class="term-panel breakout">
+<figure class="term-panel">
   <div class="term-meta">
     <span>{{ demo.system }} &middot; {{ demo.action }}{% if demo.target %} &middot; {{ demo.target }}{% endif %}{% if demo.commit %} &middot; {{ demo.commit }}{% endif %}</span>
     <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ demo.cast | safe }}">.cast</a>{% endif %}{% if demo.tape %} &middot; <a href="{{ demo.tape | safe }}">.tape</a>{% endif %}</span>

@@ -44,7 +44,7 @@
 </header>
 
 {%- if page.extra.svg_diagram %}
-<figure class="term-panel breakout">
+<figure class="term-panel">
   <div class="term-meta">
     <span>{{ page.title }} &middot; architecture</span>
   </div>
@@ -57,12 +57,19 @@
 {{ term_panel::panel(demo=page.extra.demo, hero=false, label=page.title ~ " demo") }}
 {%- endif %}
 
+{# System-page prose (§1.2) — "What it is" through "Where to look" narrows
+   to the reading measure; the header/demo above and the nav below stay at
+   shell width. .receipt-table-wrap inside reaches back to shell width on
+   its own (site.css's .prose > .receipt-table-wrap breakout, §1.2). #}
+<div class="prose">
 {{ page.content | safe }}
+</div>
 
 <nav class="entry-nav" aria-label="System navigation">
   {%- if page.extra.related_writing %}
   <p><a href="{{ page.extra.related_writing.href | safe }}">{{ page.extra.related_writing.label }}</a></p>
   {%- endif %}
+  <a href="/systems/" class="up-link">&uarr; All systems</a>
   {%- if page.higher %}
   <a href="{{ page.higher.permalink | safe }}" rel="prev">&larr; {{ page.higher.title }}</a>
   {%- endif %}
