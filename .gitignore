@@ -9,6 +9,7 @@ public/
 # hand-edit it.
 static/giallo.css
 .zola-cache/
+.kanon/
 .DS_Store
 *.swp
 node_modules/

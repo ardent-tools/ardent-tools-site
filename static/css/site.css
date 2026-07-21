@@ -18,18 +18,41 @@
  */
 
 :root {
-  /* === Palette — light ("bond paper") === */
-  --bg: #F3F2ED;
-  --bg-accent: #EAE9E2;
+  /* === Width tiers (§1.2, DESIGN-v1.1) — two-tier shell: prose keeps a
+     reading measure, everything structural gets structural room. Replaces
+     typikon's single 780px --max-width for nav/main/footer (see the shell
+     rule + .prose below); --max-width itself is left untouched so any
+     un-shadowed typikon partial that still reads it doesn't break. */
+  --width-prose: 820px;   /* body copy: system-page prose, about, writing, faq answers */
+  --width-wide:  1200px;  /* nav, footer, main shell, catalog, receipt tables,
+                             terminal panels, demos stack, home composition, bands */
+
+  /* === Palette — light ("bond paper") === Leatherworks family stock,
+     worn professionally (DESIGN-v1.1 §5.1). --accent/--accent-aged/--warn
+     unchanged from the pre-v1.1 palette (already the family's russet/ember
+     thread); --bg/--bg-accent/--text-mid/--text-light/--rule/--ok are the
+     resolved values from §5.1 + design-delta-dye.md §5. */
+  --bg: #F7F3E8;
+  --bg-accent: #EDE7D8;
   --text: #1C1917;
-  --text-mid: #45423C;
-  --text-light: #6B6861;
-  --rule: #D8D6CE;
+  --text-mid: #44403C;
+  --text-light: #6B6661;
+  --rule: #DDD7C8;
 
   --accent: #9E4A1E;
   --accent-aged: #7C3A18;
-  --ok: #3D6B4F;
+  --ok: #49704E;
   --warn: #8A6318;
+
+  /* Catalog zone tints (design-delta-dye.md, DESIGN-v1.1 Decisions item 1
+     — full dye system). Backgrounds only, never text/borders/badges — the
+     one-interactive-accent discipline is unaffected (§1 of the dye doc).
+     Not yet wired to any template (the catalog group zones land with the
+     Phase C catalog rebuild); tokens + utility classes ship now so that
+     work has them ready. */
+  --zone-systems:   #EEE7DD;
+  --zone-libraries: #ECE7DE;
+  --zone-web:       #E7E8DA;
 
   /* Terminal plate — theme-invariant across light/dark (§2.2, §2.3). */
   --term-bg: #16181A;
@@ -56,9 +79,6 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --font-body: 'Spectral', Georgia, serif;
   --font-display: var(--font-mono);
-
-  /* Layout */
-  --breakout: 960px;
 }
 
 /* Plex Mono 600 — the one new vendored font file (§2.4). Latin subset
@@ -76,18 +96,75 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1F1F1E;
-    --bg-accent: #282826;
+    /* Re-derived with a warm cast to match the light-mode paper shift
+       (§5.1). --text/--text-mid/--accent/--accent-aged/--warn were
+       already at their resolved values pre-v1.1 (verified against
+       design-delta-dye.md §5/§6's literal hex pairs — the whole matrix
+       checks out unchanged for those four); --bg/--bg-accent/
+       --text-light/--ok move to the resolved dye-doc values. */
+    --bg: #21201D;
+    --bg-accent: #2A2926;
     --text: #DDD9D0;
     --text-mid: #B3AFA6;
-    --text-light: #8F8B83;
-    --rule: #3A3A37;
+    --text-light: #949089;
+    /* --rule: not resolved by DESIGN-v1.1 or design-delta-dye.md (both
+       leave dark --rule as mechanical work) — derived by re-applying the
+       pre-v1.1 bg-accent→rule delta (#282826→#3A3A37, +18/+18/+17 per
+       channel) to the new dark --bg-accent. Decorative hairline only
+       (design-delta-dye.md §7: not a WCAG non-text surface), so no AA
+       gate applies; re-derive if --bg-accent(dark) moves again. */
+    --rule: #3C3B37;
     --accent: #D07A45;
     --accent-aged: #B96534;
-    --ok: #7FAE8D;
+    --ok: #7DA582;
     --warn: #C9A44C;
     --panel-edge: #4A4843;
+
+    --zone-systems:   #2C1E1E;
+    --zone-libraries: #231F23;
+    --zone-web:       #272A24;
   }
+}
+
+/* === Width tiers (§1.2) — two-tier shell replacing typikon's single
+   780px --max-width. nav/main/footer (typikon's own selectors, equal
+   specificity, this stylesheet loads second so it wins the cascade) move
+   to the wide shell; below 1248px the shell is fluid (100% - gutters). */
+nav,
+main,
+footer {
+  max-width: min(var(--width-wide), 100% - 2 * var(--space-s));
+}
+
+/* Query container for the .prose > .receipt-table-wrap breakout below —
+   lets a wide element nested inside a narrowed .prose column size itself
+   against main's own resolved width via cqw units, without needing to
+   know main's width in advance (it's fluid below 1248px). */
+main {
+  container-type: inline-size;
+}
+
+/* Prose blocks (§1.2) — markdown-body containers: system-page prose,
+   about, colophon, contact, resume, writing, faq answers, consulting.
+   Catalog, demos stack, home composition, and terminal panels stay
+   unwrapped at shell width (DESIGN-v1.1 §1.2's own width-wide list). */
+.prose {
+  max-width: var(--width-prose);
+  margin-inline: auto;
+}
+
+/* Receipt tables run full shell width even though they're markdown-body
+   content nested inside .prose (§1.2: "the receipt-table drift —
+   .receipt-table-wrap gets shell width, keeps its overflow-x: auto").
+   100cqw resolves against main's own inline size (the container above),
+   not .prose's — so this reaches main's width regardless of viewport;
+   the margin-inline centers it back under the narrower .prose column
+   (algebraically (main width − .prose width) / 2 on each side). Browsers
+   without container query units support fall back to .prose's own width
+   — narrower than intended but not broken (overflow-x: auto still works). */
+.prose > .receipt-table-wrap {
+  width: 100cqw;
+  margin-inline: calc(50% - 50cqw);
 }
 
 /* === Radius discipline: 0 everywhere except badges (2px) === */
@@ -105,9 +182,38 @@ h1 {
   line-height: 1.15;
 }
 
+/* h2 hierarchy repair (§1.3) — typikon's default renders h2 at
+   --step--1 (13.3px) uppercase-tracked, smaller than the 16px body it
+   introduces and its own 19.2px h3 children. Restored to the v1 table
+   that never reached CSS: step-2 (23px), sentence case, mono 600. The
+   top hairline + spacing (border-top/padding-top/margin) are already
+   correct in typikon's own rule — only size/case/tracking override here. */
 h2 {
+  font-size: var(--step-2);
   font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
 }
+
+/* === Section band (§1.4) — a zone-shift primitive: --bg-accent spanning
+   the wide shell, radius 0, no border, --space-l padding-block. Call
+   sites (home selected-work, home consulting CTA, /demos/ interactive
+   panel intro) land with their respective content-restructure phases;
+   the class ships now so that work has it ready. Max 2-3 per page; never
+   nested, never two adjacent (DESIGN-v1.1 §1.4). */
+.section-band {
+  background: var(--bg-accent);
+  padding-block: var(--space-l);
+}
+
+/* Catalog zone tints (design-delta-dye.md §8) — backgrounds only. Not
+   yet wired to any template; ships with its token declarations (see
+   :root above) so the Phase C catalog rebuild's group-zone wrapper can
+   apply these directly. */
+.zone-systems   { background: var(--zone-systems); }
+.zone-libraries { background: var(--zone-libraries); }
+.zone-web       { background: var(--zone-web); }
+/* In-design zone: no class, no tint — plain --bg is the treatment. */
 
 h3 {
   font-family: var(--font-mono);
@@ -143,6 +249,13 @@ a:hover {
 .nav-links a {
   transition: color 120ms ease-out;
   text-underline-offset: 3px;
+}
+
+/* Current-page indicator (§1.6) — the nav item whose URL prefixes the
+   current path, per the shadowed partials/nav.html. --text color, no
+   underline (v1 §3.7 specified this; it never shipped until now). */
+.nav-links a[aria-current="page"] {
+  color: var(--text);
 }
 
 /* The one button style (§3.7) — filled --text, radius 0. Nav's Resume
@@ -187,25 +300,21 @@ a:hover {
   font-size: var(--step-1);
 }
 
-/* === Layout: breakout === */
-.breakout {
-  width: 100%;
+/* === Up-link (§1.6) — system pages, above the prev/next row. Mono
+   --step--1, same treatment as the rest of the site's small nav links. */
+.up-link {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
 }
 
-@media (min-width: 1024px) {
-  .breakout {
-    position: relative;
-    width: var(--breakout);
-    left: 50%;
-    transform: translateX(-50%);
-  }
-}
-
-/* === Wordmark: lowercase mono 600 + a steady (never-blinking) cursor ===
+/* === Wordmark: lowercase mono 600 + the flame mark (§5.2) ===
    config.extra.logo_path stays set (partials/ld-organization.html needs
    it — unconditional concat, errors the whole build if unset) but the
    nav's auto-rendered <img class="logo-mark"> is suppressed: DESIGN
-   wants no crest, no icon system, mono wordmark + cursor only. */
+   wants no crest, no icon system, mono wordmark + flame only. */
 .logo-mark {
   display: none;
 }
@@ -218,11 +327,31 @@ a:hover {
   letter-spacing: -0.01em;
 }
 
+/* The flame mark replaces the block-cursor ▌ as the site's one flourish
+   (§5.2 — v1's §2.6 cursor language is retired: two flourishes is one
+   too many now that the shared family mark carries the brand signal).
+   mask-image + a solid background-color renders the multi-path source
+   artwork (static/img/logo-flame.svg, fill:none/stroke-only) as a single
+   --accent silhouette, ignoring its own internal stroke color entirely —
+   the only reliable way to recolor an <img>-external SVG to one flat ink
+   without touching the shared asset file. ~1em beside the wordmark, no
+   animation. */
 .logo::before {
-  content: "\258C"; /* ▌ block cursor, --accent, never animated */
-  color: var(--accent);
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
   margin-left: 0.05em;
   order: 2;
+  background-color: var(--accent);
+  -webkit-mask-image: url('/img/logo-flame.svg');
+  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
 }
 
 /* === Maturity badge (§3.3) — neutral ink always, never traffic-lit === */
@@ -402,11 +531,13 @@ a.badge:focus-visible {
   font-size: var(--step--2);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  /* text-mid, not text-light: text-light on bg-accent clears AA in light
-     mode (§2.1 pair) but falls to 4.35:1 in dark mode (§2.3 pair) — a
-     real fail, checked by computing contrast against DESIGN's own dark
-     token table (pa11y only gates the light render; this is the manual
-     dark-mode pass §8.4 calls for). text-mid clears 7.5:1 in both. */
+  /* text-mid, not text-light: clears 7.5:1+ on bg-accent in both themes,
+     the wider margin for uppercase small text (pa11y only gates the
+     light render; dark is the manual pass §8.4 calls for). The v1.1
+     dark --text-light (design-delta-dye.md §5) now also clears AA on
+     bg-accent (4.58:1) — the pre-v1.1 failure this comment used to warn
+     about is resolved at the token level; text-mid is kept for margin,
+     not to route around a failure. */
   color: var(--text-mid);
 }
 

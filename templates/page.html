@@ -1,0 +1,56 @@
+{# Consumer shadow of typikon's templates/page.html (theme.toml's Zola
+   template-shadow rule). Delta from the theme copy: the content block
+   wraps page.content (+ the product-gallery/video partials it already
+   carries) in .prose (§1.2) — narrows generic content pages (about,
+   colophon, contact, resume, 404) to the reading measure instead of the
+   full 1200px wide shell. Everything else is unchanged from typikon's
+   own page.html; re-diff against themes/typikon/templates/page.html on
+   every typikon-refresh.
+
+   system.html, faq.html, and consulting.html all extend this template
+   too, but each overrides {% block content %} itself (system.html and
+   consulting.html do their own .prose wrap directly; faq.html wraps
+   .faq-page instead) — this file's content block only actually renders
+   for pages using page.html as-is, with no template= override and no
+   content-block override of their own.
+#}
+{% extends "base.html" %}
+
+{% block title %}{{ page.extra.seo_title | default(value=page.title) }} - {{ config.title }}{% endblock title %}
+{% block og_title %}{{ page.extra.seo_title | default(value=page.title) }} - {{ config.title }}{% endblock og_title %}
+
+{% block description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock description %}
+{% block og_description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock og_description %}
+
+{% block og_type %}{{ page.extra.og_type | default(value="article") }}{% endblock og_type %}
+
+{% block og_image %}
+{%- set og_image = page.extra.og_image | default(value=config.extra.og_image | default(value="")) -%}
+{%- if og_image %}
+  <meta property="og:image" content="{{ get_url(path=og_image, trailing_slash=false) }}">
+{%- endif %}
+{% endblock og_image %}
+
+{% block body_class %}{% if page.extra.body_class %} class="{{ page.extra.body_class }}"{% endif %}{% endblock body_class %}
+
+{% block ld_json %}
+  {{ super() }}
+  {# Product JSON-LD when frontmatter is product-shaped (per schema). #}
+  {%- if page.extra.price and page.extra.stripe_url -%}
+  {%- include "partials/ld-product.html" -%}
+  {%- endif -%}
+  {# BreadcrumbList for non-home pages. #}
+  {{ crumb::breadcrumb(title=page.title, permalink=page.permalink, ancestors=page.ancestors) }}
+{% endblock ld_json %}
+
+{% block content %}
+<div class="prose">
+{# Product gallery renders before page content when extra.images is set —
+   the operator drops the placeholder <div class="product-images"> from
+   markdown when photos arrive and the gallery takes its visual slot. #}
+{%- include "partials/product-gallery.html" -%}
+{{ page.content | safe }}
+{# Process video renders after page content when extra.video is set. #}
+{%- include "partials/video.html" -%}
+</div>
+{% endblock content %}
