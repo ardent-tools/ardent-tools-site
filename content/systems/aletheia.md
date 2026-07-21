@@ -33,17 +33,14 @@ It ships as a single binary — no containers, no external database, no sidecar 
 
 ## Decisions and trade-offs
 
-### TUI first, desktop app as a preview, not the default path
-
-The terminal dashboard is the default onboarding surface today; a Dioxus desktop app exists and can be installed as a preview from a source checkout, but it's explicitly the v1.0 target, not what a new user is pointed at first. The alternative, leading with the desktop app before it's ready for that role, would have shipped a worse first impression in exchange for a flashier README. The project didn't take that trade.
-
 ### One binary over an external-database architecture
 
 Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real: an external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling. The single-binary model wins instead because it's what makes "no containers, no sidecars" true rather than aspirational — the deployment story only holds together if the data layer doesn't reach outside the process.
 
-### Runtime guardrails as a first-class layer, not an afterthought
-
-Every tool call carries an HMAC-SHA256 receipt, and loop detection combines three separate signals (ping-pong, no-progress, and doom-loop patterns) rather than one heuristic. Per-stage timeouts bound how long any single turn can run. This is infrastructure a smaller project would have skipped until something broke in production; here it's part of the base runtime.
+| Decision | Chose | Rejected | Cost accepted |
+|---|---|---|---|
+| Onboarding surface | TUI dashboard as the default; a Dioxus desktop app installable as a preview | Leading with the desktop app before it's v1.0-ready | Desktop app requires a source checkout, not what a new user sees first |
+| Guardrail layer | HMAC-SHA256 tool-call receipts, three-signal loop detection, per-stage timeouts, built into the base runtime | Adding guardrails later, once something breaks in production | More runtime infrastructure carried from day one, ahead of any real-world failure that proves it's needed |
 
 ## What's solid / what's open
 

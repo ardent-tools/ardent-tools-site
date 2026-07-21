@@ -35,13 +35,10 @@ hamma is a clean-room Rust implementation of a Tailscale-compatible mesh network
 
 hamma is written from the protocol spec and public behavior, not translated line-by-line from Tailscale's Go client. No vendor blobs, no unsafe beyond what the underlying `boringtun` crate already audits. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free. The reasoning: a port inherits whatever the original got wrong along with what it got right; a clean-room build only has to be correct against the wire protocol.
 
-### Validate against the real control plane before building a self-hosted one
-
-A self-hosted coordination server (`histos`, matching Headscale's role) is planned but not started. Phase A deliberately validates the `dictyon` peer client against Tailscale's actual production control plane first — proving the client works against a real reference implementation before any self-hosted server exists to hide behind. Building the self-hosted server first would have meant validating the client against infrastructure this project also controls, which proves less.
-
-### A deliberately small feature target
-
-The scope is peer WireGuard, MagicDNS, exit nodes, and ACLs — explicitly not Taildrop, Tailscale SSH, Funnel, or app connectors. Those could be added later if there's real demand; they aren't being built speculatively now. Matching Tailscale's full feature surface was the available alternative, and it was rejected in favor of staying small until the core client is solid.
+| Decision | Chose | Rejected | Cost accepted |
+|---|---|---|---|
+| Validation order | Validate `dictyon` against Tailscale's actual production control plane first | Building the self-hosted `histos` server first | No self-hosted option yet; Phase A depends on the vendor's control plane |
+| Feature scope | Peer WireGuard, MagicDNS, exit nodes, ACLs | Matching Tailscale's full feature surface (Taildrop, SSH, Funnel, app connectors) | Real features left out until there's demand, not built speculatively |
 
 ## What's solid / what's open
 
