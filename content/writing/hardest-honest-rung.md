@@ -12,7 +12,7 @@ A lint rule that blocks a merge cannot rot. A paragraph in a style guide can do 
 
 The failure that advice targets is real. An enforceable invariant left in prose reads as if it were enforced, and it is not: nobody re-reads the document, exceptions accumulate, and within months it describes a codebase that no longer exists.
 
-The mirror-image failure rarely gets named. Take a genuine judgment call, the kind a reviewer makes: are these acceptance criteria complete; is this paragraph motivated or redundant. Force it into a mechanical gate and the gate will check something — a word list, a line count, the presence of a heading — and then report the judgment as verified. The prose rule merely rots. The gate lies, with a green checkmark, on every run.
+The mirror-image failure rarely gets named. Take a genuine judgment call, the kind a reviewer makes: are these acceptance criteria complete; is this paragraph motivated or redundant. Force it into a mechanical gate and the gate will check something — a word list, a line count, the presence of a heading — and then report the judgment as verified, a green checkmark on every run.
 
 ---
 
@@ -26,7 +26,7 @@ The repositories I maintain are worked on by AI agents as much as by me, which m
 | 2 | thin config | ephemeral values for one task: which issues, which crate, which lanes | a golden render |
 | 1 | one-off prompt | truly one-off, never recurs | none — the last resort |
 
-The placement rule is a single sentence: every behavior settles at the hardest rung whose precondition it meets. The preconditions do the work. A rule earns the gate rung only when it is mechanical and its failure modes can be enumerated; doctrine that resists deterministic encoding stops at the context rung no matter how much anyone cares about it. Importance never places a behavior. Checkability does.
+The placement rule is a single sentence: every behavior settles at the hardest rung whose precondition it meets. The preconditions do the work. A rule earns the gate rung only when it is mechanical and its failure modes can be enumerated; doctrine that resists deterministic encoding stops at the context rung no matter how much anyone cares about it.
 
 The test column is the ladder's check on itself: every rung above the bottom carries a way to catch its own failure. The bottom rung has no test. That is not a gap in the table; it is the reason a one-off prompt is the last resort.
 
@@ -34,7 +34,7 @@ The test column is the ladder's check on itself: every rung above the bottom car
 
 The first law governs behaviors sitting too soft. A behavior on a softer rung that meets a harder rung's precondition is a defect — the demotion law: move it to the harder rung. Once it lands there, the prose that used to state it is dead weight, and the law says to delete it, because a hook-enforced rule restated in a document is a second copy of a fact that now has a canonical home, and second copies drift. The consequence runs against instinct: the documentation shrinks as the system hardens.
 
-Most rules split instead of moving whole. One writing standard in my fleet flags hedge-word clusters: two or more hedge words within ten words of each other. The enumerable half of that rule, the word list itself, meets a harder rung's precondition, so the list compiled into a lint rule; the linter now names the words and the line. What stayed behind in the standards document is the residue no regex can hold: whether a sentence hedges structurally, parking uncertainty beside a claim without using any listed word. One rule, two rungs, each honest about what it can catch.
+Most rules split instead of moving whole. One writing standard in my fleet flags hedge-word clusters: two or more hedge words within ten words of each other. The enumerable half of that rule, the word list itself, meets a harder rung's precondition, so the list compiled into a lint rule; the linter now names the words and the line. What stayed behind in the standards document is the residue no regex can hold: whether a sentence hedges structurally, parking uncertainty beside a claim without using any listed word.
 
 ---
 
@@ -42,7 +42,7 @@ The second law is the stop. A behavior a gate can only check a proxy for must no
 
 My own system supplied the cautionary instance. An assessment of kanon's quality machinery found a cluster of writing rules — about forty word-bans plus filler and minimizer checks — attacking vocabulary as a stand-in for the quality property itself, with the teeth misplaced around them: about four rules blocked merges while more than a hundred warned into logs nobody read. The correction was not more rules. Every rule is now tagged substance or proxy, only substance rules can block a merge, and a check that cannot be made substance-faithful is classified advisory and may never be an error. Naming the proxy as a proxy is itself the honest placement.
 
-The two laws describe one defect seen from opposite directions. The under-hardened rule reads enforced and is not. The over-hardened gate reads enforced and lies. Both substitute a proxy for the property they claim, and the placement that avoids both is the discipline's whole content: the hardest rung at which the behavior stays both enforced and true. The hardest honest rung.
+The two laws describe one defect seen from opposite directions, and both substitute a proxy for the property they claim. The placement that avoids both is the discipline's whole content: the hardest rung at which the behavior stays both enforced and true.
 
 ---
 
@@ -64,4 +64,4 @@ One class of behavior overrides both laws. "Is this operation safe to run right 
 
 The ladder's least obvious consequence is about tone. Durable context is written calm and explicit, with the motivation stated, not in imperative capitals. A context document that shouts (`CRITICAL`, `MUST`, `NEVER`) degrades the agent reading it: the model reads volume as stakes and escalates, asking for confirmation it does not need, fanning out subagents where one would do. That is observation from operating these systems daily, not received prompt-engineering wisdom.
 
-The shouting is also a diagnostic. An invariant that seems to deserve capital letters is one somebody believes must never fail, and that belief is the gate rung's precondition knocking. A gate does not read tone. Once the invariant is mechanical the register question dissolves, and what remains in prose can afford to explain itself quietly, because nothing rides on whether prose is obeyed; everything that could ride on obedience has been moved somewhere obedience is not optional. The loudest register on the softest rung, the shouted one-off prompt, is the worst case the ladder names: soft and mistuned at once. Calming the register and hardening the rung are the same move. Certainty lives in the mechanism, not the shouting.
+The shouting is also a diagnostic. An invariant that seems to deserve capital letters is one somebody believes must never fail, and that belief is the gate rung's precondition knocking. A gate does not read tone. Once the invariant is mechanical the register question dissolves, and what remains in prose can afford to explain itself quietly, because nothing rides on whether prose is obeyed; everything that could ride on obedience has been moved somewhere obedience is not optional. The loudest register on the softest rung, the shouted one-off prompt, is the worst case the ladder names: soft and mistuned at once. Calming the register and hardening the rung are the same move.
