@@ -32,7 +32,7 @@ Radio, mesh networking, and spectrum-monitoring tools tend to be separate interf
 
 ### The clean-room Meshtastic stack
 
-kerykeion reimplements the protocol in Rust — protobuf framing, transports, encryption, the node database, routing, store-and-forward — instead of binding the vendor's firmware libraries. The cost is months rebuilding what a binding hands over for free; `cargo tree` confirms no upstream Meshtastic crate in the dependency graph. The return: the one domain that graduated from planned to live is inspectable and testable end to end, with no C++ under the safety-critical layer. The rejected alternative — wrapping the official library, inheriting its release cadence — was available and passed over.
+kerykeion reimplements the protocol in Rust: protobuf framing, transports, encryption, the node database, routing, store-and-forward, rather than binding the vendor's firmware libraries. The cost is months rebuilding what a binding hands over for free; `cargo tree` confirms no upstream Meshtastic crate in the dependency graph. The return: the one domain that graduated from planned to live is inspectable and testable end to end, with no C++ under the safety-critical layer. The rejected alternative — wrapping the official library and inheriting its release cadence — was available and passed over.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
