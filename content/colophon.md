@@ -7,7 +7,7 @@ description = "How this site is built: Zola and typikon, self-hosted fonts and p
 
 Static site. Zola. Self-hosted fonts and player. No trackers, no analytics, no CDN.
 
-This site is its own receipt: the repo is public, so the gate config, the CSP, and the recording scripts are all inspectable. [View source →](https://github.com/ardent-tools/ardent-tools-site)
+The repo is public: the gate config, the CSP, and the recording scripts are all inspectable. [View source →](https://github.com/ardent-tools/ardent-tools-site)
 
 <div class="receipt-table-wrap">
 
@@ -38,8 +38,6 @@ Every push runs the same sequence before anything deploys:
 6. `pa11y-ci` — WCAG 2.1 AA
 7. Playwright — per-route smoke assertions
 
-Only a fully green run deploys to Cloudflare Pages.
-
 ## What this site does not do
 
-No trackers, no analytics, no cookies, no CDN-hosted anything, no contact form, no newsletter signup, no cadence promise on `/writing/`, no inflated maturity claim on any system page, and no fabricated demo recording — where a cast doesn't exist yet, the slot says so plainly instead of showing something that isn't real.
+No trackers, no analytics, no cookies, no CDN-hosted anything, no contact form, no newsletter signup, no cadence promise on `/writing/`, no inflated maturity claim on any system page, and no fabricated demo recording — where a cast doesn't exist yet, the slot says so.

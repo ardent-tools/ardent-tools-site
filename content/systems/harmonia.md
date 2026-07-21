@@ -21,8 +21,8 @@ target = "seeded sample media only"
 duration = "1:15"
 tape = "/tapes/harmonia-serve.tape"
 placeholder = "RECORDING FORTHCOMING: harmonia serve boots → a health check answers → a library scan triggers → its import queue populates, against a small seeded sample-media directory"
-shows = "A real server boot, a health check answering, and a library scan populating an import queue — the most user-facing recording on this site."
-not_shows = "The two HTTP-layer resolvers that are still null placeholders (metadata resolution and curation) — those are named directly in the solid/open list below, not hidden behind the demo."
+shows = "A real server boot, a health check answering, and a library scan populating an import queue."
+not_shows = "The two HTTP-layer resolvers that are still null placeholders (metadata resolution and curation) — those are named in the solid/open list below."
 +++
 
 ## What it is
@@ -33,7 +33,7 @@ harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite ser
 
 ### One server instead of five federated services
 
-The *arr-stack pattern (a separate app per media type, each with its own database, its own auth, its own web UI, wired together by the user) is well-established and has a large plugin ecosystem behind it. harmonia rejects that shape on purpose: one server, one auth layer, one database, 21 crates organized by concern (core, auth, media ops, acquisition, serving, audio, UI) rather than by deployable unit. The cost is losing the *arr ecosystem's existing plugin surface; the benefit is a media manager that doesn't require reasoning about five services' worth of drift between each other.
+The *arr-stack pattern (a separate app per media type, each with its own database, its own auth, its own web UI, wired together by the user) is well-established and has a large plugin ecosystem behind it. harmonia rejects that shape on purpose: one server, one auth layer, one database, 21 crates organized by concern (core, auth, media ops, acquisition, serving, audio, UI) rather than by deployable unit. The cost is losing the *arr ecosystem's existing plugin surface.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -44,7 +44,7 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 **Solid, shipped and wired to live routes:** auth, library scan/import, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import — a completed download lands directly in the library for music, movie, and book wants.
 
-**Open:** two null placeholders remain at the HTTP layer, for metadata resolution and curation, on the live `serve` path — named directly, not folded into a vaguer "still improving" claim. Audiobook, comic, podcast, and TV-series wants have no library type yet and are deferred. A fallback/test path (`AppState::with_stubs`) defines nine additional `Null*` service implementations used for testing, separate from the two live-path placeholders above. The README documents the build and test commands but not yet how to run the server day to day: no quick-start section, no example config. Reaching a running instance from a fresh clone means reading the `archon` CLI's own `--help` output rather than following a documented path; the recording above shows the same binary running, not a shortcut around that gap.
+**Open:** two null placeholders remain at the HTTP layer, for metadata resolution and curation, on the live `serve` path. Audiobook, comic, podcast, and TV-series wants have no library type yet and are deferred. A fallback/test path (`AppState::with_stubs`) defines nine additional `Null*` service implementations used for testing, separate from the two live-path placeholders above. The README documents the build and test commands but not yet how to run the server day to day: no quick-start section, no example config. Reaching a running instance from a fresh clone means reading the `archon` CLI's own `--help` output rather than following a documented path.
 
 ## Numbers, and how they were measured
 

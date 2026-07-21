@@ -33,7 +33,7 @@ hamma is a clean-room Rust implementation of a Tailscale-compatible mesh network
 
 ### Clean-room, not a port
 
-hamma is written from the protocol spec and public behavior, not translated line-by-line from Tailscale's Go client. No vendor blobs, no unsafe beyond what the underlying `boringtun` crate already audits. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free. The reasoning: a port inherits whatever the original got wrong along with what it got right; a clean-room build only has to be correct against the wire protocol.
+hamma is written from the protocol spec and public behavior, not translated line-by-line from Tailscale's Go client. No vendor blobs, no unsafe beyond what the underlying `boringtun` crate already audits. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -57,7 +57,7 @@ hamma is written from the protocol spec and public behavior, not translated line
 
 </div>
 
-Smallest of the systems on this site, by design — the newest and least mature, not padded to look bigger than it is.
+Smallest of the systems on this site — the newest and least mature.
 
 ## Where to look
 

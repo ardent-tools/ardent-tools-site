@@ -44,7 +44,7 @@ group = "libraries"
 [[extra.ledger]]
 name = "epitelesis"
 gloss = "ἐπιτέλεσις — executing-to-completion"
-one_liner = "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors. Every fleet subprocess call goes through it."
+one_liner = "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors."
 badge = "v0.2.0"
 license = "Apache-2.0 OR MIT"
 repo = "https://github.com/forkwright/epitelesis"
@@ -105,4 +105,4 @@ repo = "https://github.com/forkwright/dioptron"
 group = "in-design"
 +++
 
-Seven systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record. Order within a group is each page's own weight — reorderable at zero design cost.
+Seven systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record. Order within a group is each page's own weight.

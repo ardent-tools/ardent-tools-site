@@ -21,19 +21,19 @@ target = "phase_3_stella_parity, against a committed fixture"
 duration = "1:00"
 tape = "/tapes/logismos-parity.tape"
 placeholder = "RECORDING FORTHCOMING: cargo test -p logismos --test phase_3_stella_parity passing against the committed CPU baseline fixture"
-shows = "The correctness harness passing on CPU, against a fixture committed to the repo — proof the inference path is correct independent of GPU hardware."
+shows = "The correctness harness passing on CPU, against a fixture committed to the repo."
 not_shows = "Any GPU run. Phase 4 is hardware-blocked; this recording won't stage one to imply otherwise."
 +++
 
 ## What it is
 
-logismos is a GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP, targeting AMD's gfx1100 architecture (the W7900). It exists because the alternatives didn't: Candle has no ROCm backend, and AMD deprecated ONNX Runtime's ROCm support. Rolling this from scratch keeps the hardware boundary owned in-repo instead of depending on either gap closing upstream.
+logismos is a GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP, targeting AMD's gfx1100 architecture (the W7900). It exists because the alternatives didn't: Candle has no ROCm backend, and AMD deprecated ONNX Runtime's ROCm support.
 
 ## Decisions and trade-offs
 
 ### Build the correctness harness before the GPU is available to prove performance
 
-Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware — the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first. A team without that discipline would have GPU code with nothing to check it against once hardware access resumed; this one has a golden fixture already waiting.
+Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware — the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -44,7 +44,7 @@ Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end
 
 **Solid:** Phases 0 through 3 — the full CPU inference path for Stella 1.5B, verified against a committed golden fixture, with the exact parity test anyone can run.
 
-**Open, stated plainly rather than hidden:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery; GPU-specific code paths exist but are unverified until it's back. This is a hardware-availability blocker, not a code-quality one — the CPU path it's blocked behind is the thing this page can actually show working.
+**Open:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery; GPU-specific code paths exist but are unverified until it's back.
 
 ## Numbers, and how they were measured
 
