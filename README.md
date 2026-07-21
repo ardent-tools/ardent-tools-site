@@ -14,6 +14,12 @@ Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat 
 
 Requires [Zola](https://www.getzola.org/) 0.22.1 (pinned; see `.github/workflows/deploy.yml`).
 
+`themes/typikon/` ships as a git submodule - a plain clone leaves it empty and `zola build` fails outright. Initialize it first:
+
+```bash
+git submodule update --init --recursive
+```
+
 ```bash
 zola serve      # local dev server with live reload
 zola build      # build to public/
@@ -30,7 +36,7 @@ themes/typikon/bin/typikon-check .      # validate + zola check + zola build + c
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (validate, zola check/build, CSP enforcement, link check, WCAG AA, Playwright smoke) on every push and pull request, and deploys to Cloudflare Pages on green pushes to `main`. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (validate, zola check/build, CSP enforcement, link check, WCAG AA, and a Playwright line-length check against two representative pages - `tests/smoke/prose-measure.spec.ts`) on every push and pull request, and deploys to Cloudflare Pages on green pushes to `main`. See `.github/workflows/deploy.yml`.
 
 ## License
 
