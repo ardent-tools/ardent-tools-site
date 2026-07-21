@@ -53,6 +53,9 @@
   --zone-libraries-ink: #4A4055;   /* muted violet, family nod to thanatochromia-aged */
   --zone-web-ink:       #4A7A5A;   /* sage, family nod to aporia-aged */
 
+  /* Paper grain (§W7) — the kill switch: 0 removes the texture entirely. */
+  --grain-opacity: 0.05;
+
   /* Terminal plate — theme-invariant across light/dark (§2.2, §2.3). */
   --term-bg: #16181A;
   --term-text: #D6D4CC;
@@ -123,6 +126,8 @@
     --ok: #7DA582;
     --warn: #C9A44C;
     --panel-edge: #4A4843;
+
+    --grain-opacity: 0.03;   /* same noise reads louder on dark; halve it */
   }
 }
 
@@ -132,6 +137,28 @@
 html {
   background: var(--bg);
   overflow-x: clip;
+}
+
+/* Paper grain (§W7) — felt, not seen: 5% over the light paper is below
+   deliberate-perception threshold at reading distance. File-based (CSP-
+   clean by construction: img-src 'self', no data: URI), fixed + z-index:
+   -1 so every opaque evidence surface (terminal, plate, band fill) sits
+   above it automatically. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/img/grain.svg');
+  background-size: 240px 240px;
+  opacity: var(--grain-opacity);
+}
+
+@media print {
+  body::before {
+    display: none;   /* typikon's print pass whitens body; this layer follows */
+  }
 }
 
 /* === Width tiers (§1.2) — two-tier shell replacing typikon's single
