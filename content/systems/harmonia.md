@@ -21,7 +21,7 @@ target = "seeded sample media only"
 duration = "1:15"
 tape = "/tapes/harmonia-serve.tape"
 placeholder = "RECORDING FORTHCOMING: harmonia serve boots → a health check answers → a library scan triggers → its import queue populates, against a small seeded sample-media directory"
-shows = "A real server boot, a health check answering, and a library scan populating an import queue — the most product-shaped recording on this site."
+shows = "A real server boot, a health check answering, and a library scan populating an import queue — the most user-facing recording on this site."
 not_shows = "The two HTTP-layer resolvers that are still null placeholders (metadata resolution and curation) — those are named directly in the solid/open list below, not hidden behind the demo."
 +++
 
@@ -37,7 +37,7 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 ### A capability table that names its own stubs, instead of one "it works" claim
 
-Rather than describe the server as simply "working," the project's own documentation distinguishes shipped-and-wired-to-routes capabilities from initialized-but-adapter-backed-or-fallback-only ones, down to naming the exact count of remaining null placeholders. That's a harder thing to keep honest than a blanket status claim, and it's reproduced on this page rather than collapsed into something vaguer.
+Rather than describe the server as "working," the project's own documentation distinguishes shipped-and-wired-to-routes capabilities from initialized-but-adapter-backed-or-fallback-only ones, down to naming the exact count of remaining null placeholders. That's a harder thing to keep honest than a blanket status claim, and it's reproduced on this page rather than collapsed into something vaguer.
 
 ### Native audio pipeline instead of shelling out to an external decoder
 
@@ -47,7 +47,7 @@ The audio layer (`akouo-core`) does bit-perfect decode and its own DSP (EQ, cros
 
 **Solid, shipped and wired to live routes:** auth, library scan/import, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import — a completed download lands directly in the library for music, movie, and book wants.
 
-**Open:** two null placeholders remain at the HTTP layer, for metadata resolution and curation, on the live `serve` path — named directly, not folded into a vaguer "still improving" claim. Audiobook, comic, podcast, and TV-series wants have no library type yet and are deferred. A fallback/test path (`AppState::with_stubs`) defines nine additional `Null*` service implementations used for testing, separate from the two live-path placeholders above. The README documents the build and test commands but not yet how to run the server day to day: no quick-start section, no example config. Reaching a running instance from a fresh clone currently means reading the `archon` CLI's own `--help` output rather than following a documented path; the recording above shows the same binary running, not a shortcut around that gap.
+**Open:** two null placeholders remain at the HTTP layer, for metadata resolution and curation, on the live `serve` path — named directly, not folded into a vaguer "still improving" claim. Audiobook, comic, podcast, and TV-series wants have no library type yet and are deferred. A fallback/test path (`AppState::with_stubs`) defines nine additional `Null*` service implementations used for testing, separate from the two live-path placeholders above. The README documents the build and test commands but not yet how to run the server day to day: no quick-start section, no example config. Reaching a running instance from a fresh clone means reading the `archon` CLI's own `--help` output rather than following a documented path; the recording above shows the same binary running, not a shortcut around that gap.
 
 ## Numbers, and how they were measured
 

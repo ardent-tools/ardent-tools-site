@@ -27,7 +27,7 @@ Like ergon-tools, this is employer property. The write-up below stays inside wha
 
 ### Semantic representation instead of a hand-maintained tree
 
-The system it replaced was a fixed, hand-built taxonomy tree that had accumulated real structural debt over time: categories that had grown lopsided, codes filed in catch-all buckets, gaps nobody had caught. Rather than patch that tree, nosologia fine-tunes an embedding model over the full code space and derives every hierarchy from the embeddings by projection. The trade-off: a fixed tree is easier to reason about by inspection; a projected one is regenerable — adding a year's worth of new codes means adding vectors, not manually deciding where each one goes.
+The system it replaced was a fixed, hand-built taxonomy tree that had accumulated real structural debt over time: categories that had grown lopsided, codes filed in catch-all buckets, gaps nobody had caught. Rather than patch that tree, nosologia fine-tunes an embedding model over the full code space and derives every hierarchy from the embeddings by projection. The trade-off: a fixed tree stays easier to reason about by inspection; a projected one is regenerable — adding a year's worth of new codes means adding vectors, not manually deciding where each one goes.
 
 ### Starting the production model fresh, not iterating on a broken foundation
 
@@ -35,7 +35,7 @@ Two earlier model generations (triplet-loss training, then the same architecture
 
 ### A single static binary, no external services
 
-Like the other systems on this site, nosologia has no Postgres, no Redis, no Docker Compose. Vectors live in `fjall`, a pure-Rust LSM store, indexed with `hnsw_rs` for nearest-neighbor search; `polars` and `rayon` run the bisecting k-means that turns the embedding space into a navigable hierarchy; `rusqlite`/FTS5 carries text search. One binary, modeled explicitly on the same no-external-dependency deployment pattern used elsewhere in this practice. The trade-off is the same one it always is: an external vector database or search service would have offered more off-the-shelf tooling; the single-binary model wins because it's what keeps the deployment story actually simple rather than simple in the README.
+Like the other systems on this site, nosologia has no Postgres, no Redis, no Docker Compose. Vectors live in `fjall`, a pure-Rust LSM store, indexed with `hnsw_rs` for nearest-neighbor search; `polars` and `rayon` run the bisecting k-means that turns the embedding space into a navigable hierarchy; `rusqlite`/FTS5 carries text search. One binary, modeled explicitly on the same no-external-dependency deployment pattern used elsewhere in this practice. The trade-off is the same one it always is: an external vector database or search service would have offered more off-the-shelf tooling; the single-binary model wins because it keeps the deployment story uncomplicated in practice, not just in the README.
 
 ## What's solid / what's open
 

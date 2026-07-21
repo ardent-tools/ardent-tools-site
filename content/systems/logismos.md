@@ -33,7 +33,7 @@ logismos is a GPU inference stack for transformer embedding models, built from t
 
 ### Build the correctness harness before the GPU is available to prove performance
 
-Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware — the AMD W7900 host used for this work is currently down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first. A team without that discipline would have GPU code with nothing to check it against once hardware access resumed; this one has a golden fixture already waiting.
+Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware — the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first. A team without that discipline would have GPU code with nothing to check it against once hardware access resumed; this one has a golden fixture already waiting.
 
 ### Explicit scope discipline, stated as boundaries rather than left implicit
 

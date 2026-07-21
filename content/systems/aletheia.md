@@ -39,7 +39,7 @@ The terminal dashboard is the default onboarding surface today; a Dioxus desktop
 
 ### One binary over an external-database architecture
 
-Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real: an external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling. The single-binary model wins instead because it's what makes "no containers, no sidecars" true rather than aspirational — the deployment story only stays that simple if the data layer doesn't reach outside the process.
+Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real: an external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling. The single-binary model wins instead because it's what makes "no containers, no sidecars" true rather than aspirational — the deployment story only holds together if the data layer doesn't reach outside the process.
 
 ### Runtime guardrails as a first-class layer, not an afterthought
 

@@ -49,7 +49,7 @@ The recording plan for this page runs `kanon lint` / `kanon gate` against the pu
 
 **Solid:** `kanon lint` and `kanon lint --fix` for mechanical rule violations, `kanon gate` and `kanon gate --full` for the fast-feedback and full-verification paths, an MCP server surface for PR/issue orchestration and code intelligence, and a standards registry that five other repos in this fleet already depend on in production.
 
-**Open:** not yet hardened for public traffic, which is the entire reason it stays private for now. No public issue tracker or contribution path exists while that's true.
+**Open:** not yet hardened for public traffic, which is the entire reason it stays private. No public issue tracker or contribution path exists while that's true.
 
 ## Numbers, and how they were measured
 
