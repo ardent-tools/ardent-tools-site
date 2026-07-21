@@ -42,4 +42,4 @@ The rule reads as paranoia until you watch agents work. An agent that filed four
 
 ---
 
-Three instances, one shape. A catalog count regenerated from the running daemon, then triangulated through methods with unshared failure modes. A gate stamp recomputed by the very server it exists to persuade. An agent's account of its own filings set aside for a query against the tracker it filed into. In every case the claim came from the graded party: the catalog speaks for the surface it documents, the trailer vouches for the commit that carries it, the self-report closes the reporter's own batch. And in every case the verifier was already running — the daemon, the gate, the tracker — one query away, with no stake in the answer.
+In every case the claim came from the graded party — the catalog speaking for the surface it documents, the trailer vouching for the commit that carries it, the reporter closing its own batch. And in every case a verifier was already running, one query away, with no stake in the answer.
