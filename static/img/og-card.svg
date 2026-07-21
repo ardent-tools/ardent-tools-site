@@ -10,7 +10,7 @@
   <text x="80" y="270" font-family="Spectral, Georgia, serif" font-size="26" fill="#44403C">Agent infrastructure engineering.</text>
   <text x="80" y="304" font-family="Spectral, Georgia, serif" font-size="26" fill="#44403C">Recordings and receipts, not claims.</text>
 
-  <rect x="80" y="360" width="1040" height="190" fill="#EDE7D8"/>
+  <rect x="80" y="360" width="1040" height="190" fill="#F0EBE0"/>
   <rect x="80" y="360" width="1040" height="190" fill="none" stroke="#1C1917" stroke-width="2"/>
   <text x="600" y="465" text-anchor="middle" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="22" letter-spacing="1" fill="#6B6661">SYSTEMS YOU CAN WATCH WORKING &#8594;</text>
 </svg>
