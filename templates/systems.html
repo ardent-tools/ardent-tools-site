@@ -1,11 +1,20 @@
-{# systems.html — the systems index AND the evidence-strength catalog.
-   Loops section.pages (sorted by `weight` per content/systems/_index.md
-   frontmatter `sort_by = "weight"`) through the same catalog-row macro
-   index.html uses for its "selected work" subset — one data-driven
-   listing template, no hand-authored per-system HTML (DESIGN §1, §3.2).
+{# systems.html — the full-fleet catalog (DESIGN-v1.1 §3). Four zones:
+   Systems (data-driven from section.pages, sorted by weight — the existing
+   flagship catalog-row anatomy) and Libraries / Web / In design (data-driven
+   from content/systems/_index.md's [[extra.ledger]], looped through
+   catalog-ledger.html). Groups alternate zone tints
+   (design-delta-dye.md) so the page scans as shelves; the group <h2>s
+   double as the heading-navigation landmarks audit-technical §6 found
+   missing. No hand-authored per-repo HTML anywhere here — add a system
+   page or a ledger TOML entry, nothing else.
+
+   Group counts (top index line) are counted here, not hand-typed, so the
+   line can't go stale the way the old "Eight systems" meta description did
+   (§8 phase A item 2's whole bug class).
 #}
 {% extends "base.html" %}
 {% import "partials/catalog-row.html" as catalog_row %}
+{% import "partials/catalog-ledger.html" as ledger %}
 
 {% block title %}{{ section.extra.seo_title | default(value=section.title) }} - {{ config.title }}{% endblock title %}
 {% block og_title %}{{ section.extra.seo_title | default(value=section.title) }} - {{ config.title }}{% endblock og_title %}
@@ -14,16 +23,62 @@
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
 
 {% block content %}
+{%- set_global lib_count = 0 %}
+{%- set_global web_count = 0 %}
+{%- set_global design_count = 0 %}
+{%- for item in section.extra.ledger %}
+  {%- if item.group == "libraries" %}{% set_global lib_count = lib_count + 1 %}{% endif %}
+  {%- if item.group == "web" %}{% set_global web_count = web_count + 1 %}{% endif %}
+  {%- if item.group == "in-design" %}{% set_global design_count = design_count + 1 %}{% endif %}
+{%- endfor %}
+
 <h1>{{ section.title }}</h1>
+<div class="prose">
 {{ section.content | safe }}
+</div>
 
-<ul class="catalog">
-  {%- for p in section.pages %}
+<p class="catalog-index">
+  <a href="#systems">SYSTEMS {{ section.pages | length }}</a> &middot;
+  <a href="#libraries">LIBRARIES {{ lib_count }}</a> &middot;
+  <a href="#web">WEB {{ web_count }}</a> &middot;
+  <a href="#in-design">IN DESIGN {{ design_count }}</a>
+</p>
+
+<div class="catalog-group zone-systems" id="systems">
+  <h2>Systems</h2>
+  <p class="group-caption">The flagship layer — an OS, an agent runtime, a standards engine, a media platform, an RF toolkit, a GPU inference stack, a mesh client.</p>
+  <ul class="catalog">
+    {%- for p in section.pages %}
     {{ catalog_row::row(page=p) }}
-  {%- endfor %}
-</ul>
+    {%- endfor %}
+  </ul>
+</div>
 
-{%- if section.extra.list_caption %}
-<p class="specs">{{ section.extra.list_caption }}</p>
-{%- endif %}
+<div class="catalog-group zone-libraries" id="libraries">
+  <h2>Libraries</h2>
+  <p class="group-caption">Shared substrate the systems above are built on: search primitives, sealing, subprocess handling, common scaffolding.</p>
+  {%- set_global libs = [] %}
+  {%- for item in section.extra.ledger %}{% if item.group == "libraries" %}{% set_global libs = libs | concat(with=[item]) %}{% endif %}{% endfor %}
+  {{ ledger::grid(items=libs) }}
+</div>
+
+<div class="catalog-group zone-web" id="web">
+  <h2>Web</h2>
+  <p class="group-caption">Web-facing infrastructure: this site's own theme, and a self-hosted newsletter service.</p>
+  {%- set_global webs = [] %}
+  {%- for item in section.extra.ledger %}{% if item.group == "web" %}{% set_global webs = webs | concat(with=item) %}{% endif %}{% endfor %}
+  {{ ledger::grid(items=webs) }}
+</div>
+
+<div class="catalog-group" id="in-design">
+  <h2>In design</h2>
+  <p class="group-caption">Specification before code — locked design decisions, no shipped implementation yet.</p>
+  {%- set_global designs = [] %}
+  {%- for item in section.extra.ledger %}{% if item.group == "in-design" %}{% set_global designs = designs | concat(with=item) %}{% endif %}{% endfor %}
+  {{ ledger::register(items=designs) }}
+</div>
+
+<p class="catalog-footnote">FLEET CI WORKFLOWS: <a href="https://github.com/forkwright/.github">FORKWRIGHT/.GITHUB &rarr;</a></p>
+
+<p class="catalog-ownership">Systems built in employment are employer property, described under professional experience <a href="/about/#built-in-employment">&rarr;</a></p>
 {% endblock content %}
