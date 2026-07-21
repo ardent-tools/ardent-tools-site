@@ -1,0 +1,63 @@
+{# Terminal panel (DESIGN §3.1) — the one component for everything
+   evidence-shaped. Meta line above, matted plate, caption below,
+   transcript underneath. Two render modes, chosen by whether `demo.cast`
+   is set:
+
+     - real recording: the fallback <pre> excerpt sits inside
+       `.term-screen[data-cast]`; site.js swaps it for a live
+       asciinema-player instance (hero = autoplay-once, else click-to-init).
+     - honest placeholder (§3.6): no cast yet. Same slot, a --bg-accent
+       panel, mono caption naming what's forthcoming. Never a fake.
+
+   Usage: {{ term_panel::panel(demo=page.extra.demo, hero=true) }}
+   `demo` fields (see schemas note in system.html / demos.html):
+     system, action, target, commit (optional), duration,
+     cast (optional), tape (optional), poster (optional, npt:MM:SS),
+     cols (default 80), rows (default 24), fallback (array of strings,
+     optional), shows, not_shows, transcript (optional), placeholder
+     (required when cast is absent).
+#}
+{% macro panel(demo, hero=false, label="") %}
+<figure class="term-panel breakout">
+  <div class="term-meta">
+    <span>{{ demo.system }} &middot; {{ demo.action }}{% if demo.target %} &middot; {{ demo.target }}{% endif %}{% if demo.commit %} &middot; {{ demo.commit }}{% endif %}</span>
+    <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ demo.cast | safe }}">.cast</a>{% endif %}{% if demo.tape %} &middot; <a href="{{ demo.tape | safe }}">.tape</a>{% endif %}</span>
+  </div>
+  <div class="term-mat">
+    {%- if demo.cast %}
+    <div class="term-screen"
+         data-cast="{{ demo.cast | safe }}"
+         data-cols="{{ demo.cols | default(value=80) }}"
+         data-rows="{{ demo.rows | default(value=24) }}"
+         {%- if hero %} data-hero="true"{% endif %}
+         {%- if demo.poster %} data-poster="{{ demo.poster }}"{% endif %}
+         data-label="{{ label | default(value=demo.system ~ " " ~ demo.action) }}">
+      <pre class="term-fallback">{%- for line in demo.fallback | default(value=[]) %}{{ line }}
+{% endfor -%}</pre>
+    </div>
+    {%- else %}
+    <div class="term-placeholder">
+      <p>{{ demo.placeholder }}</p>
+    </div>
+    {%- endif %}
+  </div>
+  <figcaption class="term-caption">
+    What this shows: {{ demo.shows }} What it doesn&#8217;t show: {{ demo.not_shows }}
+  </figcaption>
+  {%- if demo.transcript %}
+  <details class="term-transcript">
+    <summary>Read the full session as text</summary>
+    <pre>{{ demo.transcript }}</pre>
+  </details>
+  {%- endif %}
+</figure>
+{% endmacro panel %}
+
+{# Placard-without-panel (§4.3) — a demo that cannot exist, honestly.
+   Used on /demos/ for ergon-tools and nosologia (private-repo policy). #}
+{% macro placard(system, note, href, href_label="The writeup carries the page") %}
+<div class="term-placard">
+  <strong>{{ system }}</strong> &mdash; {{ note }}
+  {%- if href %} <a href="{{ href | safe }}">{{ href_label }} &rarr;</a>{% endif %}
+</div>
+{% endmacro placard %}

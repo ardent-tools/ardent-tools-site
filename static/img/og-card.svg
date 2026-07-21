@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#F3F2ED"/>
+  <text x="80" y="220" font-family="IBM Plex Mono, ui-monospace, monospace" font-weight="600" font-size="56" fill="#1C1917">ardent.tools<tspan fill="#9E4A1E">&#9612;</tspan></text>
+  <text x="80" y="270" font-family="Spectral, Georgia, serif" font-size="26" fill="#45423C">Agent infrastructure engineering.</text>
+  <text x="80" y="304" font-family="Spectral, Georgia, serif" font-size="26" fill="#45423C">Recordings and receipts, not claims.</text>
+
+  <rect x="80" y="360" width="1040" height="190" fill="#EAE9E2"/>
+  <rect x="80" y="360" width="1040" height="190" fill="none" stroke="#1C1917" stroke-width="2"/>
+  <text x="600" y="465" text-anchor="middle" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="22" letter-spacing="1" fill="#6B6861">SYSTEMS YOU CAN WATCH WORKING &#8594;</text>
+</svg>

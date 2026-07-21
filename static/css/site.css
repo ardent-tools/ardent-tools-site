@@ -1,0 +1,626 @@
+/*
+ * ardent.tools — consumer-side token override + component CSS.
+ *
+ * Loaded after typikon's static/css/style.css (templates/base.html shadow
+ * adds this <link> — the documented AGENTIC.md override path; typikon's
+ * config.toml `consumer_css` hook is referenced in a stale comment but not
+ * actually wired, per typikon-capabilities.md §2). Two jobs:
+ *   1. Redeclare the :root tokens this site's visual system changes
+ *      (palette, fonts, radius) — everything else (--step-*, --space-*,
+ *      --max-width) is typikon's scale, kept verbatim.
+ *   2. New component CSS this site's markup needs that typikon has no
+ *      convention for: terminal panels, catalog rows, maturity badges,
+ *      claim/receipt pairs, the two-cluster+sibling footer.
+ *
+ * WHY: equal-specificity selectors here beat style.css's because this
+ * stylesheet loads second — most overrides below reuse style.css's own
+ * selectors rather than adding !important.
+ */
+
+:root {
+  /* === Palette — light ("bond paper") === */
+  --bg: #F3F2ED;
+  --bg-accent: #EAE9E2;
+  --text: #1C1917;
+  --text-mid: #45423C;
+  --text-light: #6B6861;
+  --rule: #D8D6CE;
+
+  --accent: #9E4A1E;
+  --accent-aged: #7C3A18;
+  --ok: #3D6B4F;
+  --warn: #8A6318;
+
+  /* Terminal plate — theme-invariant across light/dark (§2.2, §2.3). */
+  --term-bg: #16181A;
+  --term-text: #D6D4CC;
+  --term-dim: #8B8D8A;
+  --panel-edge: var(--text);
+
+  /* ANSI palette inside recordings — tuned once, same pixels in both
+     themes. Bright variants are the base hues at +12% lightness. */
+  --ansi-0: #16181A;  --ansi-8:  #191B1D;
+  --ansi-1: #C96A55;  --ansi-9:  #D1816F;
+  --ansi-2: #82A578;  --ansi-10: #95B38D;
+  --ansi-3: #C9A44C;  --ansi-11: #D1B166;
+  --ansi-4: #7A9BB8;  --ansi-12: #92ADC5;
+  --ansi-5: #A98BA5;  --ansi-13: #B9A0B5;
+  --ansi-6: #7FA8A0;  --ansi-14: #94B6B0;
+  --ansi-7: #D6D4CC;  --ansi-15: #ECEBE8;
+
+  /* Fonts — Cormorant Garamond dropped entirely; two families, hard
+     split (§2.4). --font-display is left pointing at typikon's default
+     so nothing errors if a future partial reads it, but no template
+     this site renders uses it. */
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-body: 'Spectral', Georgia, serif;
+
+  /* Layout */
+  --breakout: 960px;
+}
+
+/* Plex Mono 600 — the one new vendored font file (§2.4). Latin subset
+   only (typikon's 400/500 cuts carry the Greek range for nav-hover
+   mechanics this site never activates; this weight only ever renders
+   English headlines). */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/plex-mono-600-latin.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1F1F1E;
+    --bg-accent: #282826;
+    --text: #DDD9D0;
+    --text-mid: #B3AFA6;
+    --text-light: #8F8B83;
+    --rule: #3A3A37;
+    --accent: #D07A45;
+    --accent-aged: #B96534;
+    --ok: #7FAE8D;
+    --warn: #C9A44C;
+    --panel-edge: #4A4843;
+  }
+}
+
+/* === Radius discipline: 0 everywhere except badges (2px) === */
+.ap-player,
+div.ap-wrapper div.ap-player,
+:focus-visible {
+  border-radius: 0;
+}
+
+/* === Headings: mono 600, sentence case, never uppercase at display size === */
+h1 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+h2 {
+  font-weight: 600;
+}
+
+h3 {
+  font-family: var(--font-mono);
+  font-size: var(--step-1);
+  font-weight: 600;
+}
+
+/* === Links + focus: --accent is the only interactive color === */
+a:hover {
+  text-decoration-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Nav hover: kill the Leatherworks per-item dye-color cycle; one accent,
+   underline offset 3px, 120ms (§3.7, §5.2). Matches style.css's
+   `.nav-links a:nth-child(N):hover` specificity so the later stylesheet
+   wins on the tie rather than needing !important. */
+.nav-links a:nth-child(1):hover,
+.nav-links a:nth-child(2):hover,
+.nav-links a:nth-child(3):hover,
+.nav-links a:nth-child(4):hover,
+.nav-links a:nth-child(5):hover,
+.nav-links a:nth-child(6):hover,
+.nav-links a:hover,
+.nav-links a:focus-visible {
+  color: var(--text);
+}
+
+.nav-links a {
+  transition: color 120ms ease-out;
+  text-underline-offset: 3px;
+}
+
+/* The one button style (§3.7) — filled --text, radius 0. Nav's Resume
+   entry (last by position in nav_items) plus /resume/'s own PDF link
+   both use it. */
+.nav-links a:last-child,
+.button {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bg);
+  background: var(--text);
+  padding: var(--space-3xs) var(--space-s);
+  text-decoration: none;
+  border-radius: 0;
+}
+
+.nav-links a:last-child:hover,
+.nav-links a:last-child:focus-visible,
+.button:hover,
+.button:focus-visible {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* journal-list / faq accent fixes (style.css defaults to Leatherworks --aima) */
+.products-list a:hover,
+.journal-list a:hover,
+.faq-anchor:hover {
+  color: var(--accent);
+}
+
+.faq-anchor:hover {
+  border-bottom-color: var(--accent);
+}
+
+.faq-question {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-1);
+}
+
+/* === Layout: breakout === */
+.breakout {
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .breakout {
+    position: relative;
+    width: var(--breakout);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* === Wordmark: lowercase mono 600 + a steady (never-blinking) cursor ===
+   config.extra.logo_path stays set (partials/ld-organization.html needs
+   it — unconditional concat, errors the whole build if unset) but the
+   nav's auto-rendered <img class="logo-mark"> is suppressed: DESIGN
+   wants no crest, no icon system, mono wordmark + cursor only. */
+.logo-mark {
+  display: none;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-1);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.logo::before {
+  content: "\258C"; /* ▌ block cursor, --accent, never animated */
+  color: var(--accent);
+  margin-left: 0.05em;
+  order: 2;
+}
+
+/* === Maturity badge (§3.3) — neutral ink always, never traffic-lit === */
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 2px 8px;
+  color: var(--text-mid);
+  text-decoration: none;
+}
+
+a.badge:hover,
+a.badge:focus-visible {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+/* === Claim / receipt (§3.4) === */
+.claim {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.receipt {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+}
+
+/* Wraps every receipt table's rendered <table> (§6: "own overflow-x:
+   auto; the page body never scrolls horizontally"). Markdown tables have
+   no attribute syntax to put a class directly on <table>, so every rule
+   below is scoped through this wrapper div instead. */
+.receipt-table-wrap {
+  overflow-x: auto;
+}
+
+.receipt-table-wrap table {
+  font-variant-numeric: tabular-nums;
+}
+
+.receipt-table-wrap .ok::before {
+  content: "\2713 "; /* check glyph, --ok — the one call site outside terminal content */
+  color: var(--ok);
+}
+
+/* === Fact row (system-page header, §4.2) === */
+.fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  margin-bottom: var(--space-l);
+}
+
+.fact-row .private-chip {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+}
+
+.page-lede {
+  font-family: var(--font-body);
+  font-size: var(--step-1);
+  color: var(--text-mid);
+  max-width: 60ch;
+}
+
+/* === Terminal panel (§3.1) — the base primitive === */
+.term-panel {
+  margin: var(--space-l) 0;
+}
+
+.term-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3xs) var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
+}
+
+.term-meta a {
+  color: var(--text-light);
+}
+
+.term-mat {
+  background: var(--bg);
+  border: 1px solid var(--panel-edge);
+  padding: var(--space-s);
+}
+
+@media (max-width: 480px) {
+  .term-mat {
+    padding: var(--space-xs);
+  }
+}
+
+.term-screen {
+  background: var(--term-bg);
+  min-height: 12rem;
+}
+
+/* Architecture-diagram variant (ergon-tools, nosologia — §4.2): the same
+   matted-frame treatment, paper-toned instead of a dark screen — a
+   diagram is not a running session. */
+.diagram-plate {
+  background: var(--bg-accent);
+}
+
+.diagram-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.term-screen .ap-player {
+  --term-color-background: var(--term-bg);
+  --term-color-foreground: var(--term-text);
+  --term-color-0: var(--ansi-0);
+  --term-color-1: var(--ansi-1);
+  --term-color-2: var(--ansi-2);
+  --term-color-3: var(--ansi-3);
+  --term-color-4: var(--ansi-4);
+  --term-color-5: var(--ansi-5);
+  --term-color-6: var(--ansi-6);
+  --term-color-7: var(--ansi-7);
+  --term-color-8: var(--ansi-8);
+  --term-color-9: var(--ansi-9);
+  --term-color-10: var(--ansi-10);
+  --term-color-11: var(--ansi-11);
+  --term-color-12: var(--ansi-12);
+  --term-color-13: var(--ansi-13);
+  --term-color-14: var(--ansi-14);
+  --term-color-15: var(--ansi-15);
+  --term-font-family: var(--font-mono), monospace;
+  width: 100%;
+}
+
+/* Fallback <pre> — visible until site.js swaps in the player, and always
+   visible to no-JS visitors, feed readers, and crawlers (§3.1). */
+.term-fallback {
+  margin: 0;
+  padding: var(--space-s);
+  color: var(--term-text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Honest placeholder (§3.6) — same slot the real recording will occupy. */
+.term-placeholder {
+  background: var(--bg-accent);
+  border: 1px solid var(--panel-edge);
+  padding: var(--space-l) var(--space-s);
+  text-align: center;
+}
+
+.term-placeholder p {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  /* text-mid, not text-light: text-light on bg-accent clears AA in light
+     mode (§2.1 pair) but falls to 4.35:1 in dark mode (§2.3 pair) — a
+     real fail, checked by computing contrast against DESIGN's own dark
+     token table (pa11y only gates the light render; this is the manual
+     dark-mode pass §8.4 calls for). text-mid clears 7.5:1 in both. */
+  color: var(--text-mid);
+}
+
+.term-caption {
+  font-family: var(--font-body);
+  font-size: var(--step--1);
+  color: var(--text-mid);
+  margin-top: var(--space-xs);
+}
+
+.term-transcript {
+  margin-top: var(--space-xs);
+}
+
+.term-transcript summary {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+.term-transcript pre {
+  margin-top: var(--space-xs);
+  padding: var(--space-s);
+  background: var(--bg-accent);
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+/* Placard-without-panel — a demo that cannot exist, honestly (§4.3). */
+.term-placard {
+  border: 1px solid var(--rule);
+  padding: var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+}
+
+.term-placard a {
+  color: var(--text-light);
+}
+
+/* === Catalog row (§3.2) — a ledger row, not a card === */
+.catalog {
+  list-style: none;
+  margin: var(--space-m) 0;
+  padding: 0;
+}
+
+.catalog-row {
+  display: block;
+  border-top: 1px solid var(--rule);
+  padding-block: var(--space-s);
+  text-decoration: none;
+  color: inherit;
+}
+
+.catalog-row:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.catalog-row:has(a:hover),
+.catalog-row:has(a:focus-visible) {
+  background: color-mix(in oklab, var(--accent) 4%, transparent);
+}
+
+.catalog-row-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-1);
+}
+
+.catalog-row-name a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.catalog-row:has(a:hover) .catalog-row-name a {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.catalog-row-desc {
+  font-family: var(--font-body);
+  color: var(--text-mid);
+  margin: var(--space-3xs) 0;
+  max-width: 70ch;
+}
+
+.catalog-row-meta {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs) var(--space-xs);
+}
+
+.catalog-row-meta a {
+  color: var(--text-light);
+}
+
+/* === Home === */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  margin-bottom: var(--space-s);
+}
+
+.home-h1 {
+  font-size: var(--step-4);
+  max-width: 16ch;
+}
+
+.home-lede {
+  font-family: var(--font-body);
+  font-size: var(--step-1);
+  color: var(--text-mid);
+  max-width: 60ch;
+  margin-bottom: var(--space-l);
+}
+
+.selected-work-close {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+  margin-top: var(--space-s);
+}
+
+.practice-paragraph {
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  color: var(--text-mid);
+  max-width: 70ch;
+  margin: var(--space-xl) 0;
+  padding-top: var(--space-l);
+  border-top: 1px solid var(--rule);
+}
+
+.home-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s) var(--space-m);
+  align-items: baseline;
+  margin: var(--space-m) 0 var(--space-l);
+}
+
+.home-ctas a {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* === Footer (§3.7) — three mono clusters + sibling line === */
+.site-footer-clusters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-m) var(--space-xl);
+  margin-bottom: var(--space-s);
+}
+
+.site-footer-cluster {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.site-footer-cluster a {
+  color: var(--text-light);
+}
+
+.site-footer-cluster a:hover {
+  color: var(--accent);
+}
+
+.site-footer-sibling {
+  margin-bottom: var(--space-s);
+}
+
+.site-footer-sibling a {
+  color: var(--text-light);
+}
+
+.site-footer-colophon {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--text-light);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* === Consulting (§Addendum) === */
+.engagement-shapes {
+  display: grid;
+  gap: var(--space-m);
+  margin: var(--space-m) 0 var(--space-l);
+}
+
+.engagement-shape h3 {
+  margin-bottom: var(--space-3xs);
+}
+
+.engagement-shape p {
+  margin-bottom: 0;
+  color: var(--text-mid);
+}

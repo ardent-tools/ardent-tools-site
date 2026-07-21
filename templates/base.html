@@ -1,0 +1,87 @@
+{# Consumer shadow of typikon's templates/base.html (theme.toml's Zola
+   template-shadow rule: a same-path file in the consumer's own
+   templates/ wins). Delta from the theme copy, marked below, is exactly
+   two <link> tags — the documented AGENTIC.md override path (config.toml's
+   `consumer_css` comment is not actually wired; see typikon-capabilities.md
+   §2). Re-diff this file against themes/typikon/templates/base.html on
+   every typikon-refresh.
+#}
+{% import "partials/ld-breadcrumb.html" as crumb %}
+<!DOCTYPE html>
+<html lang="{{ lang | default(value="en") }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="{{ config.extra.theme_color | default(value="#F7F3E8") }}">
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+
+  {%- set site_title = config.title | default(value="") -%}
+  {%- set default_description = config.description | default(value="") -%}
+
+  <title>{% block title %}{{ site_title }}{% endblock title %}</title>
+  <meta name="description" content="{% block description %}{{ default_description }}{% endblock description %}">
+
+  <meta property="og:title" content="{% block og_title %}{{ site_title }}{% endblock og_title %}">
+  <meta property="og:description" content="{% block og_description %}{{ default_description }}{% endblock og_description %}">
+  <meta property="og:type" content="{% block og_type %}website{% endblock og_type %}">
+  <meta property="og:locale" content="{{ config.extra.og_locale | default(value="en_US") }}">
+  {% block og_image -%}
+    {%- if config.extra.og_image %}
+  <meta property="og:image" content="{{ get_url(path=config.extra.og_image, trailing_slash=false) }}">
+    {%- endif %}
+  {%- endblock og_image %}
+  <meta name="twitter:card" content="summary">
+  <meta property="og:url" content="{{ current_url | default(value=config.base_url) | safe }}">
+  <link rel="canonical" href="{{ current_url | default(value=config.base_url) | safe }}">
+
+  {# Atom feed auto-discovery so RSS readers / browsers find it without
+     the visitor needing to know the URL. #}
+  {%- if config.generate_feeds %}
+  <link rel="alternate" type="application/atom+xml" href="/atom.xml" title="{{ config.title }}">
+  {%- endif %}
+
+  {# Self-hosted fonts. Preload the two highest-frequency files (configured
+     by consumer's [extra.font_preload]); the rest load via fonts.css. #}
+  {%- if config.extra.font_preload %}
+    {%- for font in config.extra.font_preload %}
+  <link rel="preload" href="{{ font | safe }}" as="font" type="font/woff2" crossorigin>
+    {%- endfor %}
+  {%- endif %}
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/style.css">
+  {# --- ardent.tools delta begins: consumer-side token override + new
+     component CSS, loaded after typikon's own stylesheet so equal-
+     specificity selectors here win the cascade (see site.css's own
+     header comment). --- #}
+  <link rel="stylesheet" href="/css/site.css">
+  <link rel="stylesheet" href="/css/syntax.css">
+  <link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css">
+  {# --- ardent.tools delta ends --- #}
+
+  {# Default JSON-LD: Organization on every page. Consumer page templates
+     override this block to layer on Product/Article/BreadcrumbList. #}
+  {% block ld_json %}
+  {%- include "partials/ld-organization.html" -%}
+  {%- include "partials/ld-person.html" -%}
+  {% endblock ld_json %}
+
+  {% block head_extra %}{% endblock head_extra %}
+</head>
+<body{% block body_class %}{% endblock body_class %}>
+  <a href="#main" class="sr-only">Skip to content</a>
+
+  {% block nav %}{% include "partials/nav.html" %}{% endblock nav %}
+
+  <main id="main">
+    {% block content %}{% endblock content %}
+  </main>
+
+  {% block footer %}{% include "partials/footer.html" %}{% endblock footer %}
+
+  {# --- ardent.tools delta: the vendored player + the one site script,
+     both external files (CSP script-src 'self' — no inline). --- #}
+  <script src="/vendor/asciinema/asciinema-player.min.js" defer></script>
+  <script src="/js/site.js" defer></script>
+  {% block scripts %}{% endblock scripts %}
+</body>
+</html>

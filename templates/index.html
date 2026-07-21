@@ -1,0 +1,59 @@
+{# Consumer shadow of typikon's templates/index.html. Typikon's own home
+   template is Leatherworks-specific (hidden nav/footer, logo, triad
+   mark) — this site's home is a fully custom composition per DESIGN
+   §4.1: masthead (nav stays visible, unlike the sibling site), kicker,
+   h1 + lede, hero terminal panel, three selected-work catalog rows,
+   practice paragraph, footer. Nav/footer blocks are left un-overridden
+   so base.html's defaults (visible top nav + the shadowed footer
+   partial) render normally.
+
+   content/_index.md frontmatter: title, description, [extra] kicker,
+   h1, lede, [extra.hero_demo] (term-panel macro input, §3.1),
+   extra.selected_work (array of systems/<slug> filenames). Body markdown
+   is the practice paragraph.
+#}
+{% extends "base.html" %}
+{% import "partials/term-panel.html" as term_panel %}
+{% import "partials/catalog-row.html" as catalog_row %}
+
+{% block title %}{{ section.extra.seo_title | default(value=config.title) }}{% endblock title %}
+{% block og_title %}{{ section.extra.seo_title | default(value=config.title) }}{% endblock og_title %}
+
+{% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
+{% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
+
+{% block ld_json %}
+  {%- include "partials/ld-organization.html" -%}
+  {%- include "partials/ld-person.html" -%}
+{% endblock ld_json %}
+
+{% block content %}
+<p class="kicker">{{ section.extra.kicker }}</p>
+<h1 class="home-h1">{{ section.extra.h1 }}</h1>
+<p class="home-lede">{{ section.extra.lede }}</p>
+
+{%- if section.extra.hero_demo %}
+{{ term_panel::panel(demo=section.extra.hero_demo, hero=true, label="Read the system") }}
+<p><a href="/systems/{{ section.extra.hero_demo.system }}/">Read the system &rarr;</a></p>
+{%- endif %}
+
+<div class="home-ctas">
+  <a href="/consulting/">Work with Ardent Tools &rarr;</a>
+</div>
+
+<h2>Selected work</h2>
+{%- set systems = get_section(path="systems/_index.md") %}
+{%- set selected = section.extra.selected_work | default(value=[]) %}
+<ul class="catalog">
+  {%- for p in systems.pages %}
+    {%- if p.slug in selected %}
+      {{ catalog_row::row(page=p) }}
+    {%- endif %}
+  {%- endfor %}
+</ul>
+<p class="selected-work-close"><a href="/systems/">All systems &rarr;</a> &middot; <a href="/demos/">Every recording on one page &rarr;</a> &middot; <a href="/writing/">Writing &rarr;</a></p>
+
+<div class="practice-paragraph">
+{{ section.content | safe }}
+</div>
+{% endblock content %}

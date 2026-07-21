@@ -1,0 +1,35 @@
+{# Consumer shadow of typikon's partials/footer.html. Typikon's stock
+   footer renders one brand line + one flat footer_links row — this site
+   needs three mono clusters + a sibling-brand line (DESIGN §3.7), which
+   a flat link list can't produce. Reads config.toml [extra.person] and
+   [extra.footer]. #}
+<footer>
+  <div class="site-footer-clusters">
+    {%- if config.extra.person %}
+    <div class="site-footer-cluster">
+      {%- set p = config.extra.person %}
+      {%- if p.email %}<a href="mailto:{{ p.email }}">{{ p.email }}</a>{% endif %}
+      {%- if p.github %} &middot; <a href="{{ p.github | safe }}" rel="me">GitHub</a>{% endif %}
+      {%- if p.linkedin %} &middot; <a href="{{ p.linkedin | safe }}" rel="me">LinkedIn</a>{% endif %}
+    </div>
+    {%- endif %}
+    {%- if config.extra.footer.site_links %}
+    <div class="site-footer-cluster">
+      {%- for link in config.extra.footer.site_links -%}
+        {%- if not loop.first %} &middot; {% endif -%}
+        <a href="{{ link.url | safe }}">{{ link.label }}</a>
+      {%- endfor %}
+    </div>
+    {%- endif %}
+  </div>
+
+  {%- if config.extra.footer.sibling_url %}
+  <p class="site-footer-sibling">
+    <a href="{{ config.extra.footer.sibling_url | safe }}">{{ config.extra.footer.sibling_label | default(value="SIBLING WORKSHOP") }} &rarr;</a>
+  </p>
+  {%- endif %}
+
+  {%- if config.extra.footer.colophon_summary %}
+  <p class="site-footer-colophon">{{ config.extra.footer.colophon_summary }} <a href="/colophon/">Full colophon &rarr;</a></p>
+  {%- endif %}
+</footer>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" font-family="IBM Plex Mono, ui-monospace, monospace">
+  <rect width="960" height="460" fill="#EAE9E2"/>
+
+  <rect x="60" y="40" width="840" height="70" fill="#F3F2ED" stroke="#1C1917" stroke-width="1.5"/>
+  <text x="480" y="82" text-anchor="middle" font-size="16" font-weight="600" fill="#1C1917">RAW CODE SOURCES &#8212; ICD-10-CM/PCS &#183; CPT &#183; HCPCS &#183; SNOMED &#183; modifiers</text>
+
+  <line x1="480" y1="110" x2="480" y2="135" stroke="#1C1917" stroke-width="1.5"/>
+  <polygon points="474,130 486,130 480,142" fill="#1C1917"/>
+
+  <rect x="60" y="145" width="840" height="90" fill="#F3F2ED" stroke="#9E4A1E" stroke-width="1.5"/>
+  <text x="480" y="180" text-anchor="middle" font-size="18" font-weight="600" fill="#7C3A18">FINE-TUNED EMBEDDING MODEL (Eidos v3)</text>
+  <text x="480" y="207" text-anchor="middle" font-size="14" fill="#45423C">MNRL + Matryoshka, fresh from a stock checkpoint &#183; 1.35M training pairs, 28 sources</text>
+
+  <line x1="480" y1="235" x2="480" y2="260" stroke="#1C1917" stroke-width="1.5"/>
+  <polygon points="474,255 486,255 480,267" fill="#1C1917"/>
+
+  <rect x="60" y="270" width="840" height="90" fill="#F3F2ED" stroke="#1C1917" stroke-width="1.5"/>
+  <text x="480" y="305" text-anchor="middle" font-size="18" font-weight="600" fill="#1C1917">BISECTING K-MEANS PROJECTION</text>
+  <text x="480" y="332" text-anchor="middle" font-size="14" fill="#45423C">semantic space &#8594; navigable hierarchy, regenerable at any time from the embeddings</text>
+
+  <line x1="480" y1="360" x2="480" y2="385" stroke="#1C1917" stroke-width="1.5"/>
+  <polygon points="474,380 486,380 480,392" fill="#1C1917"/>
+
+  <rect x="60" y="395" width="840" height="55" fill="#F3F2ED" stroke="#1C1917" stroke-width="1.5"/>
+  <text x="480" y="428" text-anchor="middle" font-size="16" font-weight="600" fill="#1C1917">SEARCHABLE INDEX + EXPORT FORMATS</text>
+</svg>

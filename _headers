@@ -1,0 +1,53 @@
+# Cloudflare Pages headers — instance of themes/typikon/_headers.tmpl,
+# consumer-owned from here (typikon-init copies the template once; this
+# site edits the instance directly, not the template).
+#
+# Deltas from the typikon baseline:
+#   - script-src carries a 'wasm-unsafe-eval' carve-out. asciinema-player
+#     v3's terminal-rendering core is a Rust-compiled WebAssembly module,
+#     base64-decoded and compiled inline from the vendored JS (verified
+#     by reading static/vendor/asciinema/asciinema-player.min.js: the
+#     wasm bytes are embedded, not fetched — WebAssembly.instantiate()
+#     runs on an in-memory buffer). A bare `script-src 'self'` blocks
+#     WASM compilation in Chrome; this carve-out is what makes the
+#     player's terminal core work at all under this site's strict CSP.
+#     PENDING: in-browser QA (DESIGN.md §8.4) — confirm in a real browser
+#     that the player initializes cleanly under this exact policy before
+#     treating this line as fully verified; if QA finds it unnecessary or
+#     insufficient, adjust here.
+#   - form-action carries no third-party entry. ardent-site's Buttondown
+#     allowlist entry doesn't apply here — this site has no form of any
+#     kind, so form-action stays 'self' only.
+
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()
+  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+
+# Long-cache for content-addressable static assets.
+# Cloudflare Pages adds the cache-busting query string in production
+# automatically; consumers can layer asset-fingerprinting on top later.
+
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/img/*
+  Cache-Control: public, max-age=2592000, immutable
+
+/casts/*
+  Cache-Control: public, max-age=2592000, immutable
+
+/tapes/*
+  Cache-Control: public, max-age=2592000, immutable
