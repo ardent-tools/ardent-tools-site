@@ -1,0 +1,44 @@
+{# catalog-ledger.html — Tier 2 (Libraries/Web) and Tier 3 (In design) rows
+   for /systems/ (DESIGN-v1.1 §3.2, §3.3). Data-driven from
+   content/systems/_index.md's [[extra.ledger]] array — one TOML entry per
+   repo (name, gloss, one_liner, badge, license, repo, group), looped here.
+   No hand-authored per-repo HTML; adding a repo is one TOML entry.
+
+   Two shapes, both ledger rows rather than cards (no thumbnails, no tag
+   pills — the fleet's catalog-row discipline unchanged):
+     grid()     — Tier 2, compact two-column grid at >=1024px (site.css),
+                  single column below. Full meta line: badge, license,
+                  repo link.
+     register() — Tier 3, single-column compact rows. Name links straight
+                  to the repo (the one action a design-phase entry needs);
+                  meta line carries only the DESIGN PHASE badge (§3.2).
+#}
+{% macro grid(items) %}
+<ul class="catalog ledger-grid">
+  {%- for item in items %}
+  <li class="ledger-cell">
+    <div class="ledger-name">{{ item.name }}</div>
+    <p class="ledger-gloss">{{ item.gloss }}</p>
+    <p class="catalog-row-desc">{{ item.one_liner }}</p>
+    <div class="catalog-row-meta">
+      <span>{{ item.badge }}</span>
+      <span>{{ item.license }}</span>
+      <span><a href="{{ item.repo | safe }}">REPO &rarr;</a></span>
+    </div>
+  </li>
+  {%- endfor %}
+</ul>
+{% endmacro grid %}
+
+{% macro register(items) %}
+<ul class="catalog ledger-register">
+  {%- for item in items %}
+  <li class="ledger-cell">
+    <div class="ledger-name"><a href="{{ item.repo | safe }}">{{ item.name }}</a></div>
+    <p class="ledger-gloss">{{ item.gloss }}</p>
+    <p class="catalog-row-desc">{{ item.one_liner }}</p>
+    <div class="catalog-row-meta"><span>{{ item.badge }}</span></div>
+  </li>
+  {%- endfor %}
+</ul>
+{% endmacro register %}

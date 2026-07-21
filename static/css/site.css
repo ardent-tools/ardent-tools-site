@@ -206,14 +206,103 @@ h2 {
   padding-block: var(--space-l);
 }
 
-/* Catalog zone tints (design-delta-dye.md §8) — backgrounds only. Not
-   yet wired to any template; ships with its token declarations (see
-   :root above) so the Phase C catalog rebuild's group-zone wrapper can
-   apply these directly. */
+/* Catalog zone tints (design-delta-dye.md §8) — backgrounds only. */
 .zone-systems   { background: var(--zone-systems); }
 .zone-libraries { background: var(--zone-libraries); }
 .zone-web       { background: var(--zone-web); }
 /* In-design zone: no class, no tint — plain --bg is the treatment. */
+
+/* === Catalog groups (§3.2) — the /systems/ zone wrapper. Shared
+   padding-block regardless of tint; .zone-* above supplies the
+   background (or nothing, for the deliberately-undyed In-design zone —
+   see design-delta-dye.md §4, distinct from --bg-accent bands elsewhere:
+   this zone is plain paper, not the recessed neutral). Full shell width
+   comes free from being a block child of main (§1.4). */
+.catalog-group {
+  padding-block: var(--space-l);
+}
+
+.catalog-group:target h2 {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.catalog-index,
+.catalog-footnote,
+.catalog-ownership {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+}
+
+.catalog-index {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.catalog-footnote {
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.catalog-index a,
+.catalog-footnote a,
+.catalog-ownership a {
+  color: var(--text-light);
+}
+
+.group-caption {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  max-width: 70ch;
+  margin-top: var(--space-3xs);
+}
+
+/* === Ledger rows (§3.2 tiers 2-3) — Libraries/Web (grid) and In-design
+   (register). Shares .catalog-row-desc / .catalog-row-meta with the
+   flagship rows above (same one-liner and meta-line treatment; no reason
+   to duplicate the rule). */
+.ledger-grid {
+  display: grid;
+  gap: var(--space-s);
+}
+
+@media (min-width: 1024px) {
+  .ledger-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ledger-cell {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-xs);
+}
+
+.ledger-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-0);
+}
+
+.ledger-name a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.ledger-name a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.ledger-gloss {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: var(--step--1);
+  color: var(--text-mid);
+  margin: var(--space-3xs) 0;
+}
 
 h3 {
   font-family: var(--font-mono);
