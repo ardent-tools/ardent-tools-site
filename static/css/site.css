@@ -79,6 +79,11 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --font-body: 'Spectral', Georgia, serif;
   --font-display: var(--font-mono);
+
+  /* Type-scale ceiling — extends typikon's 1.2-ratio scale one step past
+     its own --step-4, home only. Interior h1 moves to --step-4 (typikon's
+     prior ceiling); nothing below step-4 moves. */
+  --step-5: 2.488rem;
 }
 
 /* Plex Mono 600 — the one new vendored font file (§2.4). Latin subset
@@ -178,6 +183,7 @@ div.ap-wrapper div.ap-player,
 h1 {
   font-family: var(--font-mono);
   font-weight: 600;
+  font-size: var(--step-4);
   letter-spacing: -0.01em;
   line-height: 1.15;
 }
@@ -766,7 +772,9 @@ a.badge:focus-visible {
 }
 
 .home-h1 {
-  font-size: var(--step-4);
+  font-size: var(--step-5);
+  line-height: 1.1;
+  letter-spacing: -0.015em;    /* mono 600 tightens slightly at display size */
   max-width: 16ch;
 }
 
