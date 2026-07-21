@@ -43,7 +43,7 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 
 **Solid:** kerykeion end to end — protobuf framing, serial/TCP transports, handshake, encryption, the node database, topology, discovery, routing, delivery tracking, store-and-forward, a gateway bridge. syntonia's CHIRP CSV/IMG import, validation, and Baofeng UV-5R export, with opt-in live serial detection. The kryphos vault, with its tamper-evident mutation log beside the store. Typed JSON throughout: every CLI carries `--json`, and `akroasis-server` exposes the same surface over `/api/v1/*`.
 
-**Open:** ten of seventeen declared domains — SDR, proximity intelligence, network defense, OSINT, offensive security, and others — have no shipped code; the README's table is the ledger. The mesh CLI is static until daemon mode lands. Radio read/program wait on a protocol session backend that doesn't exist yet; `StubHardware` is the default. Aggregation has one live producer; cross-domain convergence runs synthetic everywhere else. No build/test workflow runs on GitHub Actions — issue #262 says so, and this page won't imply otherwise while it's true.
+**Open:** ten of seventeen declared domains have no shipped code — the README's own table is the ledger. The mesh CLI is static until daemon mode lands. Radio read/program wait on a protocol session backend that doesn't exist yet; `StubHardware` is the default. Aggregation has one live producer; cross-domain convergence runs synthetic everywhere else. No build/test workflow runs on GitHub Actions — issue #262 says so, and this page won't imply otherwise while it's true.
 
 ## Numbers, and how they were measured
 
