@@ -10,10 +10,10 @@
 {# Every panel on the site can appear here — one of the three
    panel-bearing templates (base.html T2 scoping); the player loads. #}
 {% block player_css %}
-  <link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css">
+  <link rel="stylesheet" href="{{ get_url(path='vendor/asciinema/asciinema-player.css', cachebust=true) }}">
 {% endblock player_css %}
 {% block player_js %}
-  <script src="/vendor/asciinema/asciinema-player.min.js" defer></script>
+  <script src="{{ get_url(path='vendor/asciinema/asciinema-player.min.js', cachebust=true) }}" defer></script>
 {% endblock player_js %}
 
 {% block content %}

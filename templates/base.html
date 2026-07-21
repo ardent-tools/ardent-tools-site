@@ -64,14 +64,14 @@
   <link rel="preload" href="{{ font | safe }}" as="font" type="font/woff2" crossorigin>
     {%- endfor %}
   {%- endif %}
-  <link rel="stylesheet" href="/css/fonts.css">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="{{ get_url(path='css/fonts.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ get_url(path='css/style.css', cachebust=true) }}">
   {# --- ardent.tools delta begins: consumer-side token override + new
      component CSS, loaded after typikon's own stylesheet so equal-
      specificity selectors here win the cascade (see site.css's own
      header comment). --- #}
-  <link rel="stylesheet" href="/css/site.css">
-  <link rel="stylesheet" href="/css/syntax.css">
+  <link rel="stylesheet" href="{{ get_url(path='css/site.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ get_url(path='css/syntax.css', cachebust=true) }}">
   {# --- ardent.tools delta ends --- #}
   {# Vendored player CSS: only the templates that actually render a
      term-panel populate this (index.html, demos.html, system.html) —
@@ -103,7 +103,7 @@
      both external files (CSP script-src 'self' — no inline). site.js
      itself no-ops when window.AsciinemaPlayer is undefined. --- #}
   {% block player_js %}{% endblock player_js %}
-  <script src="/js/site.js" defer></script>
+  <script src="{{ get_url(path='js/site.js', cachebust=true) }}" defer></script>
   {% block scripts %}{% endblock scripts %}
 </body>
 </html>
