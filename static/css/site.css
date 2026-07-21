@@ -49,7 +49,10 @@
   --accent: #9E4A1E;
   --accent-aged: #7C3A18;
   --ok: #49704E;
-  --warn: #8A6318;
+  --warn: #7C5514;   /* darkened from #8A6318 — WCAG-formula-verified 5.38:1 on
+                        --bg-accent (was 4.39:1, failing AA's 4.5:1 floor);
+                        same amber hue family, distinct from --accent-aged's
+                        rust so syntax.css's three-ink pass stays three inks */
 
   /* Catalog zone inks (replaces the six flat zone hexes) — theme-invariant,
      never redeclared in the dark block: the wash formula below mixes each

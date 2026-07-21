@@ -40,6 +40,9 @@ pre.giallo code {
 
 .z-string,
 .z-constant {
+  /* --warn is darkened at the token (site.css) specifically to clear
+     this pairing: 5.38:1 on pre.giallo's --bg-accent panel, above the
+     WCAG AA 4.5:1 floor (was 4.39:1, failing). */
   color: var(--warn);
 }
 
