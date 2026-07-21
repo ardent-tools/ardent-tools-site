@@ -20,7 +20,7 @@
 stages = ["kanon-lint"]
 
 [stages."kanon-lint"]
-cmd = "sh -c 'git ls-files -- . \":!themes/typikon\" > /tmp/ardent-tools-site-lint-files.txt && kanon lint --paths-from /tmp/ardent-tools-site-lint-files.txt .'"
+cmd = "sh -c 'f=$(mktemp) && git ls-files -- . \":!themes/typikon\" > \"$f\" && kanon lint --paths-from \"$f\" .; rc=$?; rm -f \"$f\"; exit $rc'"
 timeout_secs = 120
 
 [verifier]
