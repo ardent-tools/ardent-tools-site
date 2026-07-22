@@ -1,36 +1,80 @@
-{# demos.html — every recording on one page, click-to-play (§4.3). The
-   cold-outreach URL. Data-driven from content/demos.md's
-   [[extra.demos]] array (each item is a term-panel `demo` object) plus
-   [[extra.placards]] for systems that cannot have a demo by policy
-   (private repos — ergon-tools, nosologia).
-#}
+{# Evidence and recording register. System frontmatter is the canonical
+   source for both current receipts and future recording targets. A planned
+   target is prose, never a player-shaped placeholder. #}
 {% extends "page.html" %}
 {% import "partials/term-panel.html" as term_panel %}
 
-{# Every panel on the site can appear here — one of the three
-   panel-bearing templates (base.html T2 scoping); the player loads. #}
 {% block player_css %}
+  {%- set systems = get_section(path="systems/_index.md") -%}
+  {%- set_global cast_count = 0 -%}
+  {%- for system in systems.pages -%}
+    {%- if system.extra.demo and system.extra.demo.cast -%}{%- set_global cast_count = cast_count + 1 -%}{%- endif -%}
+  {%- endfor -%}
+  {%- if cast_count > 0 %}
   <link rel="stylesheet" href="{{ get_url(path='vendor/asciinema/asciinema-player.css', cachebust=true) }}">
+  {%- endif %}
 {% endblock player_css %}
 {% block player_js %}
+  {%- set systems = get_section(path="systems/_index.md") -%}
+  {%- set_global cast_count = 0 -%}
+  {%- for system in systems.pages -%}
+    {%- if system.extra.demo and system.extra.demo.cast -%}{%- set_global cast_count = cast_count + 1 -%}{%- endif -%}
+  {%- endfor -%}
+  {%- if cast_count > 0 %}
   <script src="{{ get_url(path='vendor/asciinema/asciinema-player.min.js', cachebust=true) }}" defer></script>
+  {%- endif %}
 {% endblock player_js %}
 
 {% block content %}
-<h1>{{ page.title }}</h1>
-<div class="demos-intro">
-{{ page.content | safe }}
-</div>
-
-{# h2 landmark ahead of the per-demo h3 meta lines (term-panel's own
-   heading=true) — without it the page's heading sequence skips h1
-   straight to h3 with no h2 anywhere (WCAG 1.3.1). #}
-<h2>Every recording</h2>
-{%- for demo in page.extra.demos | default(value=[]) %}
-{{ term_panel::panel(demo=demo, hero=false, label=demo.system ~ " " ~ demo.action, heading=true) }}
+{%- set systems = get_section(path="systems/_index.md") %}
+{%- set writing = get_section(path="writing/_index.md") %}
+{%- set_global cast_count = 0 %}
+{%- for system in systems.pages %}
+  {%- if system.extra.demo and system.extra.demo.cast %}{% set_global cast_count = cast_count + 1 %}{% endif %}
 {%- endfor %}
 
-{%- for p in page.extra.placards | default(value=[]) %}
-{{ term_panel::placard(system=p.system, note=p.note, href=p.href) }}
-{%- endfor %}
+<header class="evidence-header">
+  <p class="section-label">Evidence register</p>
+  <h1>{{ page.title }}</h1>
+  <div class="demos-intro">{{ page.content | safe }}</div>
+</header>
+
+<section class="evidence-section" aria-labelledby="available-evidence">
+  <h2 id="available-evidence">Inspectable now</h2>
+  <p>Source repositories, implementation boundaries, reproduction commands, dated measurements, and four essays are published now.</p>
+  <ul class="evidence-index">
+    <li><a href="/systems/"><strong>{{ systems.pages | length }} system dossiers</strong><span>Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</span></a></li>
+    <li><a href="/systems.json"><strong>Machine-readable catalog</strong><span>Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span></a></li>
+    <li><a href="/writing/"><strong>{{ writing.pages | length }} dated essays</strong><span>Methods and operating judgments behind the systems, also published in the Atom feed.</span></a></li>
+  </ul>
+</section>
+
+<section class="evidence-section" aria-labelledby="recording-register">
+  <h2 id="recording-register">Recording register</h2>
+  <p class="recording-status"><strong>{{ cast_count }} published casts.</strong> Recording plans remain backlog until a real <code>.cast</code> artifact exists. Planned entries below are not players and make no claim that the session has run.</p>
+
+  {%- if cast_count > 0 %}
+  <div class="published-casts">
+    {%- for system in systems.pages %}
+      {%- if system.extra.demo and system.extra.demo.cast %}
+      {{ term_panel::panel(demo=system.extra.demo, hero=false, label=system.title ~ " recording", heading=true) }}
+      {%- endif %}
+    {%- endfor %}
+  </div>
+  {%- endif %}
+
+  <ol class="recording-plan-list">
+    {%- for system in systems.pages %}
+      {%- if system.extra.demo and not system.extra.demo.cast %}
+    <li>
+      <div><span class="plan-state">Planned</span><h3><a href="{{ system.permalink | safe }}">{{ system.title }}</a></h3></div>
+      <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} — {{ system.extra.demo.target }}{% endif %}</p>
+      <p><strong>Would establish:</strong> {{ system.extra.demo.shows }}</p>
+      <p><strong>Would not establish:</strong> {{ system.extra.demo.not_shows }}</p>
+      {%- if system.extra.demo.tape %}<p><a href="{{ system.extra.demo.tape | safe }}">Inspect the planned recording script&nbsp;&rarr;</a></p>{% endif %}
+    </li>
+      {%- endif %}
+    {%- endfor %}
+  </ol>
+</section>
 {% endblock content %}

@@ -1,13 +1,13 @@
-# thumos-boot.tape -- VHS script; generates static/casts/thumos-boot.cast
+# thumos-boot.tape -- planned VHS script; intended output:
+# static/casts/thumos-boot.cast (not yet recorded)
 #
 # Shot:         Full QEMU boot -- MMU/cache init, GIC, scheduler, first
 #               timer interrupt, CSPRNG, every subsystem's init step, the
 #               banner, boot-to-service handoff, service loop ticking --
 #               the exact command sequence CI runs on every push
 #               (.github/workflows/ci.yml:134-155).
-# Launch gate:  LAUNCH-BLOCKING (DESIGN.md §9) -- ships with a real cast,
-#               never as a placeholder.
-# Duration:     <=90s cap (DESIGN.md §9); demo-card estimate 0:52.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=90s.
 # Poster frame: the banner + first ticks.
 # Doesn't show: hardware bring-up on the physical AGM M7 -- still open;
 #               the recording claims exactly what CI proves, nothing more.

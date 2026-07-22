@@ -42,9 +42,10 @@
   {%- if sameas | length > 0 -%},
   "sameAs": {{ sameas | json_encode | safe }}
   {%- endif -%}
+  {%- set systems = get_section(path="systems/_index.md") -%}
   {%- set knows = [] -%}
-  {%- for sys in ["thumos", "aletheia", "kanon", "harmonia", "akroasis", "logismos", "hamma"] -%}
-  {%- set_global knows = knows | concat(with=(config.base_url ~ "/systems/" ~ sys ~ "/")) -%}
+  {%- for system in systems.pages -%}
+  {%- set_global knows = knows | concat(with=system.permalink) -%}
   {%- endfor -%}
   {%- set_global knows = knows | concat(with="https://en.wikipedia.org/wiki/Rust_(programming_language)") -%},
   "knowsAbout": {{ knows | json_encode | safe }}

@@ -8,7 +8,7 @@ template = "system.html"
 badge = "PRE-ALPHA"
 repo = "https://github.com/forkwright/hamma"
 stack = "Rust · WireGuard (boringtun) · Noise protocol"
-demo_len = "0:45"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "Noise handshake, control-protocol types, and TCP/TLS registration land in Phase A"
@@ -18,11 +18,9 @@ receipt = "hamma/README.md, Status section"
 system = "hamma"
 action = "handshake + control-protocol type tests"
 target = "hamma-core, dictyon"
-duration = "0:45"
 tape = "/tapes/hamma-tests.tape"
-placeholder = "RECORDING FORTHCOMING: cargo test -p hamma-core && cargo test -p dictyon — the Noise-handshake and control-protocol-type tests passing"
 shows = "The Noise-handshake and control-protocol-type tests passing — modest, explicitly test-suite-shaped, matching where the project actually is."
-not_shows = "Two peers joining a tailnet. That moment doesn't exist yet — the WireGuard data plane isn't wired in; this recording won't stage a fake version of it."
+not_shows = "Two peers joining a tailnet. The WireGuard data plane is not wired in."
 +++
 
 ## What it is
@@ -52,8 +50,8 @@ hamma is written from the protocol spec and public behavior, not translated line
 
 | Claim | Method | Where to check |
 |---|---|---|
-| 4,091 lines Rust (code-only), 5,112 including comments | `tokei` against a local clone, 2026-07-20 | reproducible: `tokei` on a fresh clone |
-| 2 workspace crates (`dictyon` peer client, `hamma-core` shared types) | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
+| 4,091 Rust code lines; 5,112 physical Rust lines | `tokei` snapshot, 2026-07-20 | reproducible: `tokei` on the dated revision |
+| 2 Cargo workspace members (`dictyon` peer client, `hamma-core` shared types) | `cargo metadata --no-deps` | reproducible on a fresh clone |
 
 </div>
 

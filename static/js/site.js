@@ -1,13 +1,12 @@
-// site.js — the only script this site ships (plus the vendored player).
+// site.js — the site's always-loaded enhancement script.
 // External file only: CSP `script-src 'self'` allows own-origin files,
 // bans inline <script> outright (ci/csp-enforce.sh fails the build on
 // any inline script content).
 //
 // Job: find every `.term-screen[data-cast]`, replace its `.term-fallback`
-// excerpt with a live asciinema-player instance. Home hero autoplays once
-// (settles on the final frame, no loop); every other panel initializes
-// paused at its poster frame and starts on click. Reduced-motion visitors
-// never get autoplay anywhere, home included.
+// excerpt with a live asciinema-player instance. A hero-designated cast may
+// autoplay once (settling on the final frame, never looping); every other
+// panel initializes paused. Reduced-motion visitors never get autoplay.
 
 (function () {
   "use strict";
@@ -50,7 +49,7 @@
       el.removeEventListener("click", onActivate);
       el.removeEventListener("keydown", onKeydown);
       // The live AsciinemaPlayer mounted by initPanel() is its own
-      // separately-interactive widget now; the placeholder's
+      // separately-interactive widget now; the pre-initialization shell's
       // "Play recording" button semantics no longer describe this
       // element and must not linger (WCAG 4.1.2 name/role/value).
       el.removeAttribute("role");
@@ -83,7 +82,7 @@
       var isHero = el.dataset.hero === "true";
 
       // Lazy discipline: at most one live player per page load. The
-      // home hero (if present) initializes immediately; every other
+      // hero-designated cast (if present) initializes immediately; every other
       // panel — including a second hero-flagged one, which should not
       // happen — waits for a click.
       if (isHero && !heroInitialized) {

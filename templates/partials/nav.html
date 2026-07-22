@@ -20,7 +20,7 @@
     {%- set here = current_path | default(value="") %}
     {%- for item in config.extra.nav_items | default(value=[]) %}
     {%- set is_current = (item.url == "/" and here == "/") or (item.url != "/" and here is starting_with(item.url)) %}
-    <a href="{{ item.url | safe }}"{% if item.greek %} data-greek="{{ item.greek }}"{% endif %}{% if is_current %} aria-current="page"{% endif %}><span>{{ item.label }}</span></a>
+    <a href="{{ item.url | safe }}"{% if item.url == "/consulting/" %} class="nav-primary"{% endif %}{% if item.greek %} data-greek="{{ item.greek }}"{% endif %}{% if is_current %} aria-current="page"{% endif %}><span>{{ item.label }}</span></a>
     {%- endfor %}
   </div>
 </nav>

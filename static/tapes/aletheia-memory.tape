@@ -1,14 +1,13 @@
-# aletheia-memory.tape -- VHS script; generates
-# static/casts/aletheia-memory.cast
+# aletheia-memory.tape -- planned VHS script; intended output:
+# static/casts/aletheia-memory.cast (not yet recorded)
 #
 # Shot:         TUI session -- state a fact in turn 1, ask something
 #               unrelated in turn 2, ask for recall in turn 3, the agent
 #               cites the turn-1 fact back correctly. Local model
 #               (llama3.2 via ollama), no cloud API key
 #               (aletheia/demo/README.md).
-# Launch gate:  LAUNCH-BLOCKING (DESIGN.md §9) -- ships with a real cast,
-#               never as a placeholder.
-# Duration:     <=90s cap (DESIGN.md §9); demo-card estimate 1:30.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=90s.
 # Poster frame: the recall answer.
 # Doesn't show: the desktop app -- a v1.0-target preview, installed
 #               separately from source, not the default onboarding path

@@ -1,13 +1,13 @@
-# kanon-gate.tape -- VHS script; generates static/casts/kanon-gate.cast
+# kanon-gate.tape -- planned VHS script; intended output:
+# static/casts/kanon-gate.cast (not yet recorded)
 #
 # Shot:         kanon lint finds a violation (seeded, labeled on-screen as
 #               SEEDED VIOLATION -- LABELED IN-CAST) -> kanon lint --fix
 #               clears the mechanical class -> kanon gate runs clean --
 #               run against the public aletheia repo, never kanon's own
 #               source (DESIGN.md §4.2 kanon variant).
-# Launch gate:  LAUNCH-BLOCKING (DESIGN.md §9) -- ships with a real cast,
-#               never as a placeholder.
-# Duration:     <=75s cap (DESIGN.md §9); demo-card estimate 1:15.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=75s.
 # Poster frame: the violation table.
 # Doesn't show: kanon's own source. Private by choice, not by necessity --
 #               artifact available on request.

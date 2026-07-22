@@ -41,17 +41,17 @@
       "group": "systems",
       "url": "https://ardent.tools/systems/harmonia/",
       "one_liner": "A unified self-hosted media platform: one Rust server across 21 crates, replacing a stack of separate *arr-pattern services with one coherent media lifecycle manager.",
-      "badge": "SHIPPED CORE · 2 STUBS AT HTTP LAYER",
+      "badge": "SHIPPED CORE · LIVE ADAPTERS WIRED",
       "repo": "https://github.com/forkwright/harmonia",
       "license": null,
-      "stack": "Rust · Tokio/Axum/SQLite · 21 workspace crates",
+      "stack": "Rust · Tokio/Axum/SQLite · 21 workspace members",
       "private": false
     },
     {
       "name": "kanon",
       "group": "systems",
       "url": "https://ardent.tools/systems/kanon/",
-      "one_liner": "The standards engine that gates every other repo on this site: a lint/gate CLI, code intelligence, and PR/issue orchestration, private by choice.",
+      "one_liner": "A private standards and dispatch control plane: lint and gate tooling, code intelligence, and PR/issue orchestration with public configuration receipts.",
       "badge": "PRIVATE · CASE STUDY",
       "repo": null,
       "license": null,
@@ -116,7 +116,7 @@
       "url": null,
       "gloss": "κοινόν — that which is shared",
       "one_liner": "Fleet-common Rust scaffolding: tracing init, typed errors, config loading, a CLI prelude.",
-      "badge": "v0.1.0",
+      "badge": "v0.1.1",
       "repo": "https://github.com/forkwright/koinon",
       "license": "Apache-2.0"
     },
@@ -125,7 +125,7 @@
       "group": "libraries",
       "url": null,
       "gloss": "ἐπιτέλεσις — executing-to-completion",
-      "one_liner": "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors. Every fleet subprocess call goes through it.",
+      "one_liner": "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors.",
       "badge": "v0.2.0",
       "repo": "https://github.com/forkwright/epitelesis",
       "license": "Apache-2.0 OR MIT"

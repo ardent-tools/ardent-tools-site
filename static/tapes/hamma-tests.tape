@@ -1,12 +1,12 @@
-# hamma-tests.tape -- VHS script; generates static/casts/hamma-tests.cast
+# hamma-tests.tape -- planned VHS script; intended output:
+# static/casts/hamma-tests.cast (not yet recorded)
 #
 # Shot:         the Noise-handshake and control-protocol-type tests
 #               passing (`cargo test -p hamma-core`, `cargo test -p
 #               dictyon`) -- modest, explicitly test-suite-shaped, matching
 #               where the project actually is.
-# Launch gate:  non-blocking (DESIGN.md §9) -- may launch as an honest
-#               placeholder if recording slips.
-# Duration:     <=45s cap (DESIGN.md §9); demo-card estimate 0:45.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=45s.
 # Poster frame: the test summary.
 # Doesn't show: two peers joining a tailnet. That moment doesn't exist yet
 #               -- the WireGuard data plane isn't wired in; this recording

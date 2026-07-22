@@ -8,7 +8,7 @@ template = "system.html"
 badge = "MESH LIVE · 11 OF 17 DOMAINS PLANNED"
 repo = "https://github.com/forkwright/akroasis"
 stack = "Rust workspace · 7 crates · AGPL-3.0"
-demo_len = "0:50"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "A clean-room Meshtastic stack is the live signal producer"
@@ -18,8 +18,6 @@ receipt = "kerykeion: framing, serial/TCP transports, encryption, routing, store
 system = "akroasis"
 action = "CHIRP import, then vault verify"
 target = "akroasis radio import / vault identity"
-duration = "0:50"
-placeholder = "RECORDING FORTHCOMING: CHIRP CSV import, validation, Baofeng UV-5R export, then vault identity and tamper-log check — the CLI paths that run today, no radio hardware in frame"
 shows = "Real CLI sessions against the shipped crates: syntonia's CHIRP workflow and kryphos's vault, --json output included."
 not_shows = "Live mesh traffic or radio programming. The mesh CLI is static until daemon mode lands, and radio read/program waits on the protocol session backend. StubHardware is the default; the caption says so."
 +++
@@ -52,10 +50,10 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 | Claim | Method | Where to check |
 |---|---|---|
 | Clean-room Meshtastic stack, live as the one production signal producer | Read the crate; `cargo tree -p kerykeion` shows no upstream Meshtastic crate | `crates/kerykeion` |
-| 7 workspace crates shipped | `ls crates/` on a fresh clone | reproducible |
+| 7 Cargo workspace members | `cargo metadata --no-deps` | reproducible on a fresh clone |
 | 17 capability domains declared; 11 with no shipped code | Count rows and stub marks in the README table | `README.md` domain table |
 | Vault mutations logged to a BLAKE3 hash-chain tamper log | kryphos dependency tree + the `tamper.log` contract | `crates/kryphos` |
-| 23,569 lines Rust (code-only), 24,538 including comments | `tokei` against a local clone, 2026-07-21 | reproducible: `tokei` on a fresh clone |
+| 23,569 Rust code lines; 24,538 physical Rust lines | `tokei` snapshot, 2026-07-21 | reproducible: `tokei` on the dated revision |
 | 809 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-21 | reproducible: same `rg` command on a fresh clone |
 | No build/test workflow runs on Actions | Open issue #262 | issue #262 |
 

@@ -3,20 +3,12 @@ title = "Ardent Tools"
 template = "index.html"
 
 [extra]
-kicker = "CODY KICKERTZ · AI SYSTEMS ARCHITECTURE · REMOTE (AUSTIN, TX)"
-h1 = "Working systems, recorded."
-lede = "Agent infrastructure: the gates, guardrails, memory, and review loops that make AI-driven engineering verifiable. The first proof is below — a bare-metal OS, booting."
-selected_work = ["aletheia", "kanon", "thumos"]
-consulting_line = "Ardent Tools takes a small number of consulting engagements: agent infrastructure, governed AI platforms, standards-as-code."
-
-[extra.hero_demo]
-system = "thumos"
-action = "kernel boot"
-target = "qemu-system-arm -machine virt"
-duration = "0:52"
-placeholder = "RECORDING FORTHCOMING: full QEMU boot — MMU/cache init, GIC, scheduler, first timer tick, subsystem inits, banner, service loop ticking. The exact commands CI runs on every push."
-shows = "The boot banner and the first serviced ticks, once recorded — the exact commands CI already runs on every push."
-not_shows = "Hardware bring-up on the physical AGM M7 — still open."
+kicker = "Cody Kickertz · AI systems architect · Austin, Texas"
+h1 = "Agent systems you can inspect."
+lede = "I build the gates, memory, and review infrastructure that make AI-assisted engineering verifiable by someone other than the builder."
+selected_work = ["aletheia", "harmonia", "thumos"]
+proof_system = "kanon"
+consulting_line = "Need an agent platform a team can inspect, operate, and inherit? Start with the system boundary and the evidence it must produce."
 +++
 
-Ardent Tools is where I build and publish agent infrastructure: the guardrails, memory systems, and review loops that make AI-driven engineering checkable. Ardent Tools is the sibling of Ardent Leatherworks, a small-batch leather goods maker under the same name.
+Ardent Tools is an independent engineering practice and public evidence archive. The work is available for inspection now; missing recordings and unfinished capabilities stay visibly missing.

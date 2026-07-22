@@ -16,9 +16,6 @@
 #}
 {% extends "base.html" %}
 
-{% block title %}{{ page.extra.seo_title | default(value=page.title) }} - {{ config.title }}{% endblock title %}
-{% block og_title %}{{ page.extra.seo_title | default(value=page.title) }} - {{ config.title }}{% endblock og_title %}
-
 {% block description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock description %}
 {% block og_description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock og_description %}
 

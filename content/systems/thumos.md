@@ -8,7 +8,7 @@ template = "system.html"
 badge = "BOOTS UNDER EMULATION"
 repo = "https://github.com/forkwright/thumos"
 stack = "Rust · bare-metal armv7a · QEMU CI"
-demo_len = "0:52"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "Kernel boots end-to-end under QEMU"
@@ -18,11 +18,9 @@ receipt = "CI runs this boot on every push and asserts the service loop ticks ·
 system = "thumos"
 action = "kernel boot"
 target = "qemu-system-arm -machine virt"
-duration = "0:52"
 tape = "/tapes/thumos-boot.tape"
-placeholder = "RECORDING FORTHCOMING: full QEMU boot — MMU/cache init, GIC, scheduler, first timer interrupt, CSPRNG, every subsystem's init step, boot-to-service handoff, banner, service loop ticking"
 shows = "The exact command sequence CI already runs on every push, ending on the service loop visibly ticking."
-not_shows = "Hardware bring-up on the physical AGM M7 — that stays open regardless of what the recording shows; QEMU proves the boot path, not the modem/WiFi/BT/GPS vendor blobs."
+not_shows = "Hardware bring-up on the physical AGM M7. QEMU proves the boot path, not the modem/WiFi/BT/GPS vendor blobs."
 +++
 
 ## What it is
@@ -55,8 +53,8 @@ Rather than wait for reliable access to physical AGM M7 hardware to validate any
 | Claim | Method | Where to check |
 |---|---|---|
 | <span class="ok">Kernel boots to a ticking service loop under QEMU, every push</span> | CI runs the boot and asserts serviced ticks | `.github/workflows/ci.yml` in the repo |
-| 92,913 lines Rust (code-only), 119,826 including comments | `tokei` against a local clone, 2026-07-20 | reproducible: `tokei` on a fresh clone |
-| 14 workspace crates | crate count in `Cargo.toml` / `ls crates/` | reproducible on a fresh clone |
+| 92,913 Rust code lines; 119,826 physical Rust lines | `tokei` snapshot, 2026-07-20 | reproducible: `tokei` on the dated revision |
+| 13 Cargo workspace members plus one deliberately excluded bare-metal kernel crate | `cargo metadata --no-deps` plus the workspace exclusion in `Cargo.toml` | reproducible on a fresh clone |
 | ~2,964 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
 
 </div>

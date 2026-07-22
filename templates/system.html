@@ -18,13 +18,15 @@
 {%- include "partials/ld-software.html" -%}
 {% endblock ld_json %}
 
-{# Every system page may render a term-panel demo — one of the three
-   panel-bearing templates (base.html T2 scoping); the player loads. #}
 {% block player_css %}
+  {%- if page.extra.demo and page.extra.demo.cast %}
   <link rel="stylesheet" href="{{ get_url(path='vendor/asciinema/asciinema-player.css', cachebust=true) }}">
+  {%- endif %}
 {% endblock player_css %}
 {% block player_js %}
+  {%- if page.extra.demo and page.extra.demo.cast %}
   <script src="{{ get_url(path='vendor/asciinema/asciinema-player.min.js', cachebust=true) }}" defer></script>
+  {%- endif %}
 {% endblock player_js %}
 
 {% block content %}
@@ -39,8 +41,6 @@
     {%- endif %}
     {%- if page.extra.repo %}
     <a href="{{ page.extra.repo | safe }}">Repo &rarr;</a>
-    {%- elif page.extra.private %}
-    <span class="private-chip">PRIVATE &middot; CASE STUDY</span>
     {%- endif %}
     {%- if page.extra.stack %}
     <span>{{ page.extra.stack }}</span>
@@ -61,7 +61,7 @@
   </div>
   <figcaption class="term-caption">{{ page.extra.svg_diagram_caption | default(value="No demo. This system is employer property; the patterns are the transferable part.") }}</figcaption>
 </figure>
-{%- elif page.extra.demo %}
+{%- elif page.extra.demo and page.extra.demo.cast %}
 {{ term_panel::panel(demo=page.extra.demo, hero=false, label=page.title ~ " demo") }}
 {%- endif %}
 

@@ -5,7 +5,7 @@ template = "faq.html"
 
 [[extra.questions]]
 q = "Why are some repos private?"
-a = "Two different reasons. kanon is private by choice — it's not yet hardened for public traffic, even though five other repos on this site depend on it in production; its case-study page exists so the design thinking is visible without the source. Systems I built in employment belong to that employer and are described only as professional experience, never presented as portfolio."
+a = "Two different reasons. kanon is private by choice because it is not yet hardened for public traffic; the six featured public system repositories carry .kanon-ci.toml, but each repository declares its own enforcement scope. Its case-study page makes that narrower relationship inspectable without exposing the source. Systems I built in employment belong to that employer and are described only as professional experience, never presented as portfolio."
 anchor = "private-repos"
 
 [[extra.questions]]
@@ -25,7 +25,7 @@ anchor = "availability"
 
 [[extra.questions]]
 q = "Why so many independent systems instead of one thing?"
-a = "Because the thing being demonstrated is a systems-engineering practice, not a single startup pitch. The same standards, gates, and naming discipline gets applied across every system at /systems/."
+a = "Because the thing being demonstrated is a systems-engineering practice, not a single startup pitch. Six featured public system repositories carry repository-owned Kanon configuration, with enforcement scoped independently rather than claimed as uniform. The catalog at /systems/ keeps each system's maturity and limits visible."
 anchor = "why-many-systems"
 +++
 

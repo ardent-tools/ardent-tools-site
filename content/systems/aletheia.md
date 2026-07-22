@@ -8,7 +8,7 @@ template = "system.html"
 badge = "TUI DEFAULT · DESKTOP IN PREVIEW"
 repo = "https://github.com/forkwright/aletheia"
 stack = "Rust · single binary · Datalog-backed memory"
-demo_len = "1:30"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "One binary — no containers, no external databases, no sidecars"
@@ -18,18 +18,16 @@ receipt = "aletheia/README.md, Architecture section"
 system = "aletheia"
 action = "memory recall across turns"
 target = "local model, no cloud key"
-duration = "1:30"
 tape = "/tapes/aletheia-memory.tape"
-placeholder = "RECORDING FORTHCOMING: TUI session — state a fact in turn 1, ask something unrelated in turn 2, ask for recall in turn 3, agent cites the turn-1 fact back correctly"
 shows = "A fact stated in turn 1, recalled correctly and cited back in turn 3, running against a local model with no cloud API key."
-not_shows = "The desktop app — it's a v1.0-target preview, installed separately from source, not the default onboarding path this recording uses."
+not_shows = "The desktop app — it is a v1.0-target preview installed separately from source, not the default onboarding path."
 +++
 
 ## What it is
 
 aletheia is a self-hosted runtime for AI agents that remember. An agent carries the conversation forward: what was said last week, preferences stated once, a knowledge graph it builds from every session rather than starting cold each time. Each agent gets its own character, goals, and memory, and agents can coordinate with each other.
 
-It ships as a single binary — no containers, no external database, no sidecar processes. The only outbound network dependency at runtime is the configured LLM provider; on first run it downloads embedding-model files from Hugging Face, then runs fully offline after that. It's reachable from a terminal dashboard, an HTTP/SSE API, or Signal.
+It ships as a single binary — no containers, no external database, no sidecar processes. Its network posture is narrower than “offline”: the runtime makes zero unsolicited outbound connections. Fully offline operation requires a local LLM, cached model files, and network tools and messaging channels disabled. It is reachable from a terminal dashboard, an HTTP/SSE API, or Signal when those interfaces are enabled.
 
 ## Decisions and trade-offs
 
@@ -54,10 +52,10 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 
 | Claim | Method | Where to check |
 |---|---|---|
-| 550,309 lines Rust (code-only), 622,922 including comments | `tokei` against a local clone HEAD, 2026-07-20 | reproducible: `tokei` on a fresh clone |
-| 30 workspace crates | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
-| ~12,124 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
-| No telemetry, no phone-home, no crash reports | stated network posture, enumerated | `docs/NETWORK.md` in the repo — every outbound call the binary makes |
+| 550,578 Rust code lines; 623,250 physical Rust lines | `tokei` snapshot at `main` `1a0ee8a29cb2`, 2026-07-22 | reproducible: `tokei` on that commit |
+| 49 Cargo workspace members | `cargo metadata --no-deps` at the same commit | reproducible on that commit |
+| 12,133 test-attribute occurrences | `rg '#\[(tokio::)?test'` at the same commit, 2026-07-22 | reproducible: same `rg` query |
+| Zero unsolicited outbound connections; fully offline only with local LLM, cached models, and network tools/channels disabled | enumerated network posture | `docs/NETWORK.md` in the repo |
 
 </div>
 

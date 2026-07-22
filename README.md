@@ -2,7 +2,7 @@
 
 Portfolio and consulting site for Ardent Tools - agent infrastructure engineering. Live at [ardent.tools](https://ardent.tools).
 
-The thesis: the demo is the page, prose is the caption. Every system page leads with a recording or a diagram, states what the recording proves and what it doesn't, and every number on the site carries a measurement method next to it.
+The thesis: evidence belongs beside the claim. System pages publish lifecycle boundaries, reproduction paths, source links, and dated measurement methods. A recording is rendered only when its real `.cast` artifact exists; planned recordings remain plain backlog entries.
 
 ## Substrate
 
@@ -36,7 +36,7 @@ themes/typikon/bin/typikon-check .      # validate + zola check + zola build + c
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (validate, zola check/build, CSP enforcement, link check, WCAG AA, and a Playwright line-length check against two representative pages - `tests/smoke/prose-measure.spec.ts`) on every push and pull request, and deploys to Cloudflare Pages on green pushes to `main`. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator cleanliness, Zola check/build, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on every push and pull request. Only a green push to `main` deploys to Cloudflare Pages. See `.github/workflows/deploy.yml`.
 
 ## License
 

@@ -10,9 +10,8 @@
      extra.repo        — public repo URL, when one exists
      extra.private     — true when there is no public repo (renders
                           "PRIVATE · CASE STUDY" in its place)
-     extra.demo_len    — recording duration, e.g. "0:52"
-     extra.demo_href   — link target for the watch link (defaults to
-                          the page itself)
+     extra.demo.cast   — a published cast path; WATCH never derives from
+                          a duration or recording plan
 #}
 {% macro row(page) %}
 <li class="catalog-row">
@@ -20,26 +19,20 @@
   {%- if page.description %}
   <p class="catalog-row-desc">{{ page.description }}</p>
   {%- endif %}
+  {%- if page.extra.headline_claim %}
+  <p class="catalog-row-claim">{{ page.extra.headline_claim.claim }}</p>
+  {%- endif %}
   <div class="catalog-row-meta">
     {%- if page.extra.badge %}
     <span><a href="/faq/#labeling">{{ page.extra.badge }}</a></span>
     {%- endif %}
     {%- if page.extra.repo %}
     <span><a href="{{ page.extra.repo | safe }}">PUBLIC REPO</a></span>
-    {%- elif page.extra.private %}
+    {%- elif page.extra.private and not page.extra.badge %}
     <span>PRIVATE &middot; CASE STUDY</span>
     {%- endif %}
-    {%- if page.extra.demo_len %}
-    {%- set watch_href = page.extra.demo_href | default(value=page.permalink) %}
-    {# WHY: `default()`'s fallback branch drops a trailing `| safe` on the
-       SAME expression (verified against the installed zola 0.22.1 —
-       reproducible with any `x | default(value=y) | safe` where x is
-       undefined: the fallback renders HTML-entity-escaped, e.g. `/` as
-       `&#x2F;`, even with `safe` chained after). Capturing the result via
-       `set` first, then piping that variable through `safe` in its own
-       `{{ }}` expression, avoids it — this is not a typo, don't "simplify"
-       it back to one line. #}
-    <span><a href="{{ watch_href | safe }}">WATCH: {{ page.extra.demo_len }} &rarr;</a></span>
+    {%- if page.extra.demo and page.extra.demo.cast %}
+    <span><a href="{{ page.permalink | safe }}">WATCH RECORDING{% if page.extra.demo.duration %}: {{ page.extra.demo.duration }}{% endif %} &rarr;</a></span>
     {%- endif %}
   </div>
 </li>

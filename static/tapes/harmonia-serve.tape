@@ -1,5 +1,5 @@
-# harmonia-serve.tape -- VHS script; generates
-# static/casts/harmonia-serve.cast
+# harmonia-serve.tape -- planned VHS script; intended output:
+# static/casts/harmonia-serve.cast (not yet recorded)
 #
 # Shot:         a real server boot -> a health check answering -> a
 #               library scan triggered -> its import queue populating,
@@ -7,13 +7,12 @@
 #               personal library content
 #               (crates/archon/src/cli.rs subcommands,
 #               crates/paroche/src/routes/{system,library}.rs routes).
-# Launch gate:  non-blocking (DESIGN.md §9) -- may launch as an honest
-#               placeholder if recording slips.
-# Duration:     <=75s cap (DESIGN.md §9); demo-card estimate 1:15.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=75s.
 # Poster frame: the health-check JSON.
-# Doesn't show: the two stubbed HTTP-layer resolvers (metadata resolution,
-#               curation) -- named directly in the page's solid/open list,
-#               not hidden behind this demo.
+# Doesn't show: production behavior beyond the seeded scan. The live serve
+#               path wires metadata and curation adapters; the separate
+#               `AppState::with_stubs` fallback remains outside this shot.
 #
 # Run from the harmonia repo root, with a small
 #      seeded sample-media directory already in place:

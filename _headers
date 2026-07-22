@@ -1,39 +1,8 @@
-# Cloudflare Pages headers — instance of themes/typikon/_headers.tmpl,
-# consumer-owned from here (typikon-init copies the template once; this
-# site edits the instance directly, not the template).
-#
-# Deltas from the typikon baseline:
-#   - script-src carries a 'wasm-unsafe-eval' carve-out, scoped to only the
-#     three player-bearing routes (/, /demos/*, /systems/* — the only
-#     templates that render templates/partials/term-panel.html's player_css/
-#     player_js blocks: index.html, demos.html, system.html). Every other
-#     route gets the tightened default below with no carve-out. Cloudflare
-#     Pages merges same-named headers across matching blocks by joining
-#     values with a comma rather than letting a later block override an
-#     earlier one, so each scoped block below unsets the blanket CSP with
-#     `! Content-Security-Policy` before restating it in full — see
-#     https://developers.cloudflare.com/pages/configuration/headers/.
-#     asciinema-player v3's terminal-rendering core is a Rust-compiled
-#     WebAssembly module, base64-decoded and compiled inline from the
-#     vendored JS (verified by reading
-#     static/vendor/asciinema/asciinema-player.min.js: the wasm bytes are
-#     embedded, not fetched — WebAssembly.instantiate() runs on an
-#     in-memory buffer). A bare `script-src 'self'` blocks WASM compilation
-#     in Chrome; this carve-out is what makes the player's terminal core
-#     work at all under this site's strict CSP.
-#     PENDING: in-browser QA (DESIGN.md §8.4) — confirm in a real browser
-#     that the player initializes cleanly under this exact policy before
-#     treating this line as fully verified; if QA finds it unnecessary or
-#     insufficient, adjust here.
-#   - form-action carries no third-party entry. ardent-site's Buttondown
-#     allowlist entry doesn't apply here — this site has no form of any
-#     kind, so form-action stays 'self' only.
-#   - Speculation-Rules header (DESIGN-v1.3 §2.2) points at the external
-#     JSON file below. The header delivery path carries no CSP dependency
-#     at all (per MDN) — the inline <script type=speculationrules>
-#     alternative would need an 'inline-speculation-rules' script-src
-#     widening and is rejected for exactly that; Firefox/Safari ignore
-#     this header silently.
+# Cloudflare Pages headers. The authored site has no published casts, so no
+# page requests the vendored player and script-src needs no WebAssembly
+# exception. bin/validate-site.py keeps that relationship fail-closed: a
+# future `cast` requires both conditional player markup and an explicit CSP
+# disposition before the build can pass.
 
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
@@ -44,39 +13,13 @@
   Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
   Speculation-Rules: "/speculation-rules.json"
 
-# Player-bearing routes only (index.html, demos.html, system.html — the
-# three templates with player_css/player_js blocks). Unsets the blanket
-# CSP above and restates it with the 'wasm-unsafe-eval' carve-out; every
-# other route keeps the tightened default with no carve-out.
-/
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
-
-/demos/*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
-
-/systems/*
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
-
-# Long-cache for content-addressable static assets.
-# Cloudflare Pages adds the cache-busting query string in production
-# automatically; consumers can layer asset-fingerprinting on top later.
-
 /css/*
-  # WHY: NOT immutable. The filename is stable (site.css) and cachebusted only
-  # by a ?h= query, which Cloudflare's edge ignores for its cache key — so
-  # immutable served stale CSS for up to a year after a deploy (updates never
-  # reached the browser). Revalidate (ETag → 304 when unchanged) stays fresh.
   Cache-Control: public, max-age=0, must-revalidate
 
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
 /js/*
-  # WHY: same as /css/* — stable filename, query-only cachebust; revalidate so
-  # deploys are visible instead of edge-cached immutable for a year.
   Cache-Control: public, max-age=0, must-revalidate
 
 /vendor/*
@@ -91,9 +34,5 @@
 /tapes/*
   Cache-Control: public, max-age=2592000, immutable
 
-# Speculation-Rules JSON (DESIGN-v1.3 §2.2) — the MIME override is
-# required, not optional: Cloudflare Pages defaults .json to
-# application/json, and the Speculation Rules API only honors the file
-# as valid rules under this exact content type.
 /speculation-rules.json
   Content-Type: application/speculationrules+json
