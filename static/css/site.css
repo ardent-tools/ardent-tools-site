@@ -848,19 +848,6 @@ a.badge:focus-visible {
   line-height: 1.5;
 }
 
-/* Placard-without-panel — a demo that cannot exist, honestly (§4.3). */
-.term-placard {
-  border: 1px solid var(--rule);
-  padding: var(--space-m);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--text-light);
-}
-
-.term-placard a {
-  color: var(--text-light);
-}
-
 /* === Catalog row (§3.2) — a ledger row, not a card === */
 .catalog {
   list-style: none;

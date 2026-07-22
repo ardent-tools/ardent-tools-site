@@ -55,7 +55,7 @@ Rather than wait for reliable access to physical AGM M7 hardware to validate any
 | <span class="ok">Kernel boots to a ticking service loop under QEMU, every push</span> | CI runs the boot and asserts serviced ticks | `.github/workflows/ci.yml` in the repo |
 | 92,913 Rust code lines; 119,826 physical Rust lines | `tokei` snapshot, 2026-07-20 | reproducible: `tokei` on the dated revision |
 | 13 Cargo workspace members plus one deliberately excluded bare-metal kernel crate | `cargo metadata --no-deps` plus the workspace exclusion in `Cargo.toml` | reproducible on a fresh clone |
-| ~2,964 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
+| ~2,964 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l`, 2026-07-20 | reproducible: same pipeline on a fresh clone |
 
 </div>
 

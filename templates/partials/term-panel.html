@@ -52,12 +52,3 @@
 </figure>
 {%- endif %}
 {% endmacro panel %}
-
-{# Placard-without-panel (§4.3) — a demo that cannot exist, honestly.
-   Used on /demos/ for ergon-tools and nosologia (private-repo policy). #}
-{% macro placard(system, note, href, href_label="The writeup carries the page") %}
-<div class="term-placard">
-  <strong>{{ system }}</strong> &mdash; {{ note }}
-  {%- if href %} <a href="{{ href | safe }}">{{ href_label }} &rarr;</a>{% endif %}
-</div>
-{% endmacro placard %}

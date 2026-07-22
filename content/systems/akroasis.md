@@ -53,8 +53,8 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 | 7 Cargo workspace members | `cargo metadata --no-deps` | reproducible on a fresh clone |
 | 17 capability domains declared; 11 with no shipped code | Count rows and stub marks in the README table | `README.md` domain table |
 | Vault mutations logged to a BLAKE3 hash-chain tamper log | kryphos dependency tree + the `tamper.log` contract | `crates/kryphos` |
-| 23,569 Rust code lines; 24,538 physical Rust lines | `tokei` snapshot, 2026-07-21 | reproducible: `tokei` on the dated revision |
-| 809 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-21 | reproducible: same `rg` command on a fresh clone |
+| 23,569 Rust code lines; 24,538 Rust code-plus-comment lines | `tokei` snapshot, 2026-07-21 | reproducible: `tokei` on the dated revision |
+| 809 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l`, 2026-07-21 | reproducible: same pipeline on a fresh clone |
 | No build/test workflow runs on Actions | Open issue #262 | issue #262 |
 
 </div>

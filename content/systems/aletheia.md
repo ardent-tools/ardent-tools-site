@@ -54,7 +54,7 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 |---|---|---|
 | 550,578 Rust code lines; 623,250 physical Rust lines | `tokei` snapshot at `main` `1a0ee8a29cb2`, 2026-07-22 | reproducible: `tokei` on that commit |
 | 49 Cargo workspace members | `cargo metadata --no-deps` at the same commit | reproducible on that commit |
-| 12,133 test-attribute occurrences | `rg '#\[(tokio::)?test'` at the same commit, 2026-07-22 | reproducible: same `rg` query |
+| 12,133 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at the same commit, 2026-07-22 | reproducible: same pipeline |
 | Zero unsolicited outbound connections; fully offline only with local LLM, cached models, and network tools/channels disabled | enumerated network posture | `docs/NETWORK.md` in the repo |
 
 </div>

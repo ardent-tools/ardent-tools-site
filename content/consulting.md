@@ -20,6 +20,6 @@ Ardent Tools is a fit when an agent system works in the builder's hands but stil
 
 Typical deliverables include an architecture and threat-boundary review, a repository-owned standards and gate layer, a focused tool or workflow implementation, tests for the claims the system makes, and an operator handoff that does not depend on the original builder being present. The [system dossiers](/systems/) and [evidence register](/demos/) show the standard applied to this practice's own work.
 
-There is no client list to publish yet. This is a new practice; a client will be named only with written permission. Until then, the public systems and their source-linked receipts are the available track record.
+This new practice has no client list to publish yet. I will name a client only with written permission. Until then, the public systems and their source-linked receipts provide the available track record.
 
 To start, send the system boundary, the decision that feels hard to reverse, and what a successful handoff must let your team verify: [cody@ardent.tools](mailto:cody@ardent.tools?subject=Consulting%20inquiry).

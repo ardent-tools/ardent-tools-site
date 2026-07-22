@@ -53,7 +53,7 @@ kanon stays private not because the source is sensitive, but because it isn't ye
 |---|---|---|
 | 319,025 Rust code lines; 371,075 physical Rust lines | `tokei` snapshot at private `main` `d5eab9fac35c`, 2026-07-22 | private source; dated artifact available on request |
 | 12 Cargo workspace members | `cargo metadata --no-deps` at the same commit | private source; dated artifact available on request |
-| 6,877 test-attribute occurrences | `rg '#\[(tokio::)?test'` at the same commit, 2026-07-22 | private source; dated artifact available on request |
+| 6,877 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at the same commit, 2026-07-22 | private source; dated artifact available on request |
 | Binary version 0.1.12 | binary metadata and `--help` output at the same snapshot | private source; dated artifact available on request |
 
 </div>

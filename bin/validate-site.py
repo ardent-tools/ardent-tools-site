@@ -20,6 +20,7 @@ SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 FRONTMATTER = re.compile(r"^\+\+\+\n(.*?)\n\+\+\+\n", re.DOTALL)
 PARITY_COMMAND = "cargo test -p logismos --test phase_3_stella_parity -- --ignored"
 PARITY_MODEL = "/models/stella-1.5b-v5"
+TEST_ATTRIBUTE_COMMAND = "rg -o '#\\[(tokio::)?test' --glob '*.rs' | wc -l"
 
 
 class PageParser(HTMLParser):
@@ -134,6 +135,9 @@ def main() -> int:
         demo = frontmatter(path).get("extra", {}).get("demo", {})
         if demo.get("cast"):
             casts.append((path, demo["cast"]))
+        for line_number, line in enumerate(path.read_text().splitlines(), start=1):
+            if "test-attribute occurrences" in line and f"`{TEST_ATTRIBUTE_COMMAND}`" not in line:
+                fail(errors, f"{path}:{line_number}: test-attribute count lacks the exact reproduction command")
 
     html_files = sorted(output.rglob("*.html"))
     html = {path: path.read_text() for path in html_files}
@@ -216,9 +220,9 @@ def main() -> int:
 
     if errors:
         for error in errors:
-            print(f"ERROR: {error}", file=sys.stderr)
+            sys.stderr.write(f"ERROR: {error}\n")
         return 1
-    print(
+    sys.stdout.write(
         json.dumps(
             {
                 "status": "pass",
@@ -229,6 +233,7 @@ def main() -> int:
             },
             sort_keys=True,
         )
+        + "\n"
     )
     return 0
 
