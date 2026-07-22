@@ -33,7 +33,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/faq.html` | Shadow | `.faq-page` article carries `.prose` too (DESIGN-v1.1 §1.2 — faq answers are an explicit prose context). Otherwise identical to typikon's own `faq.html`. |
 | `templates/systems.html` | New | Data-driven full-fleet catalog: Systems loops `section.pages`; Libraries/Web/In-design loop the section ledger. Group counts are computed in-template. |
 | `templates/system.html` | New | Fact-row header plus optional real-cast/diagram slot; player assets and panel require `extra.demo.cast`. Body prose narrows while evidence furniture stays at shell width. |
-| `templates/demos.html` | New | Evidence/recording register derived from the systems and writing sections. Current receipts and recording backlog are distinct; planned entries never render as players. |
+| `templates/evidence.html` | New | `/evidence/` register derived from the systems and writing sections. Current receipts and recording backlog are distinct; planned entries never render as players. |
 | `templates/consulting.html` | New | `{% extends "page.html" %}`. h1+lede sit in a `<header class="consulting-header">` at the display tier (940px, DESIGN-v1.3 §1.3); the offer body is `.prose`-wrapped (680px@19, DESIGN-v1.1 §1.2 tier, DESIGN-v1.3 size); `extra.engagement_shapes` exits `.prose` entirely to a shell-width 3-col grid (`≥1024px`, DESIGN-v1.3 §1.3/§5). |
 | `templates/journal-entry.html` | Shadow | Drops the substrate's hardcoded `/lexicon/` link on the components line - sibling-site furniture this site does not have (upstream: typikon#27 thread). Also wraps `page.content` in `.prose` (DESIGN-v1.3 §1.4) — the reading-measure cap every other content template already applies. |
 | `templates/partials/nav.html` | Shadow | Current-page indicator (DESIGN-v1.1 §1.6 — `aria-current="page"` on the nav item whose URL prefixes `current_path`, home exact-match only) — typikon's stock partial has no path-comparison logic at all (filed upstream, typikon#25-adjacent, §9). |
@@ -62,10 +62,13 @@ Re-diff every shadowed template (see table above) against the new commit before 
 ## Local gate
 
 ```
-themes/typikon/bin/typikon-check .
+bin/check-site.sh
 ```
 
-Runs validate + zola check + zola build + csp-enforce locally; emits `skip` for lychee/pa11y/playwright unless those tools are on PATH (CI installs them; local dev gets the lite gate).
+Runs the CI-equivalent gate against isolated production and local-base-url
+outputs and fails closed when required tools are missing. It preserves tracked
+consumer configuration, including `playwright.config.ts`; the pinned Typikon
+runner does not, and its owning defect is tracked upstream as typikon#39.
 
 ## Remotes
 

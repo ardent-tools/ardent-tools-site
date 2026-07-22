@@ -48,10 +48,10 @@ hamma is written from the protocol spec and public behavior, not translated line
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 4,091 Rust code lines; 5,112 physical Rust lines | `tokei` snapshot, 2026-07-20 | reproducible: `tokei` on the dated revision |
-| 2 Cargo workspace members (`dictyon` peer client, `hamma-core` shared types) | `cargo metadata --no-deps` | reproducible on a fresh clone |
+| 4,091 Rust code lines; 5,112 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `216e2adc83d5`, 2026-07-20 | run from that revision |
+| 2 Cargo workspace members (`dictyon` peer client, `hamma-core` shared types) | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `216e2adc83d5` | run from that revision |
 
 </div>
 

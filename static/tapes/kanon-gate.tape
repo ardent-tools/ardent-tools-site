@@ -1,19 +1,17 @@
 # kanon-gate.tape -- planned VHS script; intended output:
 # static/casts/kanon-gate.cast (not yet recorded)
 #
-# Shot:         kanon lint finds a violation (seeded, labeled on-screen as
-#               SEEDED VIOLATION -- LABELED IN-CAST) -> kanon lint --fix
-#               clears the mechanical class -> kanon gate runs clean --
-#               run against the public aletheia repo, never kanon's own
-#               source (DESIGN.md §4.2 kanon variant).
+# Shot:         a fresh disposable clone is pinned to aletheia
+#               `1a0ee8a29cb2`; kanon lint finds a seeded, labeled
+#               violation, fixes that mechanical class, then runs the gate.
 # Publish gate: requires the real cast and a reviewed transcript.
 # Duration:     planned cap <=75s.
 # Poster frame: the violation table.
 # Doesn't show: kanon's own source. Private by choice, not by necessity --
 #               artifact available on request.
 #
-# Run from wherever both kanon and a public aletheia
-#      clone are reachable:
+# Run from a directory where `kanon` is installed and the network can
+#      reach the public aletheia repository:
 #        vhs static/tapes/kanon-gate.tape
 # Geometry: tuned toward 80x24 to match term-panel.html's
 #           data-cols="80" data-rows="24"; confirm the actual PTY size on
@@ -26,6 +24,7 @@ Output static/casts/kanon-gate.cast
 
 Require kanon
 Require git
+Require mktemp
 
 Set Shell "bash"
 Set FontSize 20
@@ -39,21 +38,30 @@ Set CursorBlink false
 Hide
 Type "clear"
 Enter
-# ALETHEIA points at a public aletheia clone on the build box -- never
-# kanon's own (private) source. Override the env var if the clone lives
-# somewhere other than $HOME/dev/aletheia.
-Type "ALETHEIA=\"${ALETHEIA:-$HOME/dev/aletheia}\""
+# Every mutation belongs to this newly created directory. The EXIT trap is
+# installed before the clone and can remove only that mktemp-owned path.
+Type "KANON_TAPE_ROOT=\"$(mktemp -d -t kanon-gate-tape.XXXXXX)\""
+Enter
+Type "cleanup_kanon_tape() { rm -rf -- \"$KANON_TAPE_ROOT\"; }; trap cleanup_kanon_tape EXIT"
+Enter
+Type "git clone --quiet https://github.com/forkwright/aletheia.git \"$KANON_TAPE_ROOT/aletheia\""
+Enter
+Type "ALETHEIA=\"$KANON_TAPE_ROOT/aletheia\""
+Enter
+Type "git -C \"$ALETHEIA\" switch --detach 1a0ee8a29cb2"
+Enter
+Type "test -z \"$(git -C \"$ALETHEIA\" status --porcelain)\""
 Enter
 Show
 
-Type "# kanon -- the standards engine gating every public repo on this site, run against aletheia"
+Type "# kanon -- six featured repos carry Kanon config; enforcement is repository-specific"
 Enter
 Sleep 1s
 
 # A single mechanical violation staged for this recording only -- a
 # freeform (non-structured-tag) comment, a real kanon comment-standard
 # lint class -- never a finding manufactured to look worse or better than
-# reality, and cleaned up (below) before this tape's git state persists.
+# reality. The disposable clone is removed by the scoped EXIT trap.
 Type "echo '// TODO fix this later' >> \"$ALETHEIA/crates/mneme/src/lib.rs\""
 Enter
 Sleep 500ms
@@ -71,12 +79,8 @@ Enter
 Wait+Screen /fixed|clean|0 violations/
 Sleep 1s
 
-Hide
-Type "git -C \"$ALETHEIA\" checkout -- crates/mneme/src/lib.rs"
+Type "test -z \"$(git -C \"$ALETHEIA\" status --porcelain)\""
 Enter
-Sleep 500ms
-Show
-
 Type "kanon gate \"$ALETHEIA\""
 Enter
 Wait+Screen /pass|PASS|gate/

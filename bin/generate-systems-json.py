@@ -10,6 +10,7 @@
 # frontmatter), two renderings (the HTML catalog, this JSON file). Never
 # hand-edit static/systems.json; it is overwritten on every run.
 
+import argparse
 import json
 import re
 import tomllib
@@ -66,13 +67,21 @@ def ledger_rows() -> list[dict]:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("static/systems.json"),
+        help="destination (defaults to static/systems.json)",
+    )
+    args = parser.parse_args()
     out = {
         "$schema_note": "Generated from content/systems/*.md — do not hand-edit.",
         "site": "https://ardent.tools",
         "catalog_url": "https://ardent.tools/systems/",
         "systems": tier1_rows() + ledger_rows(),
     }
-    Path("static/systems.json").write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
+    args.output.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":

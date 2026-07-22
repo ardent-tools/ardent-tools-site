@@ -30,13 +30,13 @@ Frontmatter validation and the full local gate:
 
 ```bash
 themes/typikon/bin/typikon-validate .   # frontmatter against JSON Schema
-themes/typikon/bin/typikon-check .      # validate + zola check + zola build + csp-enforce
-                                         # (+ lychee/pa11y/playwright when those tools are on PATH)
+bin/check-site.sh                       # isolated CI-equivalent strict gate;
+                                        # fails closed if required tools are absent
 ```
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (schema validation, generator cleanliness, Zola check/build, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on every push and pull request. Only a green push to `main` deploys to Cloudflare Pages. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator cleanliness, Zola check/build, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys to Cloudflare Pages. See `.github/workflows/deploy.yml`.
 
 ## License
 

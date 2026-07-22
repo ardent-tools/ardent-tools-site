@@ -4,15 +4,15 @@
    library is present. An absent cast renders no panel.
 
    Usage: {{ term_panel::panel(demo=page.extra.demo, hero=true) }}
-   `demo` fields (see schemas note in system.html / demos.html):
+   `demo` fields (see schemas note in system.html / evidence.html):
      system, action, target, commit (optional), duration,
      cast (optional), tape (optional), poster (optional, npt:MM:SS),
      cols (default 80), rows (default 24), fallback (array of strings,
      optional), shows, not_shows, transcript (optional).
 
    `heading` (default false): renders the meta line's system·action text
-   as an <h3> instead of a <span> — the DESIGN-v1.1 T6 fix for /demos/'s
-   missing internal headings (audit-technical §6). Scoped to demos.html's
+   as an <h3> instead of a <span> — the DESIGN-v1.1 T6 fix for /evidence/'s
+   missing internal headings (audit-technical §6). Scoped to evidence.html's
    loop only (list page, needs landmarks); index.html's hero and
    system.html's single demo already sit under a page h1 and stay spans.
    `.term-meta h3` in site.css resets the element back to the meta line's

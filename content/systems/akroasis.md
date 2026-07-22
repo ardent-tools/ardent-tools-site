@@ -47,14 +47,14 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
 | Clean-room Meshtastic stack, live as the one production signal producer | Read the crate; `cargo tree -p kerykeion` shows no upstream Meshtastic crate | `crates/kerykeion` |
-| 7 Cargo workspace members | `cargo metadata --no-deps` | reproducible on a fresh clone |
+| 7 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `4e3712669df7` | run from that revision |
 | 17 capability domains declared; 11 with no shipped code | Count rows and stub marks in the README table | `README.md` domain table |
 | Vault mutations logged to a BLAKE3 hash-chain tamper log | kryphos dependency tree + the `tamper.log` contract | `crates/kryphos` |
-| 23,569 Rust code lines; 24,538 Rust code-plus-comment lines | `tokei` snapshot, 2026-07-21 | reproducible: `tokei` on the dated revision |
-| 809 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l`, 2026-07-21 | reproducible: same pipeline on a fresh clone |
+| 23,569 Rust code lines; 24,538 Rust code-plus-comment lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `4e3712669df7`, 2026-07-21; code plus comments yields 24,538 | run from that revision |
+| 809 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `4e3712669df7`, 2026-07-21 | run from that revision |
 | No build/test workflow runs on Actions | Open issue #262 | issue #262 |
 
 </div>

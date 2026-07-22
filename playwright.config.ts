@@ -6,7 +6,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
-  reporter: [['list'], ['json', { outputFile: 'test-results/playwright.json' }]],
+  reporter: [['list'], ['json', { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT_FILE || 'test-results/playwright.json' }]],
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || 'test-results',
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {

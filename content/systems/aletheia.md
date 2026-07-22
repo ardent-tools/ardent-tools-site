@@ -50,11 +50,11 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 550,578 Rust code lines; 623,250 physical Rust lines | `tokei` snapshot at `main` `1a0ee8a29cb2`, 2026-07-22 | reproducible: `tokei` on that commit |
-| 49 Cargo workspace members | `cargo metadata --no-deps` at the same commit | reproducible on that commit |
-| 12,133 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at the same commit, 2026-07-22 | reproducible: same pipeline |
+| 550,578 Rust code lines; 623,250 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `1a0ee8a29cb2`, 2026-07-22 | run from that revision |
+| 49 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `1a0ee8a29cb2` | run from that revision |
+| 12,133 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `1a0ee8a29cb2`, 2026-07-22 | run from that revision |
 | Zero unsolicited outbound connections; fully offline only with local LLM, cached models, and network tools/channels disabled | enumerated network posture | `docs/NETWORK.md` in the repo |
 
 </div>

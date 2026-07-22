@@ -50,11 +50,11 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 100,473 Rust code lines; 117,589 physical Rust lines | `tokei` snapshot at `main` `6ab797f81c31`, 2026-07-22 | reproducible: `tokei` on that commit |
-| 21 Cargo workspace members | `cargo metadata --no-deps` at the same commit | reproducible on that commit |
-| 2,290 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at the same commit, 2026-07-22 | reproducible: same pipeline |
+| 100,473 Rust code lines; 117,589 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `6ab797f81c31`, 2026-07-22 | run from that revision |
+| 21 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `6ab797f81c31` | run from that revision |
+| 2,290 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `6ab797f81c31`, 2026-07-22 | run from that revision |
 | Live `serve` wires metadata and curation adapters; fallback `with_stubs` has 10 `Null*` implementations | inspect constructors and serve wiring | `crates/archon` application state and serve path |
 
 </div>

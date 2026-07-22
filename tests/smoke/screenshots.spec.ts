@@ -6,7 +6,7 @@ const targets = [
   ['system-aletheia', '/systems/aletheia/'],
   ['consulting', '/consulting/'],
   ['writing', '/writing/'],
-  ['evidence', '/demos/'],
+  ['evidence', '/evidence/'],
 ];
 const widths = [320, 375, 1440];
 

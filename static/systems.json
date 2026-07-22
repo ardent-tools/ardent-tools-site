@@ -73,7 +73,7 @@
       "name": "thumos",
       "group": "systems",
       "url": "https://ardent.tools/systems/thumos/",
-      "one_liner": "A bare-metal Rust phone OS for the AGM M7 — no Linux underneath. The kernel boots end-to-end under QEMU, and CI proves it on every push.",
+      "one_liner": "A bare-metal Rust phone OS for the AGM M7 — no Linux underneath. The kernel boots end-to-end under QEMU, and CI proves it on pushes to main and pull requests targeting main.",
       "badge": "BOOTS UNDER EMULATION",
       "repo": "https://github.com/forkwright/thumos",
       "license": null,

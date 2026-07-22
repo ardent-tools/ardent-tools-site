@@ -64,7 +64,7 @@ font_preload = [
 # remains visible as the secondary career path.
 nav_items = [
   { url = "/systems/",    label = "Systems" },
-  { url = "/demos/",      label = "Evidence" },
+  { url = "/evidence/",   label = "Evidence" },
   { url = "/writing/",    label = "Writing" },
   { url = "/consulting/", label = "Consulting" },
   { url = "/about/",      label = "About" },
@@ -99,7 +99,7 @@ linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
 # per DESIGN §3.7, more structure than typikon's stock flat footer_links
 # list can carry).
 [extra.footer]
-colophon_summary = "Static Zola site. No site-authored analytics, cookies, or third-party application dependencies."
+colophon_summary = "Static Zola site. No site-authored analytics, cookies, or remote third-party runtime/application requests in authored output."
 sibling_url = "https://ardentleatherworks.com"
 sibling_label = "SIBLING WORKSHOP: ARDENT LEATHERWORKS"
 

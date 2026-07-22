@@ -21,6 +21,14 @@ FRONTMATTER = re.compile(r"^\+\+\+\n(.*?)\n\+\+\+\n", re.DOTALL)
 PARITY_COMMAND = "cargo test -p logismos --test phase_3_stella_parity -- --ignored"
 PARITY_MODEL = "/models/stella-1.5b-v5"
 TEST_ATTRIBUTE_COMMAND = "rg -o '#\\[(tokio::)?test' --glob '*.rs' | wc -l"
+WORKSPACE_COMMAND = "cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'"
+TOKEI_COMMAND = "tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'"
+PINNED_SNAPSHOTS = {
+    "akroasis.md": "4e3712669df7",
+    "hamma.md": "216e2adc83d5",
+    "logismos.md": "94e4e97dce6e",
+    "thumos.md": "77cc89906a52",
+}
 
 
 class PageParser(HTMLParser):
@@ -117,6 +125,12 @@ def main() -> int:
         for essay in expected_essays:
             if counts[essay] != 1:
                 fail(errors, f"sitemap: dated essay {essay} appears {counts[essay]} times")
+        evidence_url = f"{BASE_URL}/evidence/"
+        demos_url = f"{BASE_URL}/demos/"
+        if counts[evidence_url] != 1:
+            fail(errors, f"sitemap: canonical evidence route appears {counts[evidence_url]} times")
+        if counts[demos_url] != 0:
+            fail(errors, "sitemap advertises compatibility-only /demos/")
 
     if atom_path.is_file():
         atom_root = ET.parse(atom_path).getroot()
@@ -132,12 +146,32 @@ def main() -> int:
     expected_system_urls = {f"{BASE_URL}/systems/{path.stem}/" for path in systems}
     casts: list[tuple[Path, str]] = []
     for path in systems:
+        source = path.read_text()
         demo = frontmatter(path).get("extra", {}).get("demo", {})
         if demo.get("cast"):
             casts.append((path, demo["cast"]))
-        for line_number, line in enumerate(path.read_text().splitlines(), start=1):
-            if "test-attribute occurrences" in line and f"`{TEST_ATTRIBUTE_COMMAND}`" not in line:
+        if "| Claim | Method |" in source:
+            fail(errors, f"{path}: measurement table must say Reproduction method")
+        required_revision = PINNED_SNAPSHOTS.get(path.name)
+        for line_number, line in enumerate(source.splitlines(), start=1):
+            is_claim_row = line.startswith("|")
+            if is_claim_row and "test-attribute occurrences" in line and f"`{TEST_ATTRIBUTE_COMMAND}`" not in line:
                 fail(errors, f"{path}:{line_number}: test-attribute count lacks the exact reproduction command")
+            if is_claim_row and "Cargo workspace member" in line and f"`{WORKSPACE_COMMAND}`" not in line:
+                fail(errors, f"{path}:{line_number}: workspace count lacks the exact reproduction command")
+            if is_claim_row and "Rust code lines" in line and f"`{TOKEI_COMMAND}`" not in line:
+                fail(errors, f"{path}:{line_number}: Rust line count lacks the exact reproduction command")
+            if is_claim_row and required_revision and any(
+                marker in line
+                for marker in ("Rust code lines", "Cargo workspace member", "test-attribute occurrences")
+            ) and required_revision not in line:
+                fail(errors, f"{path}:{line_number}: snapshot claim lacks revision {required_revision}")
+
+    akroasis = Path("content/systems/akroasis.md").read_text()
+    if "23,569 Rust code lines; 24,538 Rust code-plus-comment lines" not in akroasis:
+        fail(errors, "Akroasis line claim must remain 23,569 code and 24,538 code-plus-comment")
+    if re.search(r"24,538[^\n|]*physical", akroasis, re.I):
+        fail(errors, "Akroasis must not label 24,538 as physical lines")
 
     html_files = sorted(output.rglob("*.html"))
     html = {path: path.read_text() for path in html_files}
@@ -145,6 +179,29 @@ def main() -> int:
     headers = Path("_headers").read_text()
     player_requests = [str(path) for path, text in html.items() if asset_pattern.search(text)]
     data_casts = [str(path) for path, text in html.items() if "data-cast=" in text]
+
+    evidence_path = output / "evidence/index.html"
+    demos_path = output / "demos/index.html"
+    if not evidence_path.is_file():
+        fail(errors, "canonical /evidence/ page is missing")
+    else:
+        evidence_html = evidence_path.read_text()
+        if 'href="https://ardent.tools/evidence/"' not in evidence_html:
+            fail(errors, "/evidence/ does not publish its canonical URL")
+    if demos_path.exists():
+        fail(errors, "compatibility-only /demos/ was generated as a canonical page")
+
+    redirect_lines = {
+        line.strip()
+        for line in Path("_redirects").read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    for declaration in ("/demos /evidence/ 301", "/demos/* /evidence/ 301"):
+        if declaration not in redirect_lines:
+            fail(errors, f"_redirects: missing permanent compatibility declaration {declaration!r}")
+
+    if not re.search(r"^\s*Cache-Control:\s*[^\n]*\bno-transform\b", headers, re.MULTILINE | re.I):
+        fail(errors, "_headers: root HTML policy must include Cache-Control no-transform")
 
     if not casts:
         if player_requests:
@@ -210,13 +267,60 @@ def main() -> int:
     if "1 passed" not in tape:
         fail(errors, "Logismos tape does not reject a zero-test green exit")
 
+    thumos_tape = Path("static/tapes/thumos-boot.tape").read_text()
+    for required in (
+        'Type "cd crates/thumos"',
+        "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8",
+        "../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos",
+    ):
+        if required not in thumos_tape:
+            fail(errors, f"Thumos tape lacks authoritative CI command/path: {required}")
+    if "scripts/qemu-runner.sh target/" in thumos_tape.replace("../../scripts/qemu-runner.sh target/", ""):
+        fail(errors, "Thumos tape retains the stale repo-root runner path")
+
+    kanon_tape = Path("static/tapes/kanon-gate.tape").read_text()
+    for required in (
+        "mktemp -d -t kanon-gate-tape.XXXXXX",
+        "trap cleanup_kanon_tape EXIT",
+        "switch --detach 1a0ee8a29cb2",
+        "status --porcelain",
+        "six featured repos carry Kanon config; enforcement is repository-specific",
+    ):
+        if required not in kanon_tape:
+            fail(errors, f"Kanon tape lacks disposable-clone contract: {required}")
+    seed_at = kanon_tape.find("echo '// TODO fix this later'")
+    clean_at = kanon_tape.find("status --porcelain")
+    if clean_at < 0 or seed_at < 0 or clean_at > seed_at:
+        fail(errors, "Kanon tape must assert clone cleanliness before seeding")
+    for dangerous in ("git checkout --", "git reset", "$HOME/dev", "every public repo"):
+        if dangerous in kanon_tape:
+            fail(errors, f"Kanon tape retains dangerous or stale form: {dangerous!r}")
+
+    harmonia_tape = Path("static/tapes/harmonia-serve.tape").read_text()
+    if "metadata resolution and curation stay named as open" in harmonia_tape:
+        fail(errors, "Harmonia tape retains the stale adapter limitation")
+    if "no external-provider credentials" not in harmonia_tape:
+        fail(errors, "Harmonia tape lacks its seeded/no-provider-credential limitation")
+
     source_corpus = "\n".join(
         path.read_text()
-        for path in [Path("config.toml"), Path("static/llms.txt"), Path("static/img/og-card.svg")]
+        for path in [
+            Path("config.toml"),
+            Path("content/colophon.md"),
+            Path("static/llms.txt"),
+            Path("static/img/og-card.svg"),
+        ]
     )
     for stale_claim in ("Recordings and receipts, not claims", "Every recording on one page"):
         if stale_claim in source_corpus:
             fail(errors, f"stale recording claim remains: {stale_claim!r}")
+    for stale_claim in (
+        "third-party application dependencies",
+        "No third-party application requests",
+        "Every push runs",
+    ):
+        if stale_claim in source_corpus:
+            fail(errors, f"stale dependency or trigger claim remains: {stale_claim!r}")
 
     if errors:
         for error in errors:

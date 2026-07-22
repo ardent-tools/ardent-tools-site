@@ -18,7 +18,7 @@ detail = "Taking an existing agent system from prototype to something a team can
 
 Ardent Tools is a fit when an agent system works in the builder's hands but still needs explicit operating boundaries: enforceable standards, durable memory, review loops, failure handling, and evidence another engineer can reproduce. The work starts by naming the outcome, the mechanism that can establish it, and the artifacts a handoff must leave behind.
 
-Typical deliverables include an architecture and threat-boundary review, a repository-owned standards and gate layer, a focused tool or workflow implementation, tests for the claims the system makes, and an operator handoff that does not depend on the original builder being present. The [system dossiers](/systems/) and [evidence register](/demos/) show the standard applied to this practice's own work.
+Typical deliverables include an architecture and threat-boundary review, a repository-owned standards and gate layer, a focused tool or workflow implementation, tests for the claims the system makes, and an operator handoff that does not depend on the original builder being present. The [system dossiers](/systems/) and [evidence register](/evidence/) show the standard applied to this practice's own work.
 
 This new practice has no client list to publish yet. I will name a client only with written permission. Until then, the public systems and their source-linked receipts provide the available track record.
 

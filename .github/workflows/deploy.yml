@@ -82,6 +82,11 @@ jobs:
           rm -rf lychee.tar.gz lychee-extract
 
       # ── Strict gate ────────────────────────────────────────────
+      - name: Repository-owned isolated strict gate
+        run: bin/check-site.sh
+
+      # The deploy artifact is rebuilt below after the isolated gate. These
+      # explicit steps also keep the individual CI receipts easy to inspect.
       - name: typikon-validate (frontmatter schemas)
         run: themes/typikon/bin/typikon-validate .
 
@@ -179,3 +184,7 @@ jobs:
         run: |
           npm install -g wrangler@4.112.0
           wrangler pages deploy public --project-name=ardent-tools --branch=main
+
+      - name: Verify live authored/runtime boundary
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 8 --delay 5

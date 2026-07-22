@@ -5,7 +5,7 @@ description = "How this site is built: Zola and typikon, self-hosted assets, str
 
 # Colophon
 
-Static Zola site. Self-hosted application assets. No site-authored analytics, cookies, or third-party application dependencies.
+Static Zola site. Self-hosted application assets. No site-authored analytics or cookies, and no remote third-party runtime/application requests in authored output.
 
 The repo is public: the gate config, CSP, source content, recording plans, and derived-data checks are inspectable. [View source →](https://github.com/ardent-tools/ardent-tools-site)
 
@@ -18,7 +18,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | Fonts | Spectral and IBM Plex Mono, both self-hosted as WOFF2 under `/fonts/`, both OFL-licensed. No Google Fonts, no font CDN — the CSP's `font-src 'self'` blocks one even if referenced by mistake |
 | Recording contract | [asciinema-player](https://github.com/asciinema/asciinema-player) v3.17.0 is vendored for future casts, but no player CSS or JavaScript is requested unless a system has a real `cast` artifact |
 | Deploy | Cloudflare Pages, via GitHub Actions on green pushes to `main` |
-| Delivery boundary | The site authors no analytics, cookies, or third-party application requests. Cloudflare Pages provides edge delivery and may add platform reporting or protection unless the operator disables it |
+| Delivery boundary | Authored output makes no remote third-party runtime/application requests. Cloudflare Pages provides edge delivery and may add platform reporting or protection unless the operator disables it |
 | CSP — script-src | `'self'` only. With zero published casts, no player is requested and no `wasm-unsafe-eval` exception remains |
 | CSP — style-src | `'self'` only, no inline `style="..."` anywhere — code listings use Zola's class-based syntax highlighting instead of inline colors |
 | CSP — form-action | `'self'` only. No third-party form destination, because the site carries no form at all |
@@ -28,7 +28,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 
 ## The gate
 
-Every push runs the same sequence before anything deploys:
+Pushes to `main` and pull requests targeting `main` run the same sequence before anything deploys:
 
 1. `typikon-validate` — frontmatter against JSON Schema
 2. `zola check` — internal links and asset references

@@ -4,7 +4,7 @@
 > and candid lifecycle boundaries.
 > Cody Kickertz's systems, portfolio, and consulting practice. Static
 > site (Zola), strict CSP, no site-authored analytics or cookies, and no
-> third-party application dependencies. Cloudflare Pages provides delivery.
+> remote third-party runtime/application requests in authored output. Cloudflare Pages provides delivery.
 
 Content and code here are licensed for reading, not for AI-training
 ingestion — see the [code license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE)
@@ -34,7 +34,7 @@ corpus is not, absent written consent.
   infrastructure, standards-as-code, governed AI platforms.
 - [Writing](https://ardent.tools/writing/): essays on agent infrastructure
   and systems architecture as they're finished. No cadence promised.
-- [Evidence register](https://ardent.tools/demos/): inspectable receipts
+- [Evidence register](https://ardent.tools/evidence/): inspectable receipts
   available now and a separate backlog of planned terminal recordings.
 
 ## Reference

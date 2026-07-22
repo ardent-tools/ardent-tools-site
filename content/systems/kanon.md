@@ -49,10 +49,10 @@ kanon stays private not because the source is sensitive, but because it isn't ye
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 319,025 Rust code lines; 371,075 physical Rust lines | `tokei` snapshot at private `main` `d5eab9fac35c`, 2026-07-22 | private source; dated artifact available on request |
-| 12 Cargo workspace members | `cargo metadata --no-deps` at the same commit | private source; dated artifact available on request |
+| 319,025 Rust code lines; 371,075 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at private `main` `d5eab9fac35c`, 2026-07-22 | private source; dated artifact available on request |
+| 12 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `d5eab9fac35c` | private source; dated artifact available on request |
 | 6,877 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at the same commit, 2026-07-22 | private source; dated artifact available on request |
 | Binary version 0.1.12 | binary metadata and `--help` output at the same snapshot | private source; dated artifact available on request |
 

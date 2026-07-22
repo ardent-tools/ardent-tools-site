@@ -4,8 +4,8 @@
 # Shot:         Full QEMU boot -- MMU/cache init, GIC, scheduler, first
 #               timer interrupt, CSPRNG, every subsystem's init step, the
 #               banner, boot-to-service handoff, service loop ticking --
-#               the exact command sequence CI runs on every push
-#               (.github/workflows/ci.yml:134-155).
+#               the exact kernel command sequence CI runs on pushes to
+#               main and pull requests targeting main.
 # Publish gate: requires the real cast and a reviewed transcript.
 # Duration:     planned cap <=90s.
 # Poster frame: the banner + first ticks.
@@ -40,7 +40,7 @@ Type "clear"
 Enter
 Show
 
-Type "# thumos -- kernel boot under QEMU, the exact sequence CI runs on every push"
+Type "# thumos -- kernel boot under QEMU, gated on main pushes and pull requests targeting main"
 Enter
 Sleep 1s
 
@@ -52,11 +52,13 @@ Sleep 1s
 # cache posture) so the visible build step is an incremental compile, not a
 # cold one -- keeps the cast inside the <=90s cap while still typing the
 # real CI command verbatim, not an abbreviated stand-in.
+Type "cd crates/thumos"
+Enter
 Type "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8"
 Enter
 Sleep 8s
 
-Type "THUMOS_QEMU_TIMEOUT=60 scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos"
+Type "THUMOS_QEMU_TIMEOUT=60 ../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos"
 Enter
 
 # The boot log is the payoff. Markers below are the real strings CI itself
@@ -69,6 +71,6 @@ Sleep 500ms
 Wait+Screen /THUMOS-QEMU: service-loop ticks=/
 Sleep 3s
 
-Type "# service loop ticking -- this is exactly what CI asserts on every push"
+Type "# service loop ticking -- this is what CI asserts on main pushes and pull requests targeting main"
 Enter
 Sleep 2s

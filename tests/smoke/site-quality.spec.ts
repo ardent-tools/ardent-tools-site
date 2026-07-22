@@ -77,6 +77,37 @@ for (const viewport of viewports) {
             .map((node) => parseFloat(getComputedStyle(node).fontSize)),
         );
         expect(Math.min(...utilitySizes), `${route} has utility text below 12px`).toBeGreaterThanOrEqual(12);
+
+        const tables = await page.locator('table').evaluateAll((nodes) =>
+          nodes
+            .map((table) => {
+              const rows = Array.from(table.rows);
+              const columnCount = Math.max(0, ...rows.map((row) => row.cells.length));
+              if (columnCount < 2) return null;
+              const dataCells = Array.from(table.querySelectorAll('tbody td'));
+              const owner = table.closest('.receipt-table-wrap') || table;
+              const ownerBox = owner.getBoundingClientRect();
+              return {
+                columnCount,
+                minDataCellWidth: Math.min(...dataCells.map((cell) => cell.getBoundingClientRect().width)),
+                overflowX: getComputedStyle(owner).overflowX,
+                scrollWidth: owner.scrollWidth,
+                clientWidth: owner.clientWidth,
+                left: ownerBox.left,
+                right: ownerBox.right,
+                viewportWidth: document.documentElement.clientWidth,
+              };
+            })
+            .filter((metric) => metric !== null),
+        );
+        for (const table of tables) {
+          if (table === null) throw new Error('filtered table metric unexpectedly remained null');
+          expect(table.minDataCellWidth, `${route} collapses a ${table.columnCount}-column table`).toBeGreaterThanOrEqual(128);
+          expect(['auto', 'scroll']).toContain(table.overflowX);
+          expect(table.scrollWidth, `${route} table has no local scroll extent`).toBeGreaterThan(table.clientWidth);
+          expect(table.left, `${route} table scroll region escapes left`).toBeGreaterThanOrEqual(-1);
+          expect(table.right, `${route} table scroll region escapes right`).toBeLessThanOrEqual(table.viewportWidth + 1);
+        }
       }
     });
   }

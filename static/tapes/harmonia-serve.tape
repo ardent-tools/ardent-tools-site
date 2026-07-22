@@ -10,9 +10,9 @@
 # Publish gate: requires the real cast and a reviewed transcript.
 # Duration:     planned cap <=75s.
 # Poster frame: the health-check JSON.
-# Doesn't show: production behavior beyond the seeded scan. The live serve
-#               path wires metadata and curation adapters; the separate
-#               `AppState::with_stubs` fallback remains outside this shot.
+# Doesn't show: production behavior beyond the seeded scan, or an
+#               end-to-end external-provider flow using real credentials.
+#               The live serve path wires metadata and curation adapters.
 #
 # Run from the harmonia repo root, with a small
 #      seeded sample-media directory already in place:
@@ -75,6 +75,6 @@ Enter
 Wait+Screen /\{|\[/
 Sleep 2s
 
-Type "# import queue populating -- metadata resolution and curation stay named as open, not hidden behind this demo"
+Type "# seeded sample only -- no external-provider credentials or provider end-to-end flow in this shot"
 Enter
 Sleep 2s

@@ -48,11 +48,11 @@ Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
 | CPU golden-fixture parity test executes | `cargo test -p logismos --test phase_3_stella_parity -- --ignored` with `/models/stella-1.5b-v5` present; reject output reporting zero executed tests | `phases/03-stella/golden/` and the ignored test in the repo |
-| 10,947 Rust code lines; 12,689 physical Rust lines | `tokei` snapshot, 2026-07-20 | reproducible: `tokei` on the dated revision |
-| 27 Cargo workspace members, deliberately small and tightly scoped | `cargo metadata --no-deps` | reproducible on a fresh clone |
+| 10,947 Rust code lines; 12,689 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `94e4e97dce6e`, 2026-07-20 | run from that revision |
+| 27 Cargo workspace members, deliberately small and tightly scoped | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `94e4e97dce6e` | run from that revision |
 
 </div>
 
