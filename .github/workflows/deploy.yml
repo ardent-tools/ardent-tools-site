@@ -19,9 +19,9 @@ name: Deploy to Cloudflare Pages
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -92,7 +92,9 @@ jobs:
         # DESIGN-v1.3 §4 item 5 — derived from the same content/systems/*.md
         # frontmatter systems.html/catalog-ledger.html already render; must
         # run before zola build so static/systems.json copies through.
-        run: python3 bin/generate-systems-json.py
+        run: |
+          python3 bin/generate-systems-json.py
+          git diff --exit-code -- static/systems.json
 
       - name: zola build
         run: zola build
@@ -113,6 +115,9 @@ jobs:
 
       - name: csp-enforce (no inline script/style/handlers)
         run: themes/typikon/ci/csp-enforce.sh public/
+
+      - name: Strict XML, feed, structured-data, and evidence contracts
+        run: python3 bin/validate-site.py public
 
       - name: lychee (external links)
         # Self-host absolute URLs (the site's own base_url) get excluded
@@ -141,21 +146,23 @@ jobs:
           # for the browser gates; public/ (prod) stays intact for deploy.
           # (substrate gap — filed on typikon.)
           zola build --base-url http://127.0.0.1:8080 --output-dir public-local
+          [ -f public-local/404/index.html ] && cp public-local/404/index.html public-local/404.html
           cd public-local && python3 -m http.server 8080 &
           echo $! > /tmp/server.pid
           sleep 2
 
       - name: pa11y (WCAG 2.1 AA)
-        run: pa11y-ci --config themes/typikon/ci/pa11y.config.js
+        env:
+          SITE_OUTPUT_DIR: public-local
+        run: pa11y-ci --config tests/pa11y.config.cjs
 
       - name: playwright (per-route smoke)
         if: ${{ hashFiles('tests/smoke/**/*.spec.ts') != '' }}
         run: |
-          cp themes/typikon/ci/playwright.config.ts ./playwright.config.ts
-          # WHY: the copied root config's `import '@playwright/test'` can't resolve
-          # the global install from the repo root; NODE_PATH points Node at the
-          # global node_modules so the config loads (substrate gap — filed on typikon).
+          # The consumer config owns its all-route viewport matrix. NODE_PATH
+          # lets the root config resolve the pinned global CI install.
           export NODE_PATH="$(npm root -g)"
+          export SITE_OUTPUT_DIR=public-local
           npx playwright test
 
       - name: Tear down static server
@@ -164,29 +171,11 @@ jobs:
           kill "$(cat /tmp/server.pid 2>/dev/null)" 2>/dev/null || true
 
       # ── Deploy on green pushes to main only ───────────────────
-      # Conditioned on ref being main (or master, for legacy consumer
-      # repos that haven't migrated their default branch). Decoupled
-      # from GH's default-branch setting so deploy fires whenever the
-      # gate is green on the ship branch — independent of repo config
-      # drift.
       - name: Deploy to Cloudflare Pages
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # Ensure CF Pages production-branch matches the ship branch.
-          # Idempotent: if it's already correct, the API call is a no-op.
-          # Required so wrangler's deploy below registers as production
-          # rather than as a per-branch preview deployment.
-          BRANCH="${GITHUB_REF##*/}"
-          curl -fsS -X PATCH \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data "{\"production_branch\": \"${BRANCH}\"}" \
-            > /tmp/cf-edit.json
-          echo "production_branch set to: $(jq -r '.result.production_branch // .errors' /tmp/cf-edit.json)"
-
           npm install -g wrangler@4.112.0
-          wrangler pages deploy public --project-name=ardent-tools --branch="${BRANCH}"
+          wrangler pages deploy public --project-name=ardent-tools --branch=main
