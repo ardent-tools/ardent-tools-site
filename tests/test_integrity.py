@@ -1870,6 +1870,80 @@ class AssetRetentionLifetimeContractTests(unittest.TestCase):
             compacted = asset_retention.record_checkpoint(ledger, assets)
             asset_retention.validate_history_prefix(compacted, prior_path)
 
+    def test_validate_history_prefix_accepts_checkpoint_strictly_ahead_of_prior(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            # A local ledger legitimately ahead of the checked-in base before
+            # compacting carries a resource the base never named; the
+            # checkpoint must still be accepted since it's a SUPERSET of the
+            # base's obligations, not required to match them exactly.
+            ahead = copy.deepcopy(compacted)
+            third, _third_body = self.resource_for("css/newer.css", b"newer\n")
+            checkpoint = ahead["entries"][0]
+            checkpoint["resources"] = asset_retention.snapshot_resources(
+                checkpoint["resources"] + [third]
+            )
+            checkpoint["resource_count"] = len(checkpoint["resources"])
+            asset_retention.validate_history_prefix(ahead, prior_path)
+
+    def test_validate_history_prefix_rejects_checkpoint_missing_prior_obligation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            # Simulate a hand-edited or buggy compaction: the root digest is
+            # correct (this really is a checkpoint over prior's exact final
+            # entry), but the resources list silently drops one obligation
+            # prior's history held — as if the corresponding file under
+            # retained-assets/ had also been deleted. The root digest alone
+            # cannot catch this; only the superset check can.
+            tampered = copy.deepcopy(compacted)
+            checkpoint = tampered["entries"][0]
+            dropped = next(
+                item
+                for item in checkpoint["resources"]
+                if item["output_path"] == first["output_path"]
+            )
+            checkpoint["resources"] = [
+                item for item in checkpoint["resources"] if item is not dropped
+            ]
+            checkpoint["resource_count"] = len(checkpoint["resources"])
+            with self.assertRaisesRegex(
+                ValueError, "drops retention obligations"
+            ) as context:
+                asset_retention.validate_history_prefix(tampered, prior_path)
+            self.assertIn(first["output_path"], str(context.exception))
+
     def test_validate_history_prefix_rejects_a_fabricated_checkpoint_root(
         self,
     ) -> None:

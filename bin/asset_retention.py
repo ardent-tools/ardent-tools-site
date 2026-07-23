@@ -17,16 +17,22 @@ history with one checkpoint entry whose `resources` is the UNION of every
 distinct physical resource still retained (so no retention obligation is
 lost) and whose `checkpoint_root_sha256` is the canonical digest of the last
 entry it replaces. `verify` accepts a checkpoint-rooted transition as an
-alternative to literal prefix equality ONLY when that digest matches the
-trusted base's own last entry — i.e. only when the checkpoint is a
-cryptographic commitment to "this is everything the base ledger held,
-verbatim, up to and including that exact entry." Falsifying that commitment
-requires producing a document that hashes to the base's real last entry,
-which requires having it — so a compaction can only ever summarize real
-prior history, never fabricate it. Nothing here erases anything: the
-squashed per-commit detail remains fully readable from git history (the
-deep archive) for anyone auditing a specific past transition; `compact` only
-removes the requirement that every future ledger keep repeating it forever.
+alternative to literal prefix equality only when TWO independent conditions
+both hold (see `validate_history_prefix`'s docstring for the full reasoning):
+the root digest matches the trusted base's own last entry — which BINDS the
+checkpoint to that exact prior state (prevents a checkpoint minted for an
+unrelated ledger from being replayed here; the digest itself is trivially
+computable by anyone, since the base ledger is a checked-in public file, so
+it proves binding, not authorship) — and the checkpoint's resources are a
+superset of the base ledger's own full resource union, re-derived and
+checked on the verifying side rather than trusted from the checkpoint's
+author. That second check is what actually preserves obligations: a
+hand-edited or buggy compaction with a correct root digest but a resources
+list silently missing prior obligations fails it explicitly, naming what's
+missing. Nothing here erases anything: the squashed per-commit detail
+remains fully readable from git history (the deep archive) for anyone
+auditing a specific past transition; `compact` only removes the requirement
+that every future ledger keep repeating it forever.
 
 Growth is bounded in practice, not by an artificial ceiling: `record_snapshot`
 skips writing anything when the current build's resources are unchanged from
@@ -73,6 +79,7 @@ COMPACT_COMMAND = (
     "python3 bin/asset_retention.py compact "
     "--ledger asset-retention.json --assets retained-assets"
 )
+MISSING_OBLIGATION_SAMPLE = 5
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -395,6 +402,34 @@ def record_snapshot(
     return document
 
 
+def resource_union(entries: list) -> dict[str, str]:
+    """Union of retained (output_path -> sha256) obligations across entries.
+
+    Matches the semantics record_checkpoint() uses to compute a checkpoint's
+    own resources: every physical resource any entry's resources list ever
+    named stays a retention obligation regardless of which entry currently
+    reflects it as "current". Tolerant of malformed items (skips rather than
+    raises) since callers use this on ledgers that may not have independently
+    passed validate_ledger() yet — a defensive best-effort union, not itself
+    a source of structural validation.
+    """
+    union: dict[str, str] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        resources = entry.get("resources")
+        if not isinstance(resources, list):
+            continue
+        for item in resources:
+            if not isinstance(item, dict):
+                continue
+            output = item.get("output_path")
+            digest = item.get("sha256")
+            if isinstance(output, str) and isinstance(digest, str):
+                union[output] = digest
+    return union
+
+
 def record_checkpoint(ledger_path: Path, asset_root: Path) -> dict:
     """Squash the full current ledger history into one checkpoint entry.
 
@@ -452,13 +487,27 @@ def validate_history_prefix(current: dict, prior_path: Path) -> None:
 
     Ordinarily this requires literal equality: current's entries must begin
     with every entry prior's did, in the same order — an append-only,
-    never-edited history. The sole exception is a compaction commit: when
-    current's first entry is a checkpoint whose checkpoint_root_sha256
-    equals the canonical digest of prior's own last entry, that checkpoint
-    is a cryptographic commitment to "everything prior's history held, up to
-    and including that exact entry" (see record_checkpoint() and the module
-    docstring) — a strictly harder claim to satisfy than plain equality, so
-    accepting it here does not weaken what CI actually proves.
+    never-edited history. The sole exception is a compaction commit, and it
+    is checked in two independent parts, because neither alone is sufficient:
+
+    1. checkpoint_root_sha256 must equal the canonical digest of prior's own
+       last entry. Prior is a checked-in file, so this digest is trivially
+       *computable* by anyone — it proves nothing about what produced the
+       checkpoint. What it proves is BINDING: this checkpoint claims to
+       summarize exactly prior's history and no other, so it cannot be a
+       checkpoint minted for an unrelated ledger and replayed here.
+    2. The checkpoint's resources must be a SUPERSET of resource_union(prior
+       entries) — every (output_path, sha256) obligation prior's full history
+       held must still appear in the checkpoint, identically. This is the
+       actual obligation-preservation proof: without it, a hand-edited or
+       buggy compaction could carry a correct root digest while silently
+       dropping resources record_checkpoint()'s real union would have kept
+       (and validate_ledger() alone cannot catch this, since it only proves
+       the entries it's GIVEN are internally consistent with what's on disk —
+       it has no notion of what an earlier, now-replaced ledger required).
+       Superset, not equality: a local ledger legitimately ahead of the base
+       before compacting carries more current resources than the base ever
+       named.
     """
     try:
         prior_raw = prior_path.read_text(encoding="utf-8", errors="strict")
@@ -490,6 +539,22 @@ def validate_history_prefix(current: dict, prior_path: Path) -> None:
         and checkpoint.get("kind") == "checkpoint"
         and checkpoint.get("checkpoint_root_sha256") == entry_digest(prior_entries[-1])
     ):
+        prior_obligations = resource_union(prior_entries)
+        checkpoint_obligations = resource_union([checkpoint])
+        missing = sorted(
+            output
+            for output, digest in prior_obligations.items()
+            if checkpoint_obligations.get(output) != digest
+        )
+        if missing:
+            sample = ", ".join(missing[:MISSING_OBLIGATION_SAMPLE])
+            remainder = len(missing) - MISSING_OBLIGATION_SAMPLE
+            if remainder > 0:
+                sample += f" (+{remainder} more)"
+            raise ValueError(
+                "asset-retention checkpoint drops retention obligations the "
+                f"base ledger held: {sample}"
+            )
         return
     if len(current_entries) < len(prior_entries):
         raise ValueError("asset-retention history was truncated relative to the base")
