@@ -20,6 +20,11 @@
 {% endblock ld_json %}
 
 {% block content %}
+{#- Essay progress gnomon (§4.4) — a fixed 2px reading-position line,
+   CSS-only, essay pages only. Fail-safe: display:none until an
+   @supports(animation-timeline: scroll()) + prefers-reduced-motion:
+   no-preference gate proves the browser can render it (site.css). #}
+<div class="essay-progress" aria-hidden="true"></div>
 <article class="journal-entry-page">
   <header class="entry-header">
     <h1>{{ page.title }}</h1>
@@ -43,10 +48,10 @@
        older entry (lower position in listing = newer; higher = older).
        UX convention: ← prev points to the older entry; next → points newer. #}
     {%- if page.higher %}
-    <a href="{{ page.higher.permalink | safe }}" rel="prev">← {{ page.higher.title }}</a>
+    <a href="{{ page.higher.permalink | safe }}" rel="prev"><span class="arrow">←</span> {{ page.higher.title }}</a>
     {%- endif %}
     {%- if page.lower %}
-    <a href="{{ page.lower.permalink | safe }}" rel="next">{{ page.lower.title }} →</a>
+    <a href="{{ page.lower.permalink | safe }}" rel="next">{{ page.lower.title }} <span class="arrow">→</span></a>
     {%- endif %}
   </nav>
   {%- endif %}
