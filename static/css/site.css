@@ -1285,6 +1285,40 @@ a:active {
   color: var(--text-light);
 }
 
+/* Flagship rows regridded (§4.1, >=900px): two ledger registers — name
+   (+ vtn morph target) and meta in the left column, serif description
+   and mono claim in the right. Named areas place the four existing
+   children (unchanged DOM order — see partials/catalog-row.html) into
+   the grid without reordering them, so the <900px stacked layout below
+   this query is exactly the current stacked layout: plain block flow in
+   that same order, untouched by anything here. */
+@media (min-width: 900px) {
+  .catalog-row {
+    display: grid;
+    grid-template-columns: minmax(13rem, 0.34fr) 1fr;
+    grid-template-areas:
+      "name desc"
+      "meta claim";
+    gap: var(--space-m);
+  }
+
+  .catalog-row-name {
+    grid-area: name;
+  }
+
+  .catalog-row-desc {
+    grid-area: desc;
+  }
+
+  .catalog-row-claim {
+    grid-area: claim;
+  }
+
+  .catalog-row-meta {
+    grid-area: meta;
+  }
+}
+
 /* === Home ===
    .kicker/.home-h1/.home-lede live in the "Evidence-lab home" block below
    (their properties are consolidated there — DESIGN-v2 §3.1 display-1
