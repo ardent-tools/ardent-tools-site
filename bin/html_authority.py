@@ -86,7 +86,10 @@ def html_request_path(output_path: str) -> str:
         return "/"
     if output_path.endswith("/index.html"):
         return f"/{output_path[:-len('index.html')]}"
-    return f"/{output_path}"
+    raise ValueError(
+        "retained HTML output path must be index.html or a nested */index.html: "
+        f"{output_path!r}"
+    )
 
 
 def sitemap_paths(output: Path, base_url: str) -> list[str]:

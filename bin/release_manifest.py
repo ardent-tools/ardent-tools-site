@@ -635,7 +635,12 @@ def public_files(output: Path, manifest_name: str) -> list[Path]:
         if not path.exists() or not stat.S_ISREG(path.lstat().st_mode):
             continue
         relative = path.relative_to(output).as_posix()
-        if relative in {"_headers", "_redirects", manifest_name} or relative.endswith(".html"):
+        if relative in {
+            "_headers",
+            "_redirects",
+            "_routes.json",
+            manifest_name,
+        } or relative.endswith(".html"):
             continue
         files.append(path)
     return files

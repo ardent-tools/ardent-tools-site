@@ -24,6 +24,7 @@ from header_contract import (
     validate_speculation_content_type,
 )
 from html_authority import AUTHORITY_NAME, validate_authority
+from pages_runtime import BOUNDARY_NAME, validate_runtime
 from release_manifest import read_contract, validate_manifest
 from redirect_contract import RedirectRule, load_redirects, redirect_probe_path
 
@@ -37,6 +38,7 @@ REQUIRED_RELEASE_PATHS = (
     "/build-revision.txt",
     "/llms.txt",
     f"/{AUTHORITY_NAME}",
+    f"/{BOUNDARY_NAME}",
     "/release-resources.json",
     "/robots.txt",
     "/sitemap.xml",
@@ -153,6 +155,15 @@ def validate_strict_csp(errors: list[str], label: str, headers: dict[str, str]) 
         errors.append(f"{label} strict zero-cast CSP differs: {raw!r}")
 
 
+def validate_html_content_type(
+    errors: list[str], label: str, headers: dict[str, str]
+) -> None:
+    raw = header(headers, "Content-Type")
+    media_type = raw.split(";", 1)[0].strip().lower()
+    if "," in raw or media_type != "text/html":
+        errors.append(f"{label} Content-Type must be HTML; found {raw!r}")
+
+
 def validate_html_boundary(
     errors: list[str],
     label: str,
@@ -222,6 +233,35 @@ def same_origin(left: str, right: str) -> bool:
         return origin(left) == origin(right)
     except ValueError:
         return False
+
+
+def html_alias_redirects(html_authority: dict) -> list[tuple[str, str]]:
+    """Return Pages' physical HTML aliases and their extensionless targets."""
+    aliases: list[tuple[str, str]] = []
+    custom_404 = html_authority.get("custom_404", {})
+    custom_404_stem = None
+    if isinstance(custom_404, dict):
+        custom_output_path = custom_404.get("output_path")
+        if isinstance(custom_output_path, str) and custom_output_path.endswith(".html"):
+            custom_404_stem = f"/{custom_output_path[:-5]}"
+    for item in html_authority.get("routes", []):
+        if not isinstance(item, dict):
+            continue
+        output_path = item.get("output_path")
+        request_path = item.get("request_path")
+        if not isinstance(output_path, str) or not isinstance(request_path, str):
+            continue
+        if output_path == "index.html" or output_path.endswith("/index.html"):
+            alias = f"/{output_path}"
+            if alias != request_path:
+                aliases.append((alias, request_path))
+        if (
+            request_path != "/"
+            and request_path.endswith("/")
+            and request_path[:-1] != custom_404_stem
+        ):
+            aliases.append((request_path[:-1], request_path))
+    return sorted(set(aliases))
 
 
 def asset_identity(url: str) -> tuple[str, str, str, tuple[tuple[str, str], ...]]:
@@ -487,6 +527,7 @@ def verify(
         if status != 200:
             errors.append(f"{path} returned {status}, expected direct 200")
         validate_html_boundary(errors, path, headers, body, header_contract)
+        validate_html_content_type(errors, path, headers)
         validate_canonical(errors, page_url, page_url, body)
         authority = authority_by_path.get(path)
         if authority is not None:
@@ -501,6 +542,31 @@ def verify(
         )
         pages[path] = body
 
+    for alias_path, target_path in html_alias_redirects(html_authority):
+        alias_url = urljoin(site_root, alias_path.lstrip("/"))
+        alias_status, alias_headers, _ = fetch_exact(alias_url)
+        if alias_status != 308:
+            errors.append(
+                f"HTML alias {alias_path} returned {alias_status}, expected exact 308"
+            )
+        validate_html_boundary(
+            errors, f"HTML alias {alias_path}", alias_headers, "", header_contract
+        )
+        location = header(alias_headers, "Location")
+        expected_target = urljoin(site_root, target_path.lstrip("/"))
+        resolved = urljoin(alias_url, location) if location else ""
+        if not location:
+            errors.append(f"HTML alias {alias_path} lacks Location")
+        elif not same_origin(site_root, resolved):
+            errors.append(
+                f"HTML alias {alias_path} resolves outside the site: {resolved!r}"
+            )
+        elif resolved != expected_target:
+            errors.append(
+                f"HTML alias {alias_path} resolves to {resolved!r}, "
+                f"expected {expected_target!r}"
+            )
+
     missing_path = missing_probe_path(expected_revision)
     if missing_probe_is_disjoint(errors, missing_path, sorted(authority_by_path)):
         missing_url = urljoin(site_root, missing_path.lstrip("/"))
@@ -511,6 +577,7 @@ def verify(
         validate_html_boundary(
             errors, missing_path, missing_headers, missing_body, header_contract
         )
+        validate_html_content_type(errors, missing_path, missing_headers)
         custom_authority = html_authority.get("custom_404", {})
         missing_digest = hashlib.sha256(missing_bytes).hexdigest()
         if missing_digest != custom_authority.get("sha256"):
@@ -651,6 +718,9 @@ def main() -> int:
     )
     if manifest_errors:
         parser.error("invalid retained release manifest: " + "; ".join(manifest_errors))
+    runtime_errors = validate_runtime(artifact_root)
+    if runtime_errors:
+        parser.error("invalid retained Pages runtime boundary: " + "; ".join(runtime_errors))
     authority_path = artifact_root / AUTHORITY_NAME
     try:
         authority_bytes = authority_path.read_bytes()

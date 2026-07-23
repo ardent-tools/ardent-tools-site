@@ -31,6 +31,7 @@ production = load_script("ardent_verify_production", "verify-production.py")
 redirects = load_script("ardent_redirect_contract", "redirect_contract.py")
 headers_contract = load_script("ardent_header_contract", "header_contract.py")
 html_contract = load_script("ardent_html_authority", "html_authority.py")
+pages_runtime = load_script("ardent_pages_runtime", "pages_runtime.py")
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
@@ -77,6 +78,7 @@ def run_production_fixture(
     custom_404_body: bytes | None = None,
     custom_404_cache: str = GOOD_CACHE,
     custom_404_csp: str = GOOD_CSP,
+    custom_404_content_type: str = "text/html; charset=utf-8",
     tombstone_status: int = 404,
     tombstone_cache: str = GOOD_CACHE,
     live_manifest_body: bytes | None = None,
@@ -120,6 +122,7 @@ def run_production_fixture(
             "js/error.js": ERROR_JS_BODY,
             "llms.txt": b"release fixture\n",
             "robots.txt": b"User-agent: *\n",
+            "runtime-boundary.json": b"{}\n",
             "site.webmanifest": b"{}\n",
             "sitemap.xml": sitemap_body,
             "speculation-rules.json": b"{}\n",
@@ -195,8 +198,14 @@ def run_production_fixture(
             with_cache(GOOD_CACHE),
             manifest_bytes if live_manifest_body is None else live_manifest_body,
         )
-        page_headers = direct_headers()
-        root_headers = direct_headers()
+        page_headers = {
+            **direct_headers(),
+            "content-type": "text/html; charset=utf-8",
+        }
+        root_headers = {
+            **direct_headers(),
+            "content-type": "text/html; charset=utf-8",
+        }
         for name, value in (root_header_overrides or {}).items():
             matches = [key for key in root_headers if key.lower() == name.lower()]
             for key in matches:
@@ -230,6 +239,12 @@ def run_production_fixture(
             page_headers,
             default_404,
         )
+        for alias_path, target_path in production.html_alias_redirects(html_authority):
+            responses[(f"{BASE_URL}{alias_path}", False)] = (
+                308,
+                {**direct_headers(), "Location": target_path},
+                b"",
+            )
         missing_path = production.missing_probe_path(EXPECTED_REVISION)
         default_404 = (
             f'<link rel="canonical" href="{BASE_URL}/404/">'
@@ -243,6 +258,7 @@ def run_production_fixture(
                 **direct_headers(),
                 "cache-control": custom_404_cache,
                 "content-security-policy": custom_404_csp,
+                "content-type": custom_404_content_type,
             },
             default_404 if custom_404_body is None else custom_404_body,
         )
@@ -329,6 +345,17 @@ class ProductionAssetContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("returned 404, expected direct 200", errors[0])
         self.assertIn("/js/site.js", errors[0])
+
+    def test_query_free_runtime_html_authority_drift_fails(self) -> None:
+        errors = run_production_fixture(
+            self,
+            resource_overrides={
+                html_contract.AUTHORITY_NAME: (200, GOOD_CACHE, b"stale authority\n")
+            },
+        )
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("release resource digest mismatch", errors[0])
+        self.assertIn("/release-html.json", errors[0])
 
     def test_revision_cache_policy_rejects_immutable(self) -> None:
         errors = run_production_fixture(
@@ -421,6 +448,23 @@ class ProductionAssetContractTests(unittest.TestCase):
 
 
 class ProductionRouteContractTests(unittest.TestCase):
+    def test_html_aliases_special_case_the_custom_404_stem(self) -> None:
+        authority = {
+            "routes": [
+                {"request_path": "/", "output_path": "index.html"},
+                {"request_path": "/about/", "output_path": "about/index.html"},
+                {"request_path": "/404/", "output_path": "404/index.html"},
+            ],
+            "custom_404": {"output_path": "404.html"},
+        }
+        aliases = production.html_alias_redirects(authority)
+        self.assertIn(("/index.html", "/"), aliases)
+        self.assertIn(("/about", "/about/"), aliases)
+        self.assertIn(("/about/index.html", "/about/"), aliases)
+        self.assertIn(("/404/index.html", "/404/"), aliases)
+        self.assertNotIn(("/404", "/404/"), aliases)
+        self.assertNotIn(("/404.html", "/404/"), aliases)
+
     def test_custom_404_probe_is_revision_specific_and_disjoint(self) -> None:
         path = production.missing_probe_path(EXPECTED_REVISION)
         self.assertEqual(path, production.missing_probe_path(EXPECTED_REVISION))
@@ -458,6 +502,11 @@ class ProductionRouteContractTests(unittest.TestCase):
         self.assertTrue(any("Cache-Control must be exactly" in error for error in errors), errors)
         self.assertTrue(any("strict zero-cast CSP differs" in error for error in errors), errors)
         self.assertTrue(any("Cloudflare email-protection" in error for error in errors), errors)
+
+    def test_custom_404_wrong_html_media_type_fails(self) -> None:
+        errors = run_production_fixture(self, custom_404_content_type="application/octet-stream")
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("Content-Type must be HTML", errors[0])
 
     def test_custom_404_malformed_asset_epoch_fails(self) -> None:
         malformed = (
@@ -504,6 +553,8 @@ class RedirectContractTests(unittest.TestCase):
         }
         self.assertEqual(probes["/demos"], "/demos")
         self.assertEqual(probes["/demos/*"], "/demos/")
+        self.assertEqual(probes["/404"], "/404")
+        self.assertEqual(probes["/404.html"], "/404.html")
         self.assertRegex(
             probes["/systems/ergon-tools/*"],
             r"^/systems/ergon-tools/__ardent-probe-[0-9a-f]{24}$",
@@ -512,8 +563,13 @@ class RedirectContractTests(unittest.TestCase):
             probes["/systems/nosologia/*"],
             r"^/systems/nosologia/__ardent-probe-[0-9a-f]{24}$",
         )
+        ergon_rule = next(
+            rule
+            for rule in redirects.SUPPORTED_REDIRECTS
+            if rule.source == "/systems/ergon-tools/*"
+        )
         alternate = redirects.redirect_probe_path(
-            redirects.SUPPORTED_REDIRECTS[0],
+            ergon_rule,
             "3" * 40,
         )
         self.assertNotEqual(probes["/systems/ergon-tools/*"], alternate)
@@ -626,6 +682,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
             "llms.txt": b"fixture\n",
+            "release-html.json": b"{}\n",
             "robots.txt": b"fixture\n",
             "sitemap.xml": b"<urlset/>\n",
             "files/report.pdf": b"pdf bytes\n",
@@ -636,6 +693,16 @@ class ReleaseManifestContractTests(unittest.TestCase):
             path.write_bytes(body)
         manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
         return contract, manifest, release.serialize_manifest(manifest)
+
+    def test_runtime_html_authority_has_query_free_release_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _contract, manifest, _raw = self.make_fixture(Path(directory))
+        authority = next(
+            item
+            for item in manifest["resources"]
+            if item["output_path"] == html_contract.AUTHORITY_NAME
+        )
+        self.assertEqual(authority["request_url"], "/release-html.json")
 
     def test_manifest_schema_path_and_query_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1161,6 +1228,11 @@ class HeaderContractTests(unittest.TestCase):
         self.assertIn("Content-Type must be", errors[0])
 
 
+    def test_live_retained_html_content_type_is_html(self) -> None:
+        errors = run_production_fixture(self, root_header_overrides={"Content-Type": "text/plain"})
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("Content-Type must be HTML", errors[0])
+
 class HtmlAuthorityContractTests(unittest.TestCase):
     def make_fixture(self, output: Path) -> tuple[dict, bytes]:
         sitemap = (
@@ -1174,7 +1246,7 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             "sitemap.xml": sitemap.encode(),
             "index.html": b"root\n",
             "about/index.html": b"about\n",
-            "private-proof.html": b"not in sitemap\n",
+            "private-proof/index.html": b"not in sitemap\n",
             "404/index.html": b"missing\n",
             "404.html": b"missing\n",
         }
@@ -1199,15 +1271,15 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             )
         self.assertEqual(errors, [])
         by_path = {item["request_path"]: item for item in authority["routes"]}
-        self.assertEqual(set(by_path), {"/", "/404/", "/about/", "/private-proof.html"})
+        self.assertEqual(set(by_path), {"/", "/404/", "/about/", "/private-proof/"})
         self.assertTrue(by_path["/"]["in_sitemap"])
-        self.assertFalse(by_path["/private-proof.html"]["in_sitemap"])
+        self.assertFalse(by_path["/private-proof/"]["in_sitemap"])
 
     def test_stale_or_missing_non_sitemap_html_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             _authority, raw = self.make_fixture(output)
-            hidden = output / "private-proof.html"
+            hidden = output / "private-proof/index.html"
             hidden.write_bytes(b"stale\n")
             _document, stale_errors = html_contract.validate_authority(
                 raw,
@@ -1224,6 +1296,10 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             )
         self.assertTrue(any("differs" in error for error in stale_errors), stale_errors)
         self.assertTrue(any("differs" in error for error in missing_errors), missing_errors)
+
+    def test_flat_non_index_html_is_outside_the_deployable_authority(self) -> None:
+        with self.assertRaisesRegex(ValueError, r"index\.html or a nested \*/index\.html"):
+            html_contract.html_request_path("private-proof.html")
 
     def test_custom_404_drift_dot_segments_and_non_strict_json_fail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1272,19 +1348,165 @@ class HtmlAuthorityContractTests(unittest.TestCase):
 
 
 class DeployWorkflowContractTests(unittest.TestCase):
-    def test_predeploy_revalidation_follows_wrangler_install_and_precedes_upload(self) -> None:
+    def test_predeploy_revalidation_follows_wrangler_compile_and_precedes_upload(
+        self,
+    ) -> None:
         workflow = (ROOT / ".github/workflows/deploy.yml").read_text()
+        install = workflow.index("npm install -g wrangler@4.112.0")
+        compile_function = workflow.index("wrangler pages functions build functions")
         deploy = workflow.split("- name: Deploy to Cloudflare Pages", 1)[1].split(
             "- name: Verify live authored/runtime boundary", 1
         )[0]
-        install = deploy.index("npm install -g wrangler@4.112.0")
-        validate = deploy.index(
-            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        validate = deploy.index('python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"')
+        upload = deploy.index("wrangler pages deploy --branch=main")
+        self.assertLess(install, compile_function)
+        self.assertLess(
+            compile_function,
+            workflow.index("- name: Deploy to Cloudflare Pages"),
         )
-        upload = deploy.index("wrangler pages deploy public")
-        self.assertLess(install, validate)
+        self.assertNotIn("--compatibility-date", workflow)
+        self.assertNotIn("wrangler pages deploy public", deploy)
         self.assertLess(validate, upload)
         self.assertIn("GITHUB_SHA: ${{ github.sha }}", deploy)
+
+
+class PagesRuntimeContractTests(unittest.TestCase):
+    def make_fixture(self, output: Path) -> None:
+        (output / "css").mkdir(parents=True)
+        (output / "css/site.css").write_text("body{}\n")
+        (output / "index.html").write_text("home\n")
+        (output / "about").mkdir()
+        (output / "about/index.html").write_text("about\n")
+        (output / "404.html").write_text("missing\n")
+        (output / "_headers").write_text((ROOT / "_headers").read_text())
+        (output / "_redirects").write_text((ROOT / "_redirects").read_text())
+        authority = {
+            "schema_version": 1,
+            "revision": EXPECTED_REVISION,
+            "route_count": 2,
+            "routes": [
+                {
+                    "request_path": "/",
+                    "output_path": "index.html",
+                    "sha256": "0" * 64,
+                },
+                {
+                    "request_path": "/about/",
+                    "output_path": "about/index.html",
+                    "sha256": "1" * 64,
+                },
+            ],
+            "custom_404": {"output_path": "404.html", "sha256": "2" * 64},
+        }
+        (output / pages_runtime.AUTHORITY_NAME).write_text(json.dumps(authority))
+
+    def test_routes_leave_retained_artifacts_static_and_missing_paths_guarded(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            include_count, exclude_count = pages_runtime.write_runtime(output)
+            routes = json.loads((output / pages_runtime.ROUTES_NAME).read_text())
+            boundary = json.loads((output / pages_runtime.BOUNDARY_NAME).read_text())
+            errors = pages_runtime.validate_runtime(output)
+
+        self.assertEqual(include_count, 1)
+        self.assertEqual(exclude_count, len(routes["exclude"]))
+        self.assertEqual(routes["include"], ["/*"])
+        for path in (
+            "/",
+            "/about/",
+            "/css/site.css",
+            "/release-html.json",
+            "/release-resources.json",
+            "/runtime-boundary.json",
+            "/404",
+            "/404.html",
+            "/demos",
+            "/demos/*",
+            "/systems/ergon-tools/*",
+            "/systems/nosologia/*",
+        ):
+            self.assertIn(path, routes["exclude"])
+        for alias in ("/index.html", "/about/index.html"):
+            self.assertNotIn(alias, routes["exclude"])
+        self.assertNotIn("/tapes/aletheia-memory.tape", routes["exclude"])
+        self.assertEqual(boundary["function"]["path"], "functions/[[path]].js")
+        self.assertEqual(boundary["schema_version"], 2)
+        self.assertEqual(boundary["wrangler"]["path"], "wrangler.toml")
+        self.assertIn(
+            f"/{pages_runtime.BOUNDARY_NAME}",
+            production.REQUIRED_RELEASE_PATHS,
+        )
+        self.assertEqual(
+            boundary["function"]["sha256"],
+            hashlib.sha256((ROOT / "functions/[[path]].js").read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            boundary["wrangler"]["sha256"],
+            hashlib.sha256((ROOT / "wrangler.toml").read_bytes()).hexdigest(),
+        )
+        self.assertEqual(errors, [])
+
+    def test_wrangler_config_is_exact_and_compatibility_date_is_pinned(self) -> None:
+        source = (ROOT / pages_runtime.WRANGLER_RELATIVE_PATH).read_bytes()
+        self.assertEqual(pages_runtime.validate_wrangler_config(source), [])
+        drifted = source.replace(b"2026-07-21", b"2026-07-22")
+        errors = pages_runtime.validate_wrangler_config(drifted)
+        self.assertTrue(any("exact production Pages config" in error for error in errors), errors)
+
+    def test_overlapping_ending_splat_routes_fail_before_upload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            authority_path = output / pages_runtime.AUTHORITY_NAME
+            authority = json.loads(authority_path.read_text())
+            authority["routes"].append(
+                {
+                    "request_path": "/demos/example",
+                    "output_path": "demos/example.html",
+                    "sha256": "3" * 64,
+                }
+            )
+            authority_path.write_text(json.dumps(authority))
+            _routes, _boundary, errors = pages_runtime.expected_runtime(output)
+        self.assertTrue(
+            any("overlapping exclude rules '/demos/*' and '/demos/example'" in error for error in errors),
+            errors,
+        )
+
+    def test_function_direct_headers_are_bound_to_static_header_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            headers_path = output / "_headers"
+            headers_path.write_text(
+                headers_path.read_text().replace("X-Frame-Options: DENY", "X-Frame-Options: SAMEORIGIN")
+            )
+            _routes, _boundary, errors = pages_runtime.expected_runtime(output)
+        self.assertTrue(any("Function direct headers differ" in error for error in errors), errors)
+
+    def test_tampered_runtime_authority_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            pages_runtime.write_runtime(output)
+            (output / pages_runtime.ROUTES_NAME).write_text("{}\n")
+            errors = pages_runtime.validate_runtime(output)
+        self.assertTrue(any("_routes.json differs" in error for error in errors), errors)
+
+    def test_routes_control_file_is_not_a_served_manifest_resource(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            pages_runtime.write_runtime(output)
+            paths = {
+                path.relative_to(output).as_posix()
+                for path in release.public_files(output, pages_runtime.MANIFEST_NAME)
+            }
+        self.assertNotIn("_routes.json", paths)
+        self.assertIn("runtime-boundary.json", paths)
 
 
 class CacheContractTests(unittest.TestCase):

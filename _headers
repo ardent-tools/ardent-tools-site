@@ -2,7 +2,9 @@
 # page requests the vendored player and script-src needs no WebAssembly
 # exception. bin/validate-site.py keeps that relationship fail-closed: a
 # future `cast` requires both conditional player markup and an explicit CSP
-# disposition before the build can pass.
+# disposition before the build can pass. Pages itself replaces Cache-Control
+# on generated 404 responses; the narrowly-routed Function applies this exact
+# policy to missing paths, retained tombstones, and Function-routed HTML aliases.
 
 /*
   Cache-Control: no-store, no-transform

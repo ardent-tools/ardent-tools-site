@@ -81,17 +81,21 @@ also passes `ARDENT_BUILD_REVISION` so that tree carries the exact commit in
 It retains `release-html.json`, which covers every HTML route (including routes
 excluded from the sitemap) plus the byte-identical custom 404 with full SHA-256
 bodies. `release-resources.json` covers served non-HTML regular resources except
-`_headers`, `_redirects`, and the resource manifest itself; the HTML authority
-is included as a resource. Non-canonical resource references carry a content
-digest plus the central `extra.asset_epoch`. The verifier fetches every retained
+`_headers`, `_redirects`, `_routes.json`, and the resource manifest itself; the
+HTML authority and `runtime-boundary.json` are included as resources, with the
+latter binding the Function source, derived route table, and production
+`wrangler.toml`. Non-canonical
+resource references carry a content digest plus the central `extra.asset_epoch`.
+The verifier fetches every retained
 HTML route, separately requests a revision-specific missing route, checks every
 manifest resource, and requires the complete configured direct-response header
 map plus the special speculation-rules media type. `_redirects` responses are
 checked only for status and location because Cloudflare Pages resolves redirects
-before `_headers`; the complete four-rule file is validated locally, and
+before `_headers`; the complete six-rule file is validated locally, and
 production probes a safe representative for every declaration without following
 it. The two system wildcard probes are revision-specific; the exact `/demos`
-rule and its catch-all use fixed non-destructive paths.
+rule and its catch-all use fixed non-destructive paths, and `/404` plus
+`/404.html` canonicalize directly to `/404/`.
 The résumé compiles twice with only the pinned, licensed inputs under
 `resume/fonts/`; system and Typst-embedded fonts are disabled, and `pdffonts`
 must report only embedded/subsetted Nimbus Sans Regular and Bold.
