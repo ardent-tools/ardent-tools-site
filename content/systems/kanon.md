@@ -32,7 +32,7 @@ Concretely, `kanon lint` finds mechanical rule violations across a repo (`--fix`
 
 ### Private by choice, not by necessity
 
-kanon stays private not because the source is sensitive, but because it isn't yet hardened for public traffic the way the fleet's other repos are. Systems built in employment are a different case entirely — employer property, described on this site only as experience. A public repo with real stars and real issues would be the stronger portfolio artifact. Not yet. Not before the tool is ready for that audience.
+kanon stays private not because the source is sensitive, but because it isn't yet hardened for public traffic the way the fleet's other repos are. Systems built in employment are a different case entirely — employer property, described on this site only as experience. A public repo with real stars and real issues would be the stronger portfolio artifact - just not yet, not until the tool is ready for that audience.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|

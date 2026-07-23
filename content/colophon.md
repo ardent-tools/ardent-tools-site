@@ -25,6 +25,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | CSP — script-src | `'self'` only. With zero published casts, no player is requested and no `wasm-unsafe-eval` exception remains |
 | CSP — style-src | `'self'` only, no inline `style="..."` anywhere — code listings use Zola's class-based syntax highlighting instead of inline colors |
 | CSP — form-action | `'self'` only. No third-party form destination, because the site carries no form at all |
+| Construction | AI agents build and maintain this site - the templates, the stylesheet, the prose, the release machinery - under my direction, through the gate below. The gate covers what's automatable; I check the rest by hand |
 | Method | The [essays](/writing/) carry the operating method behind this site and the systems it documents — how the gates, counts, and review loops actually run |
 | Family | Sibling of [Ardent Leatherworks](https://ardentleatherworks.com) — shared paper stock, shared press ink, shared flame mark |
 
