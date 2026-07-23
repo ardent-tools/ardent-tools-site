@@ -11,6 +11,6 @@ The About page and résumé share selected Marine Corps facts with stable claim 
 
 The operator-authorized truth release defines the conservative claim set and excludes office-rank and deployment-nation comparisons. The underlying service record remains private and was not inspected by this repository audit. The receipt proves the public surfaces agree; it does not treat private records as public evidence.
 
-{{ resource_link(path="files/cody-kickertz-resume.pdf", label="Download the resume (PDF)") }}
+{{ resource_link(path="files/cody-kickertz-resume.pdf", label="Download the resume (PDF)", download="cody-kickertz-resume.pdf") }}
 
 Questions about anything in it: [email cody@ardent.tools](mailto:cody@ardent.tools?subject=Resume).

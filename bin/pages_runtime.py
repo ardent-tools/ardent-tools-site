@@ -30,6 +30,7 @@ BOUNDARY_SCHEMA_VERSION = 2
 MAX_ROUTE_RULES = 100
 MAX_ROUTE_LENGTH = 100
 SAFE_ROUTE_RE = re.compile(r"^/[A-Za-z0-9._~!$&'()+,;=:@%*/-]*$")
+ADDRESSED_RESOURCE_RE = re.compile(r"^a/[0-9a-f]{64}\.[A-Za-z0-9]+$")
 CONTROL_FILES = frozenset({"_headers", "_redirects", ROUTES_NAME})
 DIRECT_HEADERS_JSON_START = "/* DIRECT_RESPONSE_HEADERS_JSON_START */"
 DIRECT_HEADERS_JSON_END = "/* DIRECT_RESPONSE_HEADERS_JSON_END */"
@@ -76,7 +77,7 @@ def validate_route(route: object, label: str) -> list[str]:
 
 def artifact_resource_paths(output: Path) -> tuple[set[str], list[str]]:
     """Return exact non-HTML request paths which must stay on static serving."""
-    paths = {f"/{MANIFEST_NAME}", f"/{BOUNDARY_NAME}"}
+    paths = {f"/{MANIFEST_NAME}", f"/{BOUNDARY_NAME}", "/a/*"}
     errors: list[str] = []
     for path in sorted(output.rglob("*")):
         try:
@@ -98,7 +99,13 @@ def artifact_resource_paths(output: Path) -> tuple[set[str], list[str]]:
         # and Location while attaching the direct-response header contract.
         if relative in CONTROL_FILES or relative.endswith(".html"):
             continue
-        paths.add(f"/{relative}")
+        if relative.startswith("a/") and not ADDRESSED_RESOURCE_RE.fullmatch(relative):
+            errors.append(
+                "pages runtime: physical resource path must carry one full SHA-256 "
+                f"and extension: {relative}"
+            )
+        if not relative.startswith("a/"):
+            paths.add(f"/{relative}")
     return paths, errors
 
 
@@ -252,9 +259,13 @@ def validate_function_headers(output: Path) -> list[str]:
     static_headers = sections.get(ROOT_PATH)
     if static_headers is None:
         errors.append(f"pages runtime: retained _headers lacks {ROOT_PATH!r}")
-    elif function_headers != static_headers:
+    elif function_headers != {
+        name: value
+        for name, value in static_headers.items()
+        if name != "speculation-rules"
+    }:
         errors.append(
-            "pages runtime: Function direct headers differ from retained /* contract"
+            "pages runtime: Function static direct headers differ from retained /* contract"
         )
     return errors
 

@@ -1,0 +1,11 @@
+{
+  "name": "Ardent Tools",
+  "short_name": "Ardent Tools",
+  "icons": [
+    { "src": "/a/72c35dafe42b1b30d4397ae568763f1fa60dcecfb7f614cf4c9f8d0f8dcf776e.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/a/e76f1b6ad324a0c5443b21b1228ce99292ab32300b430ff2e56bc549bd895e29.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#F7F3E8",
+  "background_color": "#F7F3E8",
+  "display": "standalone"
+}

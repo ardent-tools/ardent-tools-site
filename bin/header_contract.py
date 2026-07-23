@@ -6,10 +6,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple
 
+from pages_limits import MAX_HEADER_RULES, require_media_type_rule_capacity
+from release_manifest import SPECIAL_MEDIA_TYPES, SPECULATION_MEDIA_TYPE
 
 ROOT_PATH = "/*"
-SPECULATION_PATH = "/speculation-rules.json"
-SPECULATION_MEDIA_TYPE = "application/speculationrules+json"
 
 DIRECT_RESPONSE_HEADERS = {
     "cache-control": "no-store, no-transform",
@@ -35,13 +35,14 @@ DIRECT_RESPONSE_HEADERS = {
 class HeaderContract(NamedTuple):
     direct_response: dict[str, str]
     speculation_content_type: str
+    media_types: dict[str, str]
 
 
-def manifest_request_url(manifest: dict, output_path: str) -> str | None:
+def manifest_request_url(manifest: dict, logical_path: str) -> str | None:
     matches = [
         item.get("request_url")
         for item in manifest.get("resources", [])
-        if isinstance(item, dict) and item.get("output_path") == output_path
+        if isinstance(item, dict) and item.get("logical_path") == logical_path
     ]
     if len(matches) != 1 or not isinstance(matches[0], str):
         return None
@@ -56,7 +57,32 @@ def expected_contract(manifest: dict) -> tuple[HeaderContract | None, list[str]]
         ]
     direct = dict(DIRECT_RESPONSE_HEADERS)
     direct["speculation-rules"] = f'"{speculation_url}"'
-    return HeaderContract(direct, SPECULATION_MEDIA_TYPE), []
+    media_types = manifest.get("media_types")
+    if not isinstance(media_types, dict) or any(
+        not isinstance(path, str) or not isinstance(media_type, str)
+        for path, media_type in (
+            media_types.items() if isinstance(media_types, dict) else ()
+        )
+    ):
+        return None, ["_headers: release manifest media_types is invalid"]
+    if media_types.get(speculation_url) != SPECULATION_MEDIA_TYPE:
+        return None, [
+            "_headers: current speculation-rules resource lacks its exact media type"
+        ]
+    if any(
+        media_type not in SPECIAL_MEDIA_TYPES.values()
+        for media_type in media_types.values()
+    ):
+        return None, ["_headers: release manifest carries an unsupported media type"]
+    try:
+        require_media_type_rule_capacity(len(media_types))
+    except ValueError as exc:
+        return None, [str(exc)]
+    return HeaderContract(
+        direct,
+        SPECULATION_MEDIA_TYPE,
+        dict(sorted(media_types.items())),
+    ), []
 
 
 def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
@@ -91,7 +117,9 @@ def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
             continue
 
         if current_path is None:
-            errors.append(f"_headers:{line_number}: header has no valid path declaration")
+            errors.append(
+                f"_headers:{line_number}: header has no valid path declaration"
+            )
             continue
         if stripped.startswith("!"):
             errors.append(
@@ -99,7 +127,9 @@ def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
             )
             continue
         if ":" not in stripped:
-            errors.append(f"_headers:{line_number}: malformed header declaration {stripped!r}")
+            errors.append(
+                f"_headers:{line_number}: malformed header declaration {stripped!r}"
+            )
             continue
         name, value = stripped.split(":", 1)
         normalized_name = name.strip().lower()
@@ -117,15 +147,25 @@ def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
     return sections, errors
 
 
-def validate_headers(raw: str, manifest: dict) -> tuple[HeaderContract | None, list[str]]:
+def validate_headers(
+    raw: str, manifest: dict
+) -> tuple[HeaderContract | None, list[str]]:
     contract, errors = expected_contract(manifest)
     sections, parse_errors = parse_headers(raw)
     errors.extend(parse_errors)
+    if len(sections) > MAX_HEADER_RULES:
+        errors.append(
+            f"_headers contains {len(sections)} rules; Cloudflare Pages permits "
+            f"at most {MAX_HEADER_RULES}"
+        )
     if contract is None:
         return None, errors
     expected_sections = {
         ROOT_PATH: contract.direct_response,
-        SPECULATION_PATH: {"content-type": contract.speculation_content_type},
+        **{
+            path: {"content-type": media_type}
+            for path, media_type in contract.media_types.items()
+        },
     }
     if set(sections) != set(expected_sections):
         errors.append(

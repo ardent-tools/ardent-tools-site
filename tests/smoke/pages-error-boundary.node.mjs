@@ -7,6 +7,8 @@ const functionUrl = new URL("../../functions/[[path]].js", import.meta.url);
 const source = await readFile(functionUrl);
 const moduleUrl = `data:text/javascript;base64,${source.toString("base64")}`;
 const { onRequest } = await import(moduleUrl);
+const SPECULATION_DIGEST = "1".repeat(64);
+const SPECULATION_URL = `/a/${SPECULATION_DIGEST}.json`;
 
 const EXPECTED_DIRECT_HEADERS = Object.freeze({
   "cache-control": "no-store, no-transform",
@@ -16,7 +18,7 @@ const EXPECTED_DIRECT_HEADERS = Object.freeze({
   "referrer-policy": "strict-origin-when-cross-origin",
   "permissions-policy": "accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()",
   "content-security-policy": "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests",
-  "speculation-rules": "\"/speculation-rules.json?h=dd1ab64ebeb7a41864aa&v=2\"",
+  "speculation-rules": `"${SPECULATION_URL}"`,
 });
 
 const HTML_AUTHORITY = Object.freeze({
@@ -54,6 +56,23 @@ function retainedAuthority(authority = HTML_AUTHORITY) {
 }
 
 
+function retainedManifest(resource = {}) {
+  return new Response(JSON.stringify({
+    resources: [{
+      logical_path: "speculation-rules.json",
+      output_path: SPECULATION_URL.slice(1),
+      request_url: SPECULATION_URL,
+      sha256: SPECULATION_DIGEST,
+      cache_class: "addressed",
+      ...resource,
+    }],
+  }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+
 function retainedAssets(options = {}) {
   return async (request) => {
     const path = new URL(request.url).pathname;
@@ -69,6 +88,9 @@ function retainedAssets(options = {}) {
 
 
 function context(response, options = {}) {
+  const fallbackFetch = options.fetch ?? (async () => {
+    throw new Error("unexpected ASSETS fetch");
+  });
   return {
     request: new Request(options.url ?? "https://ardent.tools/missing", {
       method: options.method ?? "GET",
@@ -76,9 +98,13 @@ function context(response, options = {}) {
     next: async () => response,
     env: {
       ASSETS: {
-        fetch: options.fetch ?? (async () => {
-          throw new Error("unexpected ASSETS fetch");
-        }),
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname;
+          if (path === "/release-resources.json") {
+            return retainedManifest(options.speculationResource);
+          }
+          return fallbackFetch(request);
+        },
       },
     },
   };
@@ -251,6 +277,18 @@ test("an unavailable retained 404 fails closed", async () => {
       fetch: async () => new Response("failure", { status: 503 }),
     })),
     /retained 404 authority is unavailable/,
+  );
+});
+
+
+test("an invalid retained speculation identity fails closed", async () => {
+  const response = new Response("missing", { status: 404 });
+  await assert.rejects(
+    onRequest(context(response, {
+      fetch: async () => retained404(),
+      speculationResource: { sha256: "2".repeat(64) },
+    })),
+    /retained speculation-rules identity is invalid/,
   );
 });
 

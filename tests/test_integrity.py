@@ -37,24 +37,39 @@ redirects = load_script("ardent_redirect_contract", "redirect_contract.py")
 headers_contract = load_script("ardent_header_contract", "header_contract.py")
 html_contract = load_script("ardent_html_authority", "html_authority.py")
 pages_runtime = load_script("ardent_pages_runtime", "pages_runtime.py")
+pages_limits = sys.modules["pages_limits"]
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 career = load_script("ardent_career_claims", "validate-career-claims.py")
 site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
+content_address = load_script("ardent_content_address", "content_address.py")
+asset_retention = load_script("ardent_asset_retention", "asset_retention.py")
+deployment_receipt = load_script(
+    "ardent_pages_deployment_receipt", "pages_deployment_receipt.py"
+)
 
 BASE_URL = "https://ardent.tools"
 EXPECTED_REVISION = "2" * 40
-ASSET_EPOCH = "2"
 CSS_BODY = b"body { color: #231f20; }\n"
 JS_BODY = b"document.documentElement.dataset.ready = 'true';\n"
 ERROR_JS_BODY = b"document.documentElement.dataset.errorPage = 'true';\n"
-CSS_HASH = hashlib.sha256(CSS_BODY).hexdigest()[:20]
-JS_HASH = hashlib.sha256(JS_BODY).hexdigest()[:20]
-ERROR_JS_HASH = hashlib.sha256(ERROR_JS_BODY).hexdigest()[:20]
-CSS_URL = f"{BASE_URL}/css/site.css?h={CSS_HASH}&v={ASSET_EPOCH}"
-JS_URL = f"{BASE_URL}/js/site.js?h={JS_HASH}&v={ASSET_EPOCH}"
-ERROR_JS_URL = f"{BASE_URL}/js/error.js?h={ERROR_JS_HASH}&v={ASSET_EPOCH}"
+CSS_HASH = hashlib.sha256(CSS_BODY).hexdigest()
+JS_HASH = hashlib.sha256(JS_BODY).hexdigest()
+ERROR_JS_HASH = hashlib.sha256(ERROR_JS_BODY).hexdigest()
+
+
+def addressed_output(logical_path: str, body: bytes) -> str:
+    digest = hashlib.sha256(body).hexdigest()
+    return f"a/{digest}{Path(logical_path).suffix.lower()}"
+
+
+CSS_OUTPUT = addressed_output("css/site.css", CSS_BODY)
+JS_OUTPUT = addressed_output("js/site.js", JS_BODY)
+ERROR_JS_OUTPUT = addressed_output("js/error.js", ERROR_JS_BODY)
+CSS_URL = f"{BASE_URL}/{CSS_OUTPUT}"
+JS_URL = f"{BASE_URL}/{JS_OUTPUT}"
+ERROR_JS_URL = f"{BASE_URL}/{ERROR_JS_OUTPUT}"
 ASSET_MARKUP = (
     f'<link rel="stylesheet" href="{CSS_URL}"><script src="{JS_URL}" defer></script>'
 )
@@ -93,6 +108,7 @@ def run_production_fixture(
     redirect_targets: dict[str, str] | None = None,
     root_header_overrides: dict[str, str | None] | None = None,
     speculation_content_type: str = headers_contract.SPECULATION_MEDIA_TYPE,
+    logical_alias_overrides: dict[str, tuple[int, bytes]] | None = None,
 ) -> list[str]:
     assets = ASSET_MARKUP
     sitemap_body = (
@@ -124,16 +140,42 @@ def run_production_fixture(
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
             "career-claims.json": b"{}\n",
-            "css/site.css": CSS_BODY,
-            "js/site.js": JS_BODY,
-            "js/error.js": ERROR_JS_BODY,
             "llms.txt": b"release fixture\n",
             "robots.txt": b"User-agent: *\n",
             "runtime-boundary.json": b"{}\n",
-            "site.webmanifest": b"{}\n",
             "sitemap.xml": sitemap_body,
-            "speculation-rules.json": b"{}\n",
             "systems.json": b"[]\n",
+        }
+        addressed_bodies = {
+            "css/site.css": CSS_BODY,
+            "js/site.js": JS_BODY,
+            "js/error.js": ERROR_JS_BODY,
+            "site.webmanifest": b"{}\n",
+            "speculation-rules.json": b"{}\n",
+        }
+        asset_resources = []
+        for logical_path, body in addressed_bodies.items():
+            digest = hashlib.sha256(body).hexdigest()
+            output_path = addressed_output(logical_path, body)
+            files[output_path] = body
+            asset_resources.append(
+                {
+                    "logical_path": logical_path,
+                    "output_path": output_path,
+                    "request_url": f"/{output_path}",
+                    "sha256": digest,
+                    "cache_class": "addressed",
+                }
+            )
+        asset_map = {
+            "schema_version": release.ASSET_MAP_SCHEMA_VERSION,
+            "resource_count": len(asset_resources),
+            "resources": asset_resources,
+            "media_types": {
+                item["request_url"]: release.SPECULATION_MEDIA_TYPE
+                for item in asset_resources
+                if item["logical_path"] == "speculation-rules.json"
+            },
         }
         for relative, body in files.items():
             path = output / relative
@@ -161,7 +203,7 @@ def run_production_fixture(
         )
         test.assertEqual(contract_errors, [])
         manifest = release.build_manifest(
-            output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            output, EXPECTED_REVISION, asset_map, contract
         )
         manifest_bytes = release.serialize_manifest(manifest)
         (output / contract["manifest_name"]).write_bytes(manifest_bytes)
@@ -182,25 +224,26 @@ def run_production_fixture(
         responses: dict[tuple[str, bool], tuple[int, dict[str, str], bytes]] = {}
         for item in manifest["resources"]:
             body = files[item["output_path"]]
+            logical_path = item["logical_path"]
             status = 200
             cache = GOOD_CACHE
-            if item["output_path"] == "build-revision.txt":
+            if logical_path == "build-revision.txt":
                 body = f"{revision}\n".encode()
                 cache = revision_cache
-            elif item["output_path"] == "css/site.css":
+            elif logical_path == "css/site.css":
                 body = css_body
                 cache = css_cache
-            elif item["output_path"] == "js/site.js":
+            elif logical_path == "js/site.js":
                 body = js_body
                 cache = js_cache
                 status = js_status
-            elif item["output_path"] == "js/error.js":
+            elif logical_path == "js/error.js":
                 body = error_js_body
-            if resource_overrides and item["output_path"] in resource_overrides:
-                status, cache, body = resource_overrides[item["output_path"]]
+            if resource_overrides and logical_path in resource_overrides:
+                status, cache, body = resource_overrides[logical_path]
             url = f"{BASE_URL}{item['request_url']}"
             response_headers = with_cache(cache)
-            if item["output_path"] == "speculation-rules.json":
+            if logical_path == "speculation-rules.json":
                 response_headers["content-type"] = speculation_content_type
             responses[(url, False)] = (status, response_headers, body)
 
@@ -273,6 +316,20 @@ def run_production_fixture(
             },
             default_404 if custom_404_body is None else custom_404_body,
         )
+        for item in manifest["resources"]:
+            if item["cache_class"] != "addressed":
+                continue
+            alias_status, alias_body = (logical_alias_overrides or {}).get(
+                item["logical_path"], (404, default_404)
+            )
+            responses[(f"{BASE_URL}/{item['logical_path']}", False)] = (
+                alias_status,
+                {
+                    **direct_headers(),
+                    "content-type": "text/html; charset=utf-8",
+                },
+                alias_body,
+            )
         for tombstone in manifest["tombstones"]:
             responses[(f"{BASE_URL}{tombstone['path']}", False)] = (
                 tombstone_status,
@@ -302,7 +359,6 @@ def run_production_fixture(
                 BASE_URL,
                 1.0,
                 EXPECTED_REVISION,
-                ASSET_EPOCH,
                 manifest,
                 manifest_bytes,
                 contract["manifest_name"],
@@ -348,7 +404,7 @@ class ProductionAssetContractTests(unittest.TestCase):
             ),
             errors,
         )
-        self.assertTrue(all("/js/site.js?h=" in error for error in errors), errors)
+        self.assertTrue(all(JS_OUTPUT in error for error in errors), errors)
 
     def test_immutable_asset_cache_policy_fails(self) -> None:
         errors = run_production_fixture(
@@ -362,7 +418,20 @@ class ProductionAssetContractTests(unittest.TestCase):
         errors = run_production_fixture(self, js_status=404, js_body=b"not found")
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("returned 404, expected direct 200", errors[0])
-        self.assertIn("/js/site.js", errors[0])
+        self.assertIn(JS_OUTPUT, errors[0])
+
+    def test_stale_logical_asset_alias_fails_live_boundary(self) -> None:
+        errors = run_production_fixture(
+            self,
+            logical_alias_overrides={"js/site.js": (200, JS_BODY)},
+        )
+        self.assertTrue(
+            any(
+                "logical asset alias /js/site.js returned 200" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_query_free_runtime_html_authority_drift_fails(self) -> None:
         errors = run_production_fixture(
@@ -390,14 +459,14 @@ class ProductionAssetContractTests(unittest.TestCase):
             '<script src="https://example.com/app.js?h=11111111111111111111&amp;v=2"></script>'
         )
         assets = production.collect_hashed_assets(
-            errors, f"{BASE_URL}/", f"{BASE_URL}/", body, ASSET_EPOCH
+            errors, f"{BASE_URL}/", f"{BASE_URL}/", body
         )
         self.assertEqual(assets, [])
         self.assertEqual(len(errors), 3, errors)
+        self.assertTrue(any("full-sha256" in error for error in errors), errors)
         self.assertTrue(
-            any("exactly one h and one v" in error for error in errors), errors
+            any("query- and fragment-free" in error for error in errors), errors
         )
-        self.assertTrue(any("malformed h" in error for error in errors), errors)
         self.assertTrue(any("external JavaScript" in error for error in errors), errors)
 
     def test_page_missing_css_and_javascript_references_fails(self) -> None:
@@ -407,7 +476,6 @@ class ProductionAssetContractTests(unittest.TestCase):
             f"{BASE_URL}/",
             f"{BASE_URL}/",
             "<main>Evidence register</main>",
-            ASSET_EPOCH,
         )
         self.assertEqual(assets, [])
         self.assertEqual(len(errors), 2, errors)
@@ -416,20 +484,40 @@ class ProductionAssetContractTests(unittest.TestCase):
             any("no authored JavaScript" in error for error in errors), errors
         )
 
+    def test_canonical_asset_urls_are_fetched_from_immutable_origin_under_test(
+        self,
+    ) -> None:
+        immutable = "https://deadbeef.ardent-tools.pages.dev"
+        errors: list[str] = []
+        assets = production.collect_hashed_assets(
+            errors,
+            f"{immutable}/",
+            f"{immutable}/about/",
+            ASSET_MARKUP,
+            f"{BASE_URL}/",
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            {url for url, _digest, _kind in assets},
+            {
+                f"{immutable}/{CSS_OUTPUT}",
+                f"{immutable}/{JS_OUTPUT}",
+            },
+        )
+
     def test_conflicting_hashes_for_one_asset_path_fail(self) -> None:
-        other_hash = "1" * 20
-        other_url = f"{BASE_URL}/js/site.js?h={other_hash}&v={ASSET_EPOCH}"
+        other_hash = "1" * 64
         errors: list[str] = []
         assets = production.distinct_assets(
             errors,
             [
                 (JS_URL, JS_HASH, "JavaScript"),
-                (other_url, other_hash, "JavaScript"),
+                (JS_URL, other_hash, "JavaScript"),
             ],
         )
-        self.assertEqual(set(assets), {JS_URL, other_url})
-        self.assertEqual(len(errors), 1, errors)
-        self.assertIn("conflicting authored hashes for /js/site.js", errors[0])
+        self.assertEqual(set(assets), {JS_URL})
+        self.assertEqual(len(errors), 2, errors)
+        self.assertIn("conflicting authored hashes for /a/", errors[0])
 
     def test_live_max_age_and_duplicate_policy_fail(self) -> None:
         errors: list[str] = []
@@ -445,16 +533,13 @@ class ProductionAssetContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("must be exactly no-store, no-transform", errors[0])
 
-    def test_asset_epoch_and_query_shape_fail_closed(self) -> None:
+    def test_physical_asset_path_and_query_shape_fail_closed(self) -> None:
         cases = {
-            "missing hash": "/js/site.js?v=2",
-            "missing epoch": f"/js/site.js?h={JS_HASH}",
-            "empty hash": "/js/site.js?h=&v=2",
-            "wrong epoch": f"/js/site.js?h={JS_HASH}&v=1",
-            "empty epoch": f"/js/site.js?h={JS_HASH}&v=",
-            "duplicate epoch": f"/js/site.js?h={JS_HASH}&v=2&v=2",
-            "duplicate hash": f"/js/site.js?h={JS_HASH}&h={JS_HASH}&v=2",
-            "unexpected query": f"/js/site.js?h={JS_HASH}&v=2&x=1",
+            "logical alias": "/js/site.js",
+            "short digest": "/a/11111111111111111111.js",
+            "query": f"/{JS_OUTPUT}?v=1",
+            "fragment": f"/{JS_OUTPUT}#stale",
+            "wrong extension": f"/a/{JS_HASH}.css",
         }
         for label, reference in cases.items():
             with self.subTest(label=label):
@@ -464,7 +549,6 @@ class ProductionAssetContractTests(unittest.TestCase):
                     f"{BASE_URL}/",
                     f"{BASE_URL}/",
                     f'<link rel="stylesheet" href="{CSS_URL}"><script src="{reference}"></script>',
-                    ASSET_EPOCH,
                 )
                 self.assertEqual(len(errors), 1, errors)
 
@@ -548,14 +632,16 @@ class ProductionRouteContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("Content-Type must be HTML", errors[0])
 
-    def test_custom_404_malformed_asset_epoch_fails(self) -> None:
+    def test_custom_404_query_asset_identity_fails(self) -> None:
         malformed = (
             "404: no such path Return home "
             f'<link rel="stylesheet" href="{CSS_URL}">'
-            f'<script src="/js/site.js?h={JS_HASH}&v=1"></script>'
+            f'<script src="/{JS_OUTPUT}?v=1"></script>'
         ).encode()
         errors = run_production_fixture(self, custom_404_body=malformed)
-        self.assertTrue(any("expected '2'" in error for error in errors), errors)
+        self.assertTrue(
+            any("query- and fragment-free" in error for error in errors), errors
+        )
 
     def test_custom_404_only_asset_stale_bytes_fail_digest(self) -> None:
         errors = run_production_fixture(
@@ -563,7 +649,7 @@ class ProductionRouteContractTests(unittest.TestCase):
         )
         self.assertTrue(
             any(
-                "release resource digest mismatch" in error and "/js/error.js" in error
+                "release resource digest mismatch" in error and ERROR_JS_OUTPUT in error
                 for error in errors
             ),
             errors,
@@ -732,8 +818,795 @@ class RedirectContractTests(unittest.TestCase):
         )
 
 
+class ContentAddressContractTests(unittest.TestCase):
+    @staticmethod
+    def contract() -> dict:
+        contract, errors = release.read_contract(ROOT / "release-resources.toml")
+        if errors:
+            raise AssertionError(errors)
+        return contract
+
+    def finalize(self, root: Path, files: dict[str, bytes]) -> tuple[Path, dict]:
+        output = root / "public"
+        for relative, body in files.items():
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+        map_path = root / "asset-map.json"
+        document = content_address.finalize_tree(
+            output, map_path, BASE_URL, self.contract()
+        )
+        self.assertEqual(document, json.loads(map_path.read_text()))
+        return output, document
+
+    def test_finalizer_is_deterministic_and_removes_logical_aliases(self) -> None:
+        files = {
+            "index.html": b'<link rel="stylesheet" href="https://ardent.tools/css/app.css">',
+            "css/app.css": b"body{background:url('/img/pixel.svg')}\n",
+            "img/pixel.svg": (
+                b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'
+            ),
+        }
+        with (
+            tempfile.TemporaryDirectory() as first,
+            tempfile.TemporaryDirectory() as second,
+        ):
+            first_output, first_map = self.finalize(Path(first), files)
+            second_output, second_map = self.finalize(Path(second), files)
+            self.assertEqual(first_map, second_map)
+            self.assertEqual(
+                sorted(
+                    (path.relative_to(first_output).as_posix(), path.read_bytes())
+                    for path in first_output.rglob("*")
+                    if path.is_file()
+                ),
+                sorted(
+                    (path.relative_to(second_output).as_posix(), path.read_bytes())
+                    for path in second_output.rglob("*")
+                    if path.is_file()
+                ),
+            )
+            for logical in ("css/app.css", "img/pixel.svg"):
+                self.assertFalse((first_output / logical).exists())
+            html = (first_output / "index.html").read_text()
+            self.assertNotIn("/css/app.css", html)
+            self.assertRegex(html, r"https://ardent\.tools/a/[0-9a-f]{64}\.css")
+
+    def test_child_change_changes_child_and_parent_physical_identity(self) -> None:
+        base = {
+            "index.html": b'<link rel="stylesheet" href="/css/app.css">',
+            "css/app.css": b"body{background:url('/img/pixel.svg')}\n",
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        changed = dict(base)
+        changed["img/pixel.svg"] = (
+            b'<svg xmlns="http://www.w3.org/2000/svg"><path/></svg>'
+        )
+        with (
+            tempfile.TemporaryDirectory() as first,
+            tempfile.TemporaryDirectory() as second,
+        ):
+            _first_output, first_map = self.finalize(Path(first), base)
+            _second_output, second_map = self.finalize(Path(second), changed)
+        first_by_logical = {
+            item["logical_path"]: item["output_path"] for item in first_map["resources"]
+        }
+        second_by_logical = {
+            item["logical_path"]: item["output_path"]
+            for item in second_map["resources"]
+        }
+        self.assertNotEqual(
+            first_by_logical["img/pixel.svg"], second_by_logical["img/pixel.svg"]
+        )
+        self.assertNotEqual(
+            first_by_logical["css/app.css"], second_by_logical["css/app.css"]
+        )
+
+    def test_rewriter_changes_only_exact_same_origin_reference_tokens(self) -> None:
+        files = {
+            "index.html": (
+                b'<img src="https://example.com/img/pixel.svg">'
+                b'<img src="/img/pixel.svg">'
+                b"<p>/img/pixel.svg.backup</p>"
+                b'<link rel="stylesheet" href="/css/app.css">'
+            ),
+            "css/app.css": (
+                b".label{content:'/img/pixel.svg'}"
+                b".art{background:url('/img/pixel.svg')}\n"
+            ),
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, document = self.finalize(Path(directory), files)
+            html_body = (output / "index.html").read_text()
+            css_item = next(
+                item
+                for item in document["resources"]
+                if item["logical_path"] == "css/app.css"
+            )
+            css_body = (output / css_item["output_path"]).read_text()
+        self.assertIn("https://example.com/img/pixel.svg", html_body)
+        self.assertIn("/img/pixel.svg.backup", html_body)
+        self.assertNotIn('src="/img/pixel.svg"', html_body)
+        self.assertIn("content:'/img/pixel.svg'", css_body)
+        self.assertRegex(css_body, r"background:url\('/a/[0-9a-f]{64}\.svg'\)")
+
+    def test_html_and_json_rewriters_preserve_non_url_schema_values(self) -> None:
+        files = {
+            "index.html": (
+                b'<meta name="description" content="/img/pixel.svg">'
+                b'<meta property="og:image" content="/img/pixel.svg">'
+                b'<meta property="og:video" content="/img/pixel.svg">'
+                b'<meta name="twitter:app:url:iphone" content="/img/pixel.svg">'
+                b'<div data="/img/pixel.svg">literal</div>'
+                b'<image src="/img/pixel.svg">'
+                b'<script type="application/ld+json">'
+                b'{"description":"/img/pixel.svg","image":"/img/pixel.svg",'
+                b'"@id":"/img/pixel.svg","mainEntityOfPage":"/img/pixel.svg"}'
+                b"</script>"
+            ),
+            "site.webmanifest": (
+                b'{"/img/pixel.svg":"schema-key","name":"/img/pixel.svg",'
+                b'"icons":[{"src":"/img/pixel.svg"}]}\n'
+            ),
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, document = self.finalize(Path(directory), files)
+            html_body = (output / "index.html").read_text()
+            manifest_item = next(
+                item
+                for item in document["resources"]
+                if item["logical_path"] == "site.webmanifest"
+            )
+            webmanifest = json.loads(
+                (output / manifest_item["output_path"]).read_text()
+            )
+        self.assertIn('name="description" content="/img/pixel.svg"', html_body)
+        self.assertIn('<div data="/img/pixel.svg">', html_body)
+        self.assertIn('"description":"/img/pixel.svg"', html_body)
+        self.assertRegex(
+            html_body, r'property="og:image" content="/a/[0-9a-f]{64}\.svg"'
+        )
+        self.assertRegex(
+            html_body, r'property="og:video" content="/a/[0-9a-f]{64}\.svg"'
+        )
+        self.assertRegex(
+            html_body,
+            r'name="twitter:app:url:iphone" content="/a/[0-9a-f]{64}\.svg"',
+        )
+        self.assertRegex(html_body, r'<image src="/a/[0-9a-f]{64}\.svg">')
+        self.assertRegex(html_body, r'"image":"/a/[0-9a-f]{64}\.svg"')
+        self.assertRegex(html_body, r'"@id":"/a/[0-9a-f]{64}\.svg"')
+        self.assertRegex(html_body, r'"mainEntityOfPage":"/a/[0-9a-f]{64}\.svg"')
+        self.assertIn("/img/pixel.svg", webmanifest)
+        self.assertEqual(webmanifest["name"], "/img/pixel.svg")
+        self.assertRegex(webmanifest["icons"][0]["src"], r"^/a/[0-9a-f]{64}\.svg$")
+
+    def test_webmanifest_dependencies_change_its_physical_identity(self) -> None:
+        base = {
+            "site.webmanifest": b'{"icons":[{"src":"/img/icon.png"}]}\n',
+            "img/icon.png": b"first icon\n",
+        }
+        changed = dict(base)
+        changed["img/icon.png"] = b"second icon\n"
+        with (
+            tempfile.TemporaryDirectory() as first,
+            tempfile.TemporaryDirectory() as second,
+        ):
+            _first_output, first_map = self.finalize(Path(first), base)
+            _second_output, second_map = self.finalize(Path(second), changed)
+        first_paths = {
+            item["logical_path"]: item["output_path"] for item in first_map["resources"]
+        }
+        second_paths = {
+            item["logical_path"]: item["output_path"]
+            for item in second_map["resources"]
+        }
+        self.assertNotEqual(
+            first_paths["site.webmanifest"], second_paths["site.webmanifest"]
+        )
+
+        relative = {
+            "site.webmanifest": b'{"icons":[{"src":"img/icon.png"}]}\n',
+            "img/icon.png": b"icon\n",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "path-relative JSON URL field"):
+                self.finalize(Path(directory), relative)
+
+    def test_speculation_list_urls_rewrite_but_urlpatterns_do_not(self) -> None:
+        files = {
+            "speculation-rules.json": (
+                b'{"prefetch":[{"source":"list","urls":["/img/pixel.svg"]}],'
+                b'"prerender":[{"source":"document","where":'
+                b'{"href_matches":"/img/pixel.svg"}}]}\n'
+            ),
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, document = self.finalize(Path(directory), files)
+            item = next(
+                resource
+                for resource in document["resources"]
+                if resource["logical_path"] == "speculation-rules.json"
+            )
+            rules = json.loads((output / item["output_path"]).read_text())
+        self.assertRegex(rules["prefetch"][0]["urls"][0], r"^/a/[0-9a-f]{64}\.svg$")
+        self.assertEqual(
+            rules["prerender"][0]["where"]["href_matches"],
+            "/img/pixel.svg",
+        )
+
+    def test_dependency_capable_addressed_xml_fails_closed(self) -> None:
+        for suffix in ("xml", "rss", "atom"):
+            with (
+                self.subTest(suffix=suffix),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                files = {
+                    f"feeds/extra.{suffix}": (
+                        b'<?xml-stylesheet href="/img/pixel.svg"?><feed/>'
+                    ),
+                    "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+                }
+                with self.assertRaisesRegex(ValueError, "dependency-capable XML"):
+                    self.finalize(Path(directory), files)
+
+    def test_unknown_webmanifest_is_outside_closed_json_authority(self) -> None:
+        files = {
+            "other.webmanifest": b'{"icons":[{"src":"/img/pixel.svg"}]}',
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "closed schema authority"):
+                self.finalize(Path(directory), files)
+
+    def test_generic_uri_tokens_reject_ambiguous_logical_references(self) -> None:
+        cases = {
+            "query": '<feed><link href="/img/pixel.svg?variant=1"/></feed>',
+            "fragment": '<feed><link href="/img/pixel.svg#icon"/></feed>',
+            "non-http scheme": (
+                '<feed><link href="mailto:user@example.com?body=/img/pixel.svg"/></feed>'
+            ),
+            "punctuation": '<feed><link href="/img/pixel.svg,"/></feed>',
+            "backslash boundary": r'<feed><link href="/img/pixel.svg\@evil"/></feed>',
+            "network path": '<feed><link href="///evil.example/img/pixel.svg"/></feed>',
+            "path relative": '<feed><link href="img/pixel.svg"/></feed>',
+            "percent alias": '<feed><link href="/img/%70ixel.svg"/></feed>',
+            "HTTP upgrade": (
+                '<feed><link href="http://ardent.tools/img/pixel.svg"/></feed>'
+            ),
+            "HTTP explicit 443": (
+                '<feed><link href="http://ardent.tools:443/img/pixel.svg"/></feed>'
+            ),
+            "HTTP explicit 80": (
+                '<feed><link href="http://ardent.tools:80/img/pixel.svg"/></feed>'
+            ),
+            "percent-encoded hostname": (
+                '<feed><link href="https://%61rdent.tools/img/pixel.svg"/></feed>'
+            ),
+            "percent-encoded hostname dot": (
+                '<feed><link href="https://ardent%2etools/img/pixel.svg"/></feed>'
+            ),
+            "Unicode hostname dot": (
+                '<feed><link href="https://ardent。tools/img/pixel.svg"/></feed>'
+            ),
+            "excess authority slash": (
+                '<feed><link href="https:///ardent.tools/img/pixel.svg"/></feed>'
+            ),
+            "credentials": (
+                '<feed><link href="https://user@ardent.tools/img/pixel.svg"/></feed>'
+            ),
+            "foreign type discriminator": (
+                '<feed xmlns:x="urn:x"><title x:type="text" type="html">'
+                '&lt;img src="/img/pixel.svg"&gt;</title></feed>'
+            ),
+            "Atom uri attribute": (
+                '<feed><generator uri="/img/pixel.svg">tool</generator></feed>'
+            ),
+            "processing instruction": '<?test href="/img/pixel.svg"?><feed/>',
+            "xml base": (
+                '<feed xml:base="/img/" '
+                'xmlns:xml="http://www.w3.org/XML/1998/namespace"/>'
+            ),
+        }
+        expected = {
+            "query": "query- and fragment-free",
+            "fragment": "query- and fragment-free",
+            "non-http scheme": "unsupported or ambiguous URI token",
+            "punctuation": "unsupported or ambiguous URI token",
+            "backslash boundary": "forbidden backslash",
+            "network path": "network-path resource references are forbidden",
+            "path relative": "canonical XML must not depend",
+            "percent alias": "canonical XML must not depend",
+            "HTTP upgrade": "canonical XML must not depend",
+            "HTTP explicit 443": "canonical XML must not depend",
+            "HTTP explicit 80": "canonical XML must not depend",
+            "percent-encoded hostname": "canonical XML must not depend",
+            "percent-encoded hostname dot": "canonical XML must not depend",
+            "Unicode hostname dot": "canonical XML must not depend",
+            "excess authority slash": "canonical XML must not depend",
+            "credentials": "canonical XML must not depend",
+            "foreign type discriminator": "foreign XML attribute namespaces",
+            "Atom uri attribute": "canonical XML must not depend",
+            "processing instruction": "processing instructions are forbidden",
+            "xml base": "xml:base is forbidden",
+        }
+        for label, document in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                files = {
+                    "atom.xml": document.encode(),
+                    "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+                }
+                with self.assertRaisesRegex(ValueError, expected[label]):
+                    self.finalize(Path(directory), files)
+
+    def test_xml_and_plain_text_literal_paths_are_not_mutated(self) -> None:
+        files = {
+            "atom.xml": (
+                b'<feed title="/img/pixel.svg"><title>/img/pixel.svg</title></feed>'
+            ),
+            "llms.txt": b"Literal identifier: /img/pixel.svg\n",
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, _document = self.finalize(Path(directory), files)
+            self.assertEqual((output / "atom.xml").read_bytes(), files["atom.xml"])
+            self.assertEqual((output / "llms.txt").read_bytes(), files["llms.txt"])
+
+    def test_sitemap_extension_namespaces_fail_closed(self) -> None:
+        files = {
+            "sitemap.xml": (
+                b'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+                b'xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">'
+                b"<url><video:thumbnail_loc>"
+                b"https://ardent.tools/img/pixel.svg"
+                b"</video:thumbnail_loc></url></urlset>"
+            ),
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self.assertRaisesRegex(
+                ValueError, "foreign XML extension namespaces are forbidden"
+            ),
+        ):
+            self.finalize(Path(directory), files)
+
+    def test_markdown_inline_and_reference_destinations_are_exact(self) -> None:
+        source = (
+            b"[inline](/img/pixel.svg) and [reference][pixel]\n"
+            b"[upgraded](HTTP://ardent.tools/img/pixel.svg)\n"
+            b"[pixel]: /img/pixel.svg\n"
+            b"Literal [not a complete link](/img/pixel.svg\n"
+        )
+        files = {
+            "llms.txt": source,
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, _document = self.finalize(Path(directory), files)
+            rewritten = (output / "llms.txt").read_text()
+        self.assertEqual(len(re.findall(r"/a/[0-9a-f]{64}\.svg", rewritten)), 3)
+        self.assertIn("Literal [not a complete link](/img/pixel.svg", rewritten)
+
+    def test_markdown_ambiguous_destinations_fail_closed(self) -> None:
+        cases = {
+            "path relative": "[asset](img/pixel.svg)\n",
+            "dot relative": "[asset](./img/pixel.svg)\n",
+            "character reference": "[asset](/img/pixel&#46;svg)\n",
+            "escape": r"[asset](/img/pixel\.svg)" + "\n",
+            "raw HTML": '<img src="/img/pixel.svg">\n',
+            "indented code": "    https://ardent.tools/img/pixel.svg\n",
+            "invalid fence info": (
+                "```bad`info\nhttps://ardent.tools/img/pixel.svg\n```\n"
+            ),
+        }
+        expected = {
+            "path relative": "path-relative Markdown destinations",
+            "dot relative": "path-relative Markdown destinations",
+            "character reference": "character references are forbidden",
+            "escape": "destination escapes are forbidden",
+            "raw HTML": "raw HTML is forbidden",
+            "indented code": "indented Markdown code containing URL syntax",
+            "invalid fence info": "fence info strings containing backticks",
+        }
+        for label, source in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                files = {
+                    "llms.txt": source.encode(),
+                    "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+                }
+                with self.assertRaisesRegex(ValueError, expected[label]):
+                    self.finalize(Path(directory), files)
+
+    def test_markdown_uses_the_browser_url_authority(self) -> None:
+        files = {
+            "llms.txt": (
+                b"[inline](https://%61rdent.tools/img/pixel.svg)\n"
+                b"<https:///ardent.tools/img/pixel.svg>\n"
+                + "https://ardent。tools/img/pixel.svg\n".encode()
+                + b"See https://%61rdent.tools/img/pixel.svg.\n"
+                + b"\\`https://%61rdent.tools/img/pixel.svg`\n"
+                + b"\\[https://%61rdent.tools/img/pixel.svg](/about/)\n"
+                + b"[https://%61rdent.tools/img/pixel.svg\\](/about/)\n"
+            ),
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, _document = self.finalize(Path(directory), files)
+            rewritten = (output / "llms.txt").read_text()
+        self.assertEqual(
+            len(re.findall(r"https://ardent\.tools/a/[0-9a-f]{64}\.svg", rewritten)),
+            7,
+        )
+        self.assertRegex(
+            rewritten, r"\nSee https://ardent\.tools/a/[0-9a-f]{64}\.svg\.\n"
+        )
+
+    def test_markdown_code_and_escape_literals_are_not_mutated(self) -> None:
+        source = (
+            b"`[asset](/img/pixel.svg)`\n"
+            b"`https://ardent.tools/img/pixel.svg`\n"
+            b"```md\n[asset](/img/pixel.svg)\n"
+            b"https://ardent.tools/img/pixel.svg\n```\n"
+            b"\\<https://ardent.tools/img/pixel.svg>\n"
+            b'[external](https://example.com "https://ardent.tools/img/pixel.svg")\n'
+        )
+        files = {
+            "llms.txt": source,
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, _document = self.finalize(Path(directory), files)
+            self.assertEqual((output / "llms.txt").read_bytes(), source)
+
+    def test_atom_embedded_html_dependency_and_doctype_fail_closed(self) -> None:
+        cases = {
+            "embedded HTML": (
+                '<feed><content type="html">'
+                '&lt;img src="/img/pixel.svg"&gt;'
+                "</content></feed>"
+            ),
+            "document type": ('<!DOCTYPE feed SYSTEM "/img/pixel.svg"><feed/>'),
+            "XHTML content": (
+                '<feed><content type="xhtml">'
+                '<div xmlns="http://www.w3.org/1999/xhtml">'
+                '<img src="/img/pixel.svg"/></div>'
+                "</content></feed>"
+            ),
+            "XML media content": (
+                '<feed><content type="application/xhtml+xml">'
+                '<div xmlns="http://www.w3.org/1999/xhtml">'
+                '<img src="/img/pixel.svg"/></div>'
+                "</content></feed>"
+            ),
+            "SVG media content": (
+                '<feed><content type="image/svg+xml">'
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<image href="/img/pixel.svg"/></svg>'
+                "</content></feed>"
+            ),
+            "HTML title": (
+                '<feed><title type="html">'
+                '&lt;img src="/img/pixel.svg"&gt;'
+                "</title></feed>"
+            ),
+            "HTML subtitle": (
+                '<feed><subtitle type="html">'
+                '&lt;img src="/img/pixel.svg"&gt;'
+                "</subtitle></feed>"
+            ),
+            "HTML rights": (
+                '<feed><rights type="html">'
+                '&lt;img src="/img/pixel.svg"&gt;'
+                "</rights></feed>"
+            ),
+            "XHTML title": (
+                '<feed><title type="xhtml">'
+                '<div xmlns="http://www.w3.org/1999/xhtml">'
+                '<img src="/img/pixel.svg"/></div>'
+                "</title></feed>"
+            ),
+            "embedded style element": (
+                '<feed><content type="html">'
+                "&lt;style&gt;.x{background:url(/img/pixel.svg)}&lt;/style&gt;"
+                "</content></feed>"
+            ),
+            "embedded style attribute": (
+                '<feed><content type="html">'
+                '&lt;div style="background:url(/img/pixel.svg)"&gt;x&lt;/div&gt;'
+                "</content></feed>"
+            ),
+        }
+        expected = {
+            "embedded HTML": "canonical XML must not depend",
+            "document type": "document types are forbidden",
+            "XHTML content": "inline Atom XML content is forbidden",
+            "XML media content": "inline Atom XML content is forbidden",
+            "SVG media content": "inline Atom XML content is forbidden",
+            "HTML title": "canonical XML must not depend",
+            "HTML subtitle": "canonical XML must not depend",
+            "HTML rights": "canonical XML must not depend",
+            "XHTML title": "inline Atom XML content is forbidden",
+            "embedded style element": "forbids active or style-bearing element",
+            "embedded style attribute": "forbids inline style or event attributes",
+        }
+        for label, document in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                files = {
+                    "atom.xml": document.encode(),
+                    "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+                }
+                with self.assertRaisesRegex(ValueError, expected[label]):
+                    self.finalize(Path(directory), files)
+
+    def test_javascript_closed_byte_authority_fails_closed(self) -> None:
+        cases = {
+            "fetch": "fetch('/img/pixel.svg');\n",
+            "import": "import './chunk.js';\n",
+            "concatenation": "fetch('/img/' + 'pixel.svg');\n",
+            "unicode escape": r"fetch('/img/pix\u0065l.svg');" + "\n",
+            "regex literal": "const slash=/[//]/; fetch('/img/pixel.svg');\n",
+        }
+        for label, script in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                files = {
+                    "js/app.js": script.encode(),
+                    "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+                }
+                with self.assertRaisesRegex(ValueError, "closed executable authority"):
+                    self.finalize(Path(directory), files)
+
+        approved = (ROOT / "static/js/site.js").read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            _output, document = self.finalize(Path(directory), {"js/site.js": approved})
+        self.assertEqual(
+            document["resources"][0]["sha256"], hashlib.sha256(approved).hexdigest()
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(
+                ValueError, "bytes differ from the reviewed authority"
+            ):
+                self.finalize(Path(directory), {"js/site.js": approved + b"\n"})
+
+    def test_retention_ledger_preserves_prior_physical_bodies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+
+            def finalize_snapshot(
+                name: str, body: bytes, record: bool
+            ) -> tuple[Path, dict]:
+                output = root / name / "public"
+                source = output / "img/pixel.svg"
+                source.parent.mkdir(parents=True)
+                source.write_bytes(body)
+                document = content_address.finalize_tree(
+                    output,
+                    root / name / "asset-map.json",
+                    BASE_URL,
+                    self.contract(),
+                    retention_ledger=ledger,
+                    retention_assets=assets,
+                    record_retention_snapshot=record,
+                )
+                return output, document
+
+            first_output, first_map = finalize_snapshot("first", b"first\n", True)
+            first_path = first_map["resources"][0]["output_path"]
+            self.assertEqual((first_output / first_path).read_bytes(), b"first\n")
+            prior = root / "prior-asset-retention.json"
+            prior.write_bytes(ledger.read_bytes())
+            with self.assertRaisesRegex(ValueError, "latest asset-retention snapshot"):
+                finalize_snapshot("unrecorded", b"second\n", False)
+            second_output, second_map = finalize_snapshot("second", b"second\n", True)
+            second_current = next(
+                item
+                for item in second_map["resources"]
+                if item["cache_class"] == "addressed"
+            )
+            self.assertNotEqual(first_path, second_current["output_path"])
+            self.assertEqual((second_output / first_path).read_bytes(), b"first\n")
+            self.assertTrue(
+                any(
+                    item["output_path"] == first_path
+                    and item["cache_class"] == "retained"
+                    for item in second_map["resources"]
+                )
+            )
+            document, retained = asset_retention.validate_ledger(ledger, assets)
+            self.assertEqual(document["entry_count"], 2)
+            self.assertEqual(retained[first_path], b"first\n")
+            asset_retention.validate_history_prefix(document, prior)
+
+            truncated = json.loads(json.dumps(document))
+            truncated["entries"] = []
+            with self.assertRaisesRegex(ValueError, "truncated"):
+                asset_retention.validate_history_prefix(truncated, prior)
+
+            rewritten = json.loads(json.dumps(document))
+            rewritten["entries"][0]["resources"][0]["sha256"] = "0" * 64
+            with self.assertRaisesRegex(ValueError, "append-only base prefix"):
+                asset_retention.validate_history_prefix(rewritten, prior)
+
+    def test_retention_integer_fields_reject_json_booleans(self) -> None:
+        body = b"retained\n"
+        digest = hashlib.sha256(body).hexdigest()
+        output_path = f"a/{digest}.svg"
+        resource = {
+            "logical_path": "img/retained.svg",
+            "output_path": output_path,
+            "sha256": digest,
+        }
+        entry = {
+            "sequence": 1,
+            "previous_entry_sha256": None,
+            "resource_count": 1,
+            "resources": [resource],
+        }
+        document = {
+            "schema_version": 1,
+            "entry_count": 1,
+            "entries": [entry],
+        }
+        cases = {
+            "schema_version": ("schema_version",),
+            "sequence": ("entries", 0, "sequence"),
+            "resource_count": ("entries", 0, "resource_count"),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            retained = assets / output_path
+            retained.parent.mkdir(parents=True)
+            retained.write_bytes(body)
+            for label, path in cases.items():
+                candidate = copy.deepcopy(document)
+                target: object = candidate
+                for part in path[:-1]:
+                    target = target[part]  # type: ignore[index]
+                target[path[-1]] = True  # type: ignore[index]
+                ledger.write_text(json.dumps(candidate))
+                with (
+                    self.subTest(label=label),
+                    self.assertRaisesRegex(ValueError, label.replace("_", ".?")),
+                ):
+                    asset_retention.validate_ledger(ledger, assets)
+
+    def test_current_physical_asset_respects_pages_file_limit(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            mock.patch("pages_limits.MAX_STATIC_FILE_BYTES", 3),
+            self.assertRaisesRegex(ValueError, "static-file limit"),
+        ):
+            self.finalize(
+                Path(directory),
+                {"img/pixel.svg": b"four"},
+            )
+
+    def test_retained_speculation_rules_keep_their_media_type(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+
+            def finalize_snapshot(name: str, body: bytes) -> tuple[Path, dict]:
+                output = root / name / "public"
+                output.mkdir(parents=True)
+                (output / "speculation-rules.json").write_bytes(body)
+                (output / "_headers").write_text((ROOT / "_headers").read_text())
+                document = content_address.finalize_tree(
+                    output,
+                    root / name / "asset-map.json",
+                    BASE_URL,
+                    self.contract(),
+                    retention_ledger=ledger,
+                    retention_assets=assets,
+                    record_retention_snapshot=True,
+                )
+                return output, document
+
+            _first_output, first = finalize_snapshot("first", b'{"prefetch":[]}\n')
+            second_output, second = finalize_snapshot("second", b'{"prerender":[]}\n')
+            first_url = next(iter(first["media_types"]))
+            second_urls = set(second["media_types"])
+            self.assertIn(first_url, second_urls)
+            self.assertEqual(len(second_urls), 2)
+            manifest = release.build_manifest(
+                second_output,
+                EXPECTED_REVISION,
+                second,
+                {
+                    "manifest_name": "release-resources.json",
+                    "canonical_paths": [],
+                    "tombstones": [],
+                },
+            )
+            self.assertEqual(manifest["media_types"], second["media_types"])
+            _contract, errors = headers_contract.validate_headers(
+                (second_output / "_headers").read_text(), manifest
+            )
+            self.assertEqual(errors, [])
+            for request_url in second_urls:
+                self.assertIn(
+                    f"{request_url}\n  Content-Type: {release.SPECULATION_MEDIA_TYPE}",
+                    (second_output / "_headers").read_text(),
+                )
+
+    def test_cycles_unknown_dependencies_and_legacy_queries_fail_closed(self) -> None:
+        cases = {
+            "cycle": {
+                "css/a.css": b"a{background:url('/css/b.css')}\n",
+                "css/b.css": b"b{background:url('/css/a.css')}\n",
+            },
+            "unknown": {
+                "css/a.css": b"a{background:url('/img/missing.svg')}\n",
+            },
+            "legacy query": {
+                "index.html": b'<img src="/img/pixel.svg?h=abc&amp;v=2">',
+                "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+            },
+        }
+        expected = {
+            "cycle": "dependency cycle",
+            "unknown": "not a retained addressable resource",
+            "legacy query": "query- and fragment-free",
+        }
+        for label, files in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(ValueError, expected[label]):
+                    self.finalize(Path(directory), files)
+
+    def test_owned_sources_do_not_reintroduce_query_cache_busters(self) -> None:
+        pattern = re.compile(
+            r"asset_epoch|cachebust=true|[?&](?:h|v)=|&amp;(?:h|v)=",
+            re.IGNORECASE,
+        )
+        roots = [
+            ROOT / "content",
+            ROOT / "static",
+            ROOT / "templates",
+            ROOT / "functions",
+        ]
+        files = [
+            ROOT / "README.md",
+            ROOT / "AGENTS.md",
+            ROOT / "_headers",
+            ROOT / "config.toml",
+        ]
+        for root in roots:
+            files.extend(path for path in root.rglob("*") if path.is_file())
+        violations: list[str] = []
+        for path in files:
+            if "static/vendor/" in path.as_posix():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="strict")
+            except UnicodeDecodeError:
+                continue
+            if pattern.search(text):
+                violations.append(path.relative_to(ROOT).as_posix())
+        self.assertEqual(violations, [])
+
+
 class ReleaseManifestContractTests(unittest.TestCase):
-    def make_fixture(self, output: Path) -> tuple[dict, dict, bytes]:
+    @staticmethod
+    def logical_resource_path(output: Path, manifest: dict, logical: str) -> Path:
+        item = next(
+            item for item in manifest["resources"] if item["logical_path"] == logical
+        )
+        return output / item["output_path"]
+
+    def make_fixture(
+        self,
+        output: Path,
+        addressed_bodies: dict[str, bytes] | None = None,
+    ) -> tuple[dict, dict, bytes]:
         contract, contract_errors = release.read_contract(
             ROOT / "release-resources.toml"
         )
@@ -745,16 +1618,46 @@ class ReleaseManifestContractTests(unittest.TestCase):
             "llms.txt": b"fixture\n",
             "release-html.json": b"{}\n",
             "robots.txt": b"fixture\n",
+            "runtime-boundary.json": b"{}\n",
             "sitemap.xml": b"<urlset/>\n",
             "systems.json": b"{}\n",
-            "files/report.pdf": b"pdf bytes\n",
         }
+        mapped_bodies = {
+            "files/report.pdf": b"pdf bytes\n",
+            "site.webmanifest": b"{}\n",
+            "speculation-rules.json": b"{}\n",
+        }
+        mapped_bodies.update(addressed_bodies or {})
+        asset_resources = []
+        for logical_path, body in mapped_bodies.items():
+            digest = hashlib.sha256(body).hexdigest()
+            output_path = addressed_output(logical_path, body)
+            bodies[output_path] = body
+            asset_resources.append(
+                {
+                    "logical_path": logical_path,
+                    "output_path": output_path,
+                    "request_url": f"/{output_path}",
+                    "sha256": digest,
+                    "cache_class": "addressed",
+                }
+            )
         for relative, body in bodies.items():
             path = output / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
+        asset_map = {
+            "schema_version": release.ASSET_MAP_SCHEMA_VERSION,
+            "resource_count": len(asset_resources),
+            "resources": asset_resources,
+            "media_types": {
+                item["request_url"]: release.SPECULATION_MEDIA_TYPE
+                for item in asset_resources
+                if item["logical_path"] == "speculation-rules.json"
+            },
+        }
         manifest = release.build_manifest(
-            output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            output, EXPECTED_REVISION, asset_map, contract
         )
         return contract, manifest, release.serialize_manifest(manifest)
 
@@ -766,7 +1669,6 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 raw,
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
         self.assertEqual(errors, [])
@@ -791,7 +1693,6 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 release.serialize_manifest(manifest),
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
         self.assertTrue(any("invalid output_path" in error for error in errors), errors)
@@ -809,7 +1710,6 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 release.serialize_manifest(manifest),
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
         self.assertTrue(any("resource_count" in error for error in errors), errors)
@@ -820,21 +1720,25 @@ class ReleaseManifestContractTests(unittest.TestCase):
     def test_manifest_stale_digest_and_missing_artifact_fail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            contract, _manifest, raw = self.make_fixture(output)
-            (output / "files/report.pdf").write_bytes(b"changed\n")
+            contract, manifest, raw = self.make_fixture(output)
+            report = next(
+                item
+                for item in manifest["resources"]
+                if item["logical_path"] == "files/report.pdf"
+            )
+            report_path = output / report["output_path"]
+            report_path.write_bytes(b"changed\n")
             _, stale_errors = release.validate_manifest(
                 raw,
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
-            (output / "files/report.pdf").unlink()
+            report_path.unlink()
             _, missing_errors = release.validate_manifest(
                 raw,
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
         self.assertTrue(
@@ -874,7 +1778,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
             (output / "css/app.css").write_text(
                 "body { background: url('/files/report.pdf'); }\n"
             )
-            (output / "site.webmanifest").write_text(
+            self.logical_resource_path(output, manifest, "site.webmanifest").write_text(
                 '{"icons":[{"src":"/files/report.pdf"}]}\n'
             )
             (output / "_headers").write_text(
@@ -890,7 +1794,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             _contract, manifest, _raw = self.make_fixture(output)
-            (output / "site.webmanifest").write_text(
+            self.logical_resource_path(output, manifest, "site.webmanifest").write_text(
                 '{"name":"fixture","theme_color":"#F7F3E8"}\n'
             )
             errors = release.validate_public_references(output, manifest)
@@ -903,7 +1807,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
             report = next(
                 item
                 for item in manifest["resources"]
-                if item["output_path"] == "files/report.pdf"
+                if item["logical_path"] == "files/report.pdf"
             )
             exact = f"{BASE_URL}{report['request_url']}"
             cases = {
@@ -912,15 +1816,13 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 "explicit default port": exact.replace(
                     "https://ardent.tools/", "https://ardent.tools:443/"
                 ),
-                "percent-encoded alias": exact.replace("report.pdf", "%72eport.pdf"),
-                "dot-segment alias": exact.replace(
-                    "/files/report.pdf", "/files/../files/report.pdf"
-                ),
+                "percent-encoded alias": exact.replace("/a/", "/%61/"),
+                "dot-segment alias": exact.replace("/a/", "/a/../a/"),
                 "root-relative backslash alias": report["request_url"].replace(
-                    "/files/", "/files\\"
+                    "/a/", "/a\\"
                 ),
-                "absolute backslash alias": exact.replace("/files/", "/files\\"),
-                "encoded backslash alias": exact.replace("/files/", "/files%5c"),
+                "absolute backslash alias": exact.replace("/a/", "/a\\"),
+                "encoded backslash alias": exact.replace("/a/", "/a%5c"),
                 "trailing browser whitespace": f"{BASE_URL}/files/report.pdf ",
                 "excess authority separators": "///ardent.tools/files/report.pdf",
                 "excess scheme separators": "https:///ardent.tools/files/report.pdf",
@@ -934,7 +1836,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 "CSP-upgraded HTTPS-default port": "http://ardent.tools:443/files/report.pdf",
                 "relative exact query": report["request_url"].lstrip("/"),
                 "protocol-relative": exact.replace("https:", ""),
-                "raw-script HTML entity": exact.replace("&v=", "&amp;v="),
+                "raw-script HTML entity": f"{exact}?v=2&amp;h=stale",
             }
             for label, reference in cases.items():
                 with self.subTest(label=label):
@@ -1046,15 +1948,15 @@ class ReleaseManifestContractTests(unittest.TestCase):
     def test_css_quoted_url_and_actual_stylesheet_base_are_inspected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            contract, _manifest, _raw = self.make_fixture(output)
-            (output / "css").mkdir()
-            (output / "css/font.woff2").write_bytes(b"font bytes\n")
-            manifest = release.build_manifest(
-                output, EXPECTED_REVISION, ASSET_EPOCH, contract
-            )
-            (output / "css/app.css").write_text(
-                "/* a maintainer's note */\n"
-                '.sample { background: url("font.woff2"); }\n'
+            _contract, manifest, _raw = self.make_fixture(
+                output,
+                {
+                    "css/font.woff2": b"font bytes\n",
+                    "css/app.css": (
+                        "/* a maintainer's note */\n"
+                        '.sample { background: url("font.woff2"); }\n'
+                    ).encode(),
+                },
             )
             errors = release.validate_public_references(output, manifest)
         self.assertEqual(len(errors), 1, errors)
@@ -1086,13 +1988,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            contract, _manifest, _raw = self.make_fixture(output)
-            (output / "css").mkdir()
-            (output / "css/app.css").write_text(
-                ".sample { background-image: url(?stale); }\n"
-            )
-            manifest = release.build_manifest(
-                output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            _contract, manifest, _raw = self.make_fixture(
+                output,
+                {"css/app.css": b".sample { background-image: url(?stale); }\n"},
             )
             errors = release.validate_public_references(output, manifest)
         self.assertEqual(len(errors), 1, errors)
@@ -1197,10 +2095,11 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 duplicate_manifest,
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
-            (output / "site.webmanifest").write_text('{"name":"a","name":"b"}')
+            self.logical_resource_path(output, manifest, "site.webmanifest").write_text(
+                '{"name":"a","name":"b"}'
+            )
             reference_errors = release.validate_public_references(output, manifest)
         self.assertEqual(len(manifest_errors), 1, manifest_errors)
         self.assertIn("duplicate key", manifest_errors[0])
@@ -1210,18 +2109,13 @@ class ReleaseManifestContractTests(unittest.TestCase):
     def test_tombstone_resurrection_fails_local_and_live(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            contract, _manifest, _raw = self.make_fixture(output)
-            resurrected = output / "tapes/aletheia-memory.tape"
-            resurrected.parent.mkdir(parents=True)
-            resurrected.write_text("old tape\n")
-            manifest = release.build_manifest(
-                output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            contract, _manifest, raw = self.make_fixture(
+                output, {"tapes/aletheia-memory.tape": b"old tape\n"}
             )
             _, errors = release.validate_manifest(
-                release.serialize_manifest(manifest),
+                raw,
                 output=output,
                 expected_revision=EXPECTED_REVISION,
-                expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
         self.assertTrue(
@@ -1276,34 +2170,44 @@ class ReleaseManifestContractTests(unittest.TestCase):
 
 
 class HeaderContractTests(unittest.TestCase):
+    SPECULATION_PATH = f"/a/{'1' * 64}.json"
+
     @staticmethod
     def repository_manifest() -> dict:
-        body = (ROOT / "static/speculation-rules.json").read_bytes()
-        digest = hashlib.sha256(body).hexdigest()
         return {
+            "media_types": {
+                f"/a/{'1' * 64}.json": release.SPECULATION_MEDIA_TYPE,
+            },
             "resources": [
                 {
-                    "output_path": "speculation-rules.json",
-                    "request_url": (
-                        f"/speculation-rules.json?h={digest[:20]}&v={ASSET_EPOCH}"
-                    ),
+                    "logical_path": "speculation-rules.json",
+                    "output_path": f"a/{'1' * 64}.json",
+                    "request_url": f"/a/{'1' * 64}.json",
                 }
-            ]
+            ],
         }
+
+    @classmethod
+    def finalized_headers(cls) -> str:
+        return (
+            (ROOT / "_headers")
+            .read_text()
+            .replace("/speculation-rules.json", cls.SPECULATION_PATH)
+        )
 
     def test_repository_headers_are_the_exact_supported_contract(self) -> None:
         contract, errors = headers_contract.validate_headers(
-            (ROOT / "_headers").read_text(), self.repository_manifest()
+            self.finalized_headers(), self.repository_manifest()
         )
         self.assertEqual(errors, [])
         self.assertIsNotNone(contract)
         self.assertEqual(
             contract.direct_response["speculation-rules"],
-            '"/speculation-rules.json?h=dd1ab64ebeb7a41864aa&v=2"',
+            f'"{self.SPECULATION_PATH}"',
         )
 
     def test_missing_wrong_duplicate_extra_and_detach_fail_closed(self) -> None:
-        raw = (ROOT / "_headers").read_text()
+        raw = self.finalized_headers()
         hsts = (
             "  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload"
         )
@@ -1349,6 +2253,46 @@ class HeaderContractTests(unittest.TestCase):
         )
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("Content-Type must be HTML", errors[0])
+
+    def test_pages_header_rule_limit_has_an_exact_boundary(self) -> None:
+        media_types = {
+            f"/a/{index:064x}.json": release.SPECULATION_MEDIA_TYPE
+            for index in range(1, pages_limits.MAX_MEDIA_TYPE_HEADER_RULES)
+        }
+        manifest = self.repository_manifest()
+        manifest["media_types"] = {**manifest["media_types"], **media_types}
+        contract, errors = headers_contract.expected_contract(manifest)
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(contract)
+
+        manifest["media_types"] = {
+            **manifest["media_types"],
+            f"/a/{pages_limits.MAX_HEADER_RULES:064x}.json": (
+                release.SPECULATION_MEDIA_TYPE
+            ),
+        }
+        contract, errors = headers_contract.expected_contract(manifest)
+        self.assertIsNone(contract)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("100-rule limit", errors[0])
+
+
+class PagesPlatformLimitTests(unittest.TestCase):
+    def test_pages_static_file_limit_uses_exact_file_size(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            at_limit = root / "at-limit.bin"
+            over_limit = root / "over-limit.bin"
+            at_limit.touch()
+            over_limit.touch()
+            with at_limit.open("r+b") as handle:
+                handle.truncate(pages_limits.MAX_STATIC_FILE_BYTES)
+            with over_limit.open("r+b") as handle:
+                handle.truncate(pages_limits.MAX_STATIC_FILE_BYTES + 1)
+            errors = pages_limits.validate_static_tree(root)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("over-limit.bin", errors[0])
+        self.assertIn("static-file limit", errors[0])
 
 
 class HtmlAuthorityContractTests(unittest.TestCase):
@@ -1493,6 +2437,111 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("wrangler pages deploy public", deploy)
         self.assertLess(validate, upload)
         self.assertIn("GITHUB_SHA: ${{ github.sha }}", deploy)
+        self.assertIn('--commit-hash "$GITHUB_SHA"', deploy)
+        self.assertIn("WRANGLER_OUTPUT_FILE_PATH:", deploy)
+        self.assertIn("bin/pages_deployment_receipt.py", deploy)
+        self.assertIn("ARDENT_IMMUTABLE_URL", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
+        self.assertIn("github.event.pull_request.base.sha", workflow)
+        self.assertIn("github.event.before", workflow)
+        self.assertIn("retention bootstrap is forbidden", workflow)
+        self.assertIn("HEAD is the repository root commit", workflow)
+        self.assertNotIn("No prior revision exists", workflow)
+        self.assertIn('git show "${base_revision}:asset-retention.json"', workflow)
+        self.assertIn("ARDENT_RETENTION_BASE_LEDGER", workflow)
+        self.assertIn(
+            "python3 bin/asset_retention.py", (ROOT / "bin/check-site.sh").read_text()
+        )
+        verify = workflow.split("- name: Verify live authored/runtime boundary", 1)[1]
+        self.assertEqual(verify.count("python3 bin/verify-production.py"), 2)
+        self.assertLess(
+            verify.index('--base-url "$ARDENT_IMMUTABLE_URL"'),
+            verify.index("--base-url https://ardent.tools"),
+        )
+        self.assertEqual(verify.count("--canonical-origin https://ardent.tools"), 2)
+
+
+class PagesDeploymentReceiptTests(unittest.TestCase):
+    PROJECT = "ardent-tools"
+    REVISION = "a" * 40
+    DEPLOYMENT_ID = "12345678-1234-1234-1234-123456789abc"
+    URL = "https://deadbeef.ardent-tools.pages.dev"
+
+    def entries(self) -> list[dict]:
+        return [
+            {
+                "type": "pages-deploy",
+                "version": 1,
+                "pages_project": self.PROJECT,
+                "deployment_id": self.DEPLOYMENT_ID,
+                "url": self.URL,
+                "timestamp": "2026-07-22T00:00:00.000Z",
+            },
+            {
+                "type": "pages-deploy-detailed",
+                "version": 1,
+                "pages_project": self.PROJECT,
+                "deployment_id": self.DEPLOYMENT_ID,
+                "url": self.URL,
+                "alias": None,
+                "environment": "production",
+                "production_branch": "main",
+                "deployment_trigger": {"metadata": {"commit_hash": self.REVISION}},
+                "timestamp": "2026-07-22T00:00:01.000Z",
+            },
+        ]
+
+    def write(self, root: Path, entries: list[dict]) -> Path:
+        path = root / "wrangler-output.jsonl"
+        path.write_text("".join(json.dumps(entry) + "\n" for entry in entries))
+        return path
+
+    def extract(self, path: Path) -> str:
+        return deployment_receipt.extract_deployment_url(
+            path,
+            expected_revision=self.REVISION,
+            project=self.PROJECT,
+            production_branch="main",
+        )
+
+    def test_exact_wrangler_receipt_returns_immutable_origin(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(
+                self.extract(self.write(Path(directory), self.entries())), self.URL
+            )
+
+    def test_mismatched_or_ambiguous_receipts_fail_closed(self) -> None:
+        cases = {
+            "wrong revision": lambda entries: entries[1]["deployment_trigger"][
+                "metadata"
+            ].update(commit_hash="b" * 40),
+            "preview": lambda entries: entries[1].update(environment="preview"),
+            "bare alias": lambda entries: (
+                entries[0].update(url="https://ardent-tools.pages.dev"),
+                entries[1].update(url="https://ardent-tools.pages.dev"),
+            ),
+            "two detailed": lambda entries: entries.append(copy.deepcopy(entries[1])),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                entries = self.entries()
+                mutate(entries)
+                with self.assertRaises(ValueError):
+                    self.extract(self.write(Path(directory), entries))
+
+    def test_duplicate_json_keys_and_unterminated_jsonl_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            duplicate = root / "duplicate.jsonl"
+            duplicate.write_text(
+                '{"type":"pages-deploy","type":"pages-deploy-detailed"}\n'
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate key"):
+                self.extract(duplicate)
+            unterminated = root / "unterminated.jsonl"
+            unterminated.write_text(json.dumps(self.entries()[0]))
+            with self.assertRaisesRegex(ValueError, "LF-terminated"):
+                self.extract(unterminated)
 
 
 class PagesRuntimeContractTests(unittest.TestCase):
@@ -1542,6 +2591,7 @@ class PagesRuntimeContractTests(unittest.TestCase):
         for path in (
             "/",
             "/about/",
+            "/a/*",
             "/css/site.css",
             "/release-html.json",
             "/release-resources.json",
@@ -1561,8 +2611,8 @@ class PagesRuntimeContractTests(unittest.TestCase):
         self.assertEqual(boundary["schema_version"], 2)
         self.assertEqual(boundary["wrangler"]["path"], "wrangler.toml")
         self.assertIn(
-            f"/{pages_runtime.BOUNDARY_NAME}",
-            production.REQUIRED_RELEASE_PATHS,
+            pages_runtime.BOUNDARY_NAME,
+            production.REQUIRED_RELEASE_LOGICAL_PATHS,
         )
         self.assertEqual(
             boundary["function"]["sha256"],
@@ -1618,7 +2668,8 @@ class PagesRuntimeContractTests(unittest.TestCase):
             )
             _routes, _boundary, errors = pages_runtime.expected_runtime(output)
         self.assertTrue(
-            any("Function direct headers differ" in error for error in errors), errors
+            any("Function static direct headers differ" in error for error in errors),
+            errors,
         )
 
     def test_tampered_runtime_authority_fails_closed(self) -> None:
@@ -1630,6 +2681,18 @@ class PagesRuntimeContractTests(unittest.TestCase):
             errors = pages_runtime.validate_runtime(output)
         self.assertTrue(
             any("_routes.json differs" in error for error in errors), errors
+        )
+
+    def test_malformed_physical_resource_path_fails_before_upload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            malformed = output / "a/short.css"
+            malformed.parent.mkdir()
+            malformed.write_text("body{}\n")
+            _routes, _boundary, errors = pages_runtime.expected_runtime(output)
+        self.assertTrue(
+            any("full SHA-256 and extension" in error for error in errors), errors
         )
 
     def test_routes_control_file_is_not_a_served_manifest_resource(self) -> None:
@@ -1733,27 +2796,37 @@ class RecordingContractTests(unittest.TestCase):
             catalog_page = output / "systems/index.html"
             evidence_page = output / "evidence/index.html"
             cast_file = static / "casts/demo.cast"
-            player_css = output / "vendor/asciinema/asciinema-player.css"
-            player_js = output / "vendor/asciinema/asciinema-player.min.js"
+            cast_body = b"{}\n"
+            cast_output = addressed_output("casts/demo.cast", cast_body)
+            player_css_output = addressed_output(
+                "vendor/asciinema/asciinema-player.css", CSS_BODY
+            )
+            player_js_output = addressed_output(
+                "vendor/asciinema/asciinema-player.min.js", JS_BODY
+            )
+            player_css = output / player_css_output
+            player_js = output / player_js_output
+            deployed_cast = output / cast_output
             for path in (
                 system_page,
                 catalog_page,
                 evidence_page,
                 cast_file,
+                deployed_cast,
                 player_css,
                 player_js,
             ):
                 path.parent.mkdir(parents=True, exist_ok=True)
-            cast_file.write_text("{}\n")
+            cast_file.write_bytes(cast_body)
+            deployed_cast.write_bytes(cast_body)
             player_css.write_bytes(CSS_BODY)
             player_js.write_bytes(JS_BODY)
             cast = "/casts/demo.cast"
-            cast_hash = hashlib.sha256(b"{}\n").hexdigest()[:20]
-            cast_url = f"{BASE_URL}{cast}?h={cast_hash}&amp;v={ASSET_EPOCH}"
+            cast_url = f"{BASE_URL}/{cast_output}"
             system_markup = (
                 f'<div data-cast="{cast_url}"></div>'
-                f'<link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css?h={CSS_HASH}&amp;v=2">'
-                f'<script src="/vendor/asciinema/asciinema-player.min.js?h={JS_HASH}&amp;v=2"></script>'
+                f'<link rel="stylesheet" href="/{player_css_output}">'
+                f'<script src="/{player_js_output}"></script>'
             )
             catalog_markup = (
                 '<a href="https://ardent.tools/systems/demo/">WATCH RECORDING</a>'
@@ -1766,10 +2839,32 @@ class RecordingContractTests(unittest.TestCase):
                 catalog_page: catalog_markup,
                 evidence_page: evidence_markup,
             }
+            resources = []
+            for logical_path, output_path, body in (
+                ("casts/demo.cast", cast_output, cast_body),
+                (
+                    "vendor/asciinema/asciinema-player.css",
+                    player_css_output,
+                    CSS_BODY,
+                ),
+                (
+                    "vendor/asciinema/asciinema-player.min.js",
+                    player_js_output,
+                    JS_BODY,
+                ),
+            ):
+                resources.append(
+                    {
+                        "logical_path": logical_path,
+                        "output_path": output_path,
+                        "request_url": f"/{output_path}",
+                        "sha256": hashlib.sha256(body).hexdigest(),
+                        "cache_class": "addressed",
+                    }
+                )
+            manifest = {"resources": resources}
             errors: list[str] = []
-            site.validate_asset_contract(
-                errors, {system_page: system_markup}, output, ASSET_EPOCH
-            )
+            site.validate_asset_contract(errors, {system_page: system_markup}, output)
             site.validate_player_contract(
                 errors,
                 [(Path("content/systems/demo.md"), cast)],
@@ -1777,17 +2872,19 @@ class RecordingContractTests(unittest.TestCase):
                 "script-src 'self' 'wasm-unsafe-eval'",
                 output,
                 static,
-                asset_epoch=ASSET_EPOCH,
+                release_manifest=manifest,
             )
             self.assertEqual(errors, [])
 
-            wrong_epoch_markup = system_markup.replace("&amp;v=2", "&amp;v=1")
+            wrong_identity_markup = system_markup.replace(
+                f"/{player_js_output}", f"/{player_js_output}?v=1"
+            )
             errors = []
             site.validate_asset_contract(
-                errors, {system_page: wrong_epoch_markup}, output, ASSET_EPOCH
+                errors, {system_page: wrong_identity_markup}, output
             )
-            self.assertEqual(len(errors), 2, errors)
-            self.assertTrue(all("expected '2'" in error for error in errors), errors)
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("query- and fragment-free", errors[0])
 
             broken = dict(html)
             broken[system_page] = f'<div data-cast="{cast}"></div>'
@@ -1799,7 +2896,7 @@ class RecordingContractTests(unittest.TestCase):
                 "script-src 'self' 'wasm-unsafe-eval'",
                 output,
                 static,
-                asset_epoch=ASSET_EPOCH,
+                release_manifest=manifest,
             )
             self.assertTrue(
                 any("conditional player CSS/JS" in error for error in errors), errors

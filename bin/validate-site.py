@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import parse_qsl, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 from career_claim_contract import FORBIDDEN_PUBLIC_VARIANTS
 from release_manifest import (
@@ -22,6 +22,7 @@ from release_manifest import (
     validate_manifest,
     validate_public_references,
 )
+from pages_limits import validate_static_tree
 from header_contract import load_headers
 from html_authority import AUTHORITY_NAME, validate_authority
 from pages_runtime import validate_runtime
@@ -45,8 +46,7 @@ PINNED_SNAPSHOTS = {
     "thumos.md": "77cc89906a52",
 }
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
-ASSET_HASH_RE = re.compile(r"^[0-9a-f]{20}$")
-ASSET_EPOCH_RE = re.compile(r"^[1-9][0-9]*$")
+ADDRESSED_ASSET_RE = re.compile(r"^/a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
 TAPE_TARGETS = {
     "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
     "hamma-tests.tape": "ARDENT_HAMMA_ROOT",
@@ -233,7 +233,6 @@ def inspect_asset_reference(
     kind: str,
     reference: str,
     output: Path,
-    asset_epoch: str,
 ) -> tuple[str, str] | None:
     try:
         resolved = urljoin(BASE_URL + "/", reference)
@@ -248,50 +247,43 @@ def inspect_asset_reference(
     ):
         fail(errors, f"{page}: external {kind} asset is not allowed: {reference!r}")
         return None
-    if parsed.fragment:
-        fail(
-            errors, f"{page}: {kind} asset URL must not carry a fragment: {reference!r}"
-        )
-        return None
-    pairs = parse_qsl(parsed.query, keep_blank_values=True)
-    names = [name for name, _ in pairs]
-    if len(pairs) != 2 or Counter(names) != Counter({"h": 1, "v": 1}):
+    if parsed.query or parsed.fragment:
         fail(
             errors,
-            f"{page}: {kind} asset must carry exactly one h and one v query and no others: "
-            f"{reference!r}",
+            f"{page}: {kind} asset URL must be query- and fragment-free: {reference!r}",
         )
         return None
-    values = dict(pairs)
-    authored_hash = values["h"]
-    if not ASSET_HASH_RE.fullmatch(authored_hash):
+    match = ADDRESSED_ASSET_RE.fullmatch(parsed.path)
+    if match is None:
         fail(
             errors,
-            f"{page}: {kind} asset has malformed h={authored_hash!r}: {reference!r}",
+            f"{page}: {kind} asset must use /a/<full-sha256>.<extension>: {reference!r}",
         )
         return None
-    if values["v"] != asset_epoch:
+    expected_extension = ".css" if kind == "CSS" else ".js"
+    if match.group(2).lower() != expected_extension:
         fail(
             errors,
-            f"{page}: {kind} asset has v={values['v']!r}, expected {asset_epoch!r}: {reference!r}",
+            f"{page}: {kind} asset has wrong extension {match.group(2)!r}: {reference!r}",
         )
         return None
+    authored_hash = match.group(1)
     asset_path = output / parsed.path.lstrip("/")
     if not asset_path.is_file():
         fail(errors, f"{page}: {kind} asset does not resolve in output: {parsed.path}")
         return None
     digest = hashlib.sha256(asset_path.read_bytes()).hexdigest()
-    if not digest.startswith(authored_hash):
+    if digest != authored_hash:
         fail(
             errors,
             f"{page}: {kind} asset digest mismatch for {reference!r}: "
-            f"h={authored_hash}, SHA-256={digest}",
+            f"path SHA-256={authored_hash}, body SHA-256={digest}",
         )
     return parsed.path, authored_hash
 
 
 def validate_asset_contract(
-    errors: list[str], html: dict[Path, str], output: Path, asset_epoch: str
+    errors: list[str], html: dict[Path, str], output: Path
 ) -> None:
     identities: dict[str, tuple[str, Path]] = {}
     for page, text in html.items():
@@ -308,7 +300,6 @@ def validate_asset_contract(
                 kind=kind,
                 reference=reference,
                 output=output,
-                asset_epoch=asset_epoch,
             )
             if inspected is None:
                 continue
@@ -405,13 +396,25 @@ def validate_player_contract(
     headers: str,
     output: Path,
     static_root: Path = Path("static"),
-    asset_epoch: str = "INVALID",
+    release_manifest: dict | None = None,
 ) -> None:
-    asset_pattern = re.compile(
-        r"(?:href|src)=[\"'][^\"']*/vendor/asciinema/asciinema-player", re.I
+    resource_urls = {
+        f"/{item['logical_path']}": item["request_url"]
+        for item in (release_manifest or {}).get("resources", [])
+        if isinstance(item, dict)
+        and isinstance(item.get("logical_path"), str)
+        and isinstance(item.get("request_url"), str)
+    }
+    player_css_url = resource_urls.get(
+        "/vendor/asciinema/asciinema-player.css", "/missing-player.css"
+    )
+    player_js_url = resource_urls.get(
+        "/vendor/asciinema/asciinema-player.min.js", "/missing-player.js"
     )
     player_requests = [
-        str(path) for path, text in html.items() if asset_pattern.search(text)
+        str(path)
+        for path, text in html.items()
+        if player_css_url in text or player_js_url in text
     ]
     data_casts = [str(path) for path, text in html.items() if "data-cast=" in text]
     if not casts:
@@ -442,8 +445,11 @@ def validate_player_contract(
             continue
         page_path = output / "systems" / source.stem / "index.html"
         page_html = html.get(page_path, "")
-        cast_hash = hashlib.sha256(cast_file.read_bytes()).hexdigest()[:20]
-        cast_url = f"{BASE_URL}{cast}?h={cast_hash}&amp;v={asset_epoch}"
+        physical_cast = resource_urls.get(cast)
+        if physical_cast is None:
+            fail(errors, f"{source}: cast is absent from release manifest: {cast}")
+            continue
+        cast_url = f"{BASE_URL}{physical_cast}"
         marker = f'data-cast="{cast_url}"'
         corpus_count = sum(text.count(marker) for text in html.values())
         if corpus_count != 1:
@@ -453,10 +459,7 @@ def validate_player_contract(
             )
         if page_html.count(marker) != 1:
             fail(errors, f"{source}: system page must render exactly one data-cast")
-        if (
-            page_html.count("asciinema-player.css") != 1
-            or page_html.count("asciinema-player.min.js") != 1
-        ):
+        if page_html.count(player_css_url) != 1 or page_html.count(player_js_url) != 1:
             fail(
                 errors,
                 f"{source}: system page lacks exactly one conditional player CSS/JS pair",
@@ -484,18 +487,13 @@ def main() -> int:
         )
     output = args.output.resolve()
     errors: list[str] = []
+    errors.extend(validate_static_tree(output))
     headers_path = output / "_headers"
     try:
         headers = headers_path.read_text()
     except OSError as exc:
         fail(errors, f"_headers: cannot read retained control file: {exc}")
         headers = ""
-    config = tomllib.loads(Path("config.toml").read_text())
-    asset_epoch = config.get("extra", {}).get("asset_epoch")
-    if not isinstance(asset_epoch, str) or not ASSET_EPOCH_RE.fullmatch(asset_epoch):
-        fail(errors, "config.toml: extra.asset_epoch must be a nonzero decimal string")
-        asset_epoch = "INVALID"
-
     validate_revision(errors, output, args.expected_revision)
     validate_cache_contract(errors, output, headers)
 
@@ -517,7 +515,6 @@ def main() -> int:
                 manifest_path.read_bytes(),
                 output=output,
                 expected_revision=release_revision,
-                expected_epoch=asset_epoch,
                 contract=contract,
             )
             errors.extend(manifest_errors)
@@ -697,9 +694,9 @@ def main() -> int:
 
     html_files = sorted(output.rglob("*.html"))
     html = {path: path.read_text() for path in html_files}
-    validate_asset_contract(errors, html, output, asset_epoch)
+    validate_asset_contract(errors, html, output)
     validate_player_contract(
-        errors, casts, html, headers, output, asset_epoch=asset_epoch
+        errors, casts, html, headers, output, release_manifest=release_manifest
     )
 
     evidence_path = output / "evidence/index.html"

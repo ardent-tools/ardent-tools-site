@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -18,7 +19,10 @@ DERIVATIONS = (
     ("bin/generate-systems-json.py", "static/systems.json"),
     ("bin/validate-career-claims.py", "static/career-claims.json"),
 )
-USAGE = "usage: python3 bin/site.py {sync|verify|check|build|serve|gate} [zola args]"
+USAGE = (
+    "usage: python3 bin/site.py "
+    "{sync|verify|check|build|serve|gate|retain-assets} [zola args]"
+)
 STABLE_SYNC_ATTEMPTS = 3
 
 
@@ -176,6 +180,38 @@ def serve(arguments: list[str]) -> int:
             terminate_child(child)
 
 
+def retain_assets() -> None:
+    """Explicitly append the current finalized public assets to retention."""
+    verify_derivations()
+    with tempfile.TemporaryDirectory(prefix="ardent-retain-assets.") as directory:
+        temporary_root = Path(directory)
+        output = temporary_root / "public"
+        asset_map = temporary_root / "asset-map.json"
+        run(["zola", "build", "--output-dir", str(output)])
+        shutil.copyfile(ROOT / "_headers", output / "_headers")
+        shutil.copyfile(ROOT / "_redirects", output / "_redirects")
+        for relative in ("casts/.gitkeep", "css/.gitkeep", "js/.gitkeep"):
+            placeholder = output / relative
+            if placeholder.is_file() and not placeholder.is_symlink():
+                placeholder.unlink()
+        (output / "build-revision.txt").write_text("0" * 40 + "\n")
+        run(
+            [
+                sys.executable,
+                "bin/content_address.py",
+                str(output),
+                "--map",
+                str(asset_map),
+                "--base-url",
+                "https://ardent.tools",
+                "--record-retention-snapshot",
+            ]
+        )
+    sys.stdout.write(
+        "PASS: current physical assets recorded; run the strict gate before commit\n"
+    )
+
+
 def main() -> int:
     os.chdir(ROOT)
     if len(sys.argv) < 2 or sys.argv[1] in {"-h", "--help"}:
@@ -186,7 +222,7 @@ def main() -> int:
     arguments = sys.argv[2:]
     if arguments[:1] == ["--"]:
         arguments = arguments[1:]
-    if command in {"sync", "verify", "gate"} and arguments:
+    if command in {"sync", "verify", "gate", "retain-assets"} and arguments:
         sys.stderr.write(f"ERROR: {command} accepts no additional arguments\n{USAGE}\n")
         return 2
     try:
@@ -203,6 +239,9 @@ def main() -> int:
             return serve(arguments)
         if command == "gate":
             os.execvp("bash", ["bash", "bin/check-site.sh"])
+        if command == "retain-assets":
+            retain_assets()
+            return 0
     except subprocess.CalledProcessError as exc:
         return exc.returncode
     except FileNotFoundError as exc:

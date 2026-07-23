@@ -12,8 +12,7 @@ const DIRECT_RESPONSE_HEADERS = Object.freeze(
     "x-frame-options": "DENY",
     "referrer-policy": "strict-origin-when-cross-origin",
     "permissions-policy": "accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()",
-    "content-security-policy": "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests",
-    "speculation-rules": "\"/speculation-rules.json?h=dd1ab64ebeb7a41864aa&v=2\""
+    "content-security-policy": "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests"
   }
   /* DIRECT_RESPONSE_HEADERS_JSON_END */,
 );
@@ -21,6 +20,8 @@ const DIRECT_RESPONSE_HEADERS = Object.freeze(
 const GUARDED_ERROR_STATUSES = new Set([410]);
 const AUTHORITATIVE_404_PATH = "/404/";
 const HTML_AUTHORITY_PATH = "/release-html.json";
+const RELEASE_MANIFEST_PATH = "/release-resources.json";
+const ADDRESSED_SPECULATION_PATTERN = /^\/a\/([0-9a-f]{64})\.json$/;
 
 function addAlias(aliases, source, target) {
   if (aliases.has(source)) {
@@ -120,6 +121,49 @@ async function retainedHtmlAuthority(context) {
   }
 }
 
+async function retainedSpeculationRulesUrl(context) {
+  const manifestUrl = new URL(RELEASE_MANIFEST_PATH, context.request.url);
+  const response = await context.env.ASSETS.fetch(
+    new Request(manifestUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    }),
+  );
+  if (response.status !== 200) {
+    throw new Error("retained release manifest is unavailable");
+  }
+  let manifest;
+  try {
+    manifest = await response.json();
+  } catch {
+    throw new Error("retained release manifest is invalid JSON");
+  }
+  const matches = Array.isArray(manifest?.resources)
+    ? manifest.resources.filter((item) =>
+      item !== null &&
+      typeof item === "object" &&
+      item.logical_path === "speculation-rules.json"
+    )
+    : [];
+  if (matches.length !== 1) {
+    throw new Error("retained release manifest lacks one speculation-rules resource");
+  }
+  const item = matches[0];
+  const match = typeof item.request_url === "string"
+    ? item.request_url.match(ADDRESSED_SPECULATION_PATTERN)
+    : null;
+  if (
+    item.cache_class !== "addressed" ||
+    item.output_path !== item.request_url?.slice(1) ||
+    typeof item.sha256 !== "string" ||
+    match === null ||
+    match[1] !== item.sha256
+  ) {
+    throw new Error("retained speculation-rules identity is invalid");
+  }
+  return item.request_url;
+}
+
 async function isOwnedHtmlAlias(context, response) {
   if (response.status !== 308) {
     return false;
@@ -145,7 +189,12 @@ async function isOwnedHtmlAlias(context, response) {
   }
 }
 
-function contractResponse(response, requestMethod, status = response.status) {
+function contractResponse(
+  response,
+  requestMethod,
+  speculationRulesUrl,
+  status = response.status,
+) {
   const body = requestMethod === "HEAD" ? null : response.body;
   const guarded = new Response(body, {
     status,
@@ -155,10 +204,11 @@ function contractResponse(response, requestMethod, status = response.status) {
   for (const [name, value] of Object.entries(DIRECT_RESPONSE_HEADERS)) {
     guarded.headers.set(name, value);
   }
+  guarded.headers.set("speculation-rules", `"${speculationRulesUrl}"`);
   return guarded;
 }
 
-async function authoritativeNotFound(context) {
+async function authoritativeNotFound(context, speculationRulesUrl) {
   const fallbackUrl = new URL(AUTHORITATIVE_404_PATH, context.request.url);
   const fallback = await context.env.ASSETS.fetch(
     new Request(fallbackUrl, {
@@ -169,7 +219,12 @@ async function authoritativeNotFound(context) {
   if (fallback.status !== 200) {
     throw new Error("retained 404 authority is unavailable");
   }
-  return contractResponse(fallback, context.request.method, 404);
+  return contractResponse(
+    fallback,
+    context.request.method,
+    speculationRulesUrl,
+    404,
+  );
 }
 
 export async function onRequest(context) {
@@ -183,7 +238,8 @@ export async function onRequest(context) {
     response.status === 304 ||
     response.status === 404
   ) {
-    return authoritativeNotFound(context);
+    const speculationRulesUrl = await retainedSpeculationRulesUrl(context);
+    return authoritativeNotFound(context, speculationRulesUrl);
   }
 
   if (!GUARDED_ERROR_STATUSES.has(response.status)) {
@@ -191,10 +247,15 @@ export async function onRequest(context) {
     // Pages' native redirect. An unowned or stale redirect is another missing
     // path and must not escape the authoritative error boundary.
     if (response.status >= 300 && response.status < 400) {
+      const speculationRulesUrl = await retainedSpeculationRulesUrl(context);
       if (await isOwnedHtmlAlias(context, response)) {
-        return contractResponse(response, context.request.method);
+        return contractResponse(
+          response,
+          context.request.method,
+          speculationRulesUrl,
+        );
       }
-      return authoritativeNotFound(context);
+      return authoritativeNotFound(context, speculationRulesUrl);
     }
     return response;
   }
@@ -202,5 +263,10 @@ export async function onRequest(context) {
   // Asset-server responses have immutable headers in the Workers runtime.
   // Cloning preserves the 410 body and content metadata while applying the
   // complete repository-owned direct-response boundary above.
-  return contractResponse(response, context.request.method);
+  const speculationRulesUrl = await retainedSpeculationRulesUrl(context);
+  return contractResponse(
+    response,
+    context.request.method,
+    speculationRulesUrl,
+  );
 }
