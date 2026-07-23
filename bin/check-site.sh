@@ -148,7 +148,7 @@ themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
 python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 
 echo "==> external links"
-BASE_URL=$SITE_BASE_URL
+BASE_URL="$SITE_BASE_URL"
 BASE_HOST=${BASE_URL#http://}
 BASE_HOST=${BASE_HOST#https://}
 BASE_HOST=${BASE_HOST%%/*}
