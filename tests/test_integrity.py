@@ -394,6 +394,70 @@ class RevisionContractTests(unittest.TestCase):
 
 
 class ProductionAssetContractTests(unittest.TestCase):
+    def test_transient_retry_diagnostic_is_bounded_and_complete_in_count(
+        self,
+    ) -> None:
+        errors = [
+            f"failure {index}: first line\nsecond line " + ("x" * 10_000)
+            for index in range(400)
+        ]
+        summary = production.bounded_retry_diagnostic(errors)
+        self.assertLess(len(summary), 1024)
+        self.assertNotIn("\n", summary)
+        self.assertIn("400 errors", summary)
+        self.assertIn("failure 0", summary)
+        self.assertIn("397 more deferred until the final attempt", summary)
+        self.assertNotIn("failure 3", summary)
+
+    def test_retry_control_emits_bounded_progress_then_succeeds(self) -> None:
+        results = iter([["transient\n" + ("x" * 10_000)], []])
+
+        def verify_once(colos: set[str]) -> list[str]:
+            colos.add("SEA")
+            return next(results)
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        sleep = mock.Mock()
+        result = production.run_verification_attempts(
+            verify_once,
+            attempts=2,
+            delay=10,
+            stdout=stdout,
+            stderr=stderr,
+            sleep_fn=sleep,
+        )
+        self.assertEqual(result, 0)
+        progress = stderr.getvalue().splitlines()
+        self.assertEqual(len(progress), 1)
+        self.assertLess(len(progress[0]), 1024)
+        self.assertIn("1 error", progress[0])
+        self.assertEqual(
+            stdout.getvalue(),
+            "PASS: production boundary verified on attempt 2; Cloudflare colos=SEA\n",
+        )
+        sleep.assert_called_once_with(10)
+
+    def test_retry_control_preserves_complete_terminal_errors(self) -> None:
+        errors = ["first complete error", "second complete error"]
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        sleep = mock.Mock()
+        result = production.run_verification_attempts(
+            lambda _colos: errors,
+            attempts=2,
+            delay=10,
+            stdout=stdout,
+            stderr=stderr,
+            sleep_fn=sleep,
+        )
+        self.assertEqual(result, 1)
+        self.assertEqual(stdout.getvalue(), "")
+        lines = stderr.getvalue().splitlines()
+        self.assertEqual(lines[-2:], [f"ERROR: {error}" for error in errors])
+        self.assertLess(len(lines[0]), 1024)
+        sleep.assert_called_once_with(10)
+
     def test_matching_authored_asset_bodies_pass(self) -> None:
         self.assertEqual(run_production_fixture(self), [])
 
@@ -2478,6 +2542,8 @@ class DeployWorkflowContractTests(unittest.TestCase):
         )[1:]
         self.assertIn("--require-logical-alias-tombstones", immutable_verify)
         self.assertNotIn("--require-logical-alias-tombstones", custom_verify)
+        self.assertIn("--attempts 37 --delay 10", immutable_verify)
+        self.assertIn("--attempts 13 --delay 10", custom_verify)
 
 
 class PagesDeploymentReceiptTests(unittest.TestCase):

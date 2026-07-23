@@ -194,12 +194,14 @@ jobs:
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
+          # The Pages Function/header plane can converge route-by-route after
+          # Wrangler returns; retain a six-minute sleep budget for the full proof.
           python3 bin/verify-production.py \
             --base-url "$ARDENT_IMMUTABLE_URL" \
             --canonical-origin https://ardent.tools \
             --require-cf-ray \
             --require-logical-alias-tombstones \
-            --attempts 5 --delay 5 \
+            --attempts 37 --delay 10 \
             --expected-revision "$GITHUB_SHA" \
             --artifact-root public
           python3 bin/verify-production.py \
