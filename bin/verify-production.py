@@ -17,6 +17,13 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from header_contract import (
+    HeaderContract,
+    load_headers,
+    validate_live_direct_headers,
+    validate_speculation_content_type,
+)
+from html_authority import AUTHORITY_NAME, validate_authority
 from release_manifest import read_contract, validate_manifest
 from redirect_contract import RedirectRule, load_redirects, redirect_probe_path
 
@@ -29,6 +36,7 @@ REQUIRED_RELEASE_PATHS = (
     "/atom.xml",
     "/build-revision.txt",
     "/llms.txt",
+    f"/{AUTHORITY_NAME}",
     "/release-resources.json",
     "/robots.txt",
     "/sitemap.xml",
@@ -146,10 +154,21 @@ def validate_strict_csp(errors: list[str], label: str, headers: dict[str, str]) 
 
 
 def validate_html_boundary(
-    errors: list[str], label: str, headers: dict[str, str], body: str
+    errors: list[str],
+    label: str,
+    headers: dict[str, str],
+    body: str,
+    header_contract: HeaderContract,
 ) -> None:
     validate_no_store_cache(errors, label, headers)
     validate_strict_csp(errors, label, headers)
+    validate_live_direct_headers(
+        errors,
+        label,
+        headers,
+        header_contract,
+        exclude=frozenset({"cache-control", "content-security-policy"}),
+    )
     if "/cdn-cgi/" in body or "__cf_email__" in body or "data-cfemail" in body:
         errors.append(f"{label} has Cloudflare email-protection markup/script injected")
 
@@ -335,6 +354,8 @@ def verify(
     local_manifest_bytes: bytes,
     manifest_name: str,
     redirect_rules: list[RedirectRule],
+    html_authority: dict,
+    header_contract: HeaderContract,
 ) -> list[str]:
     errors: list[str] = []
     site_root = base_url.rstrip("/") + "/"
@@ -367,12 +388,26 @@ def verify(
             f"expected {expected_revision!r}, got {revision_body.decode('utf-8', errors='replace').strip()!r}"
         )
     validate_no_store_cache(errors, "/build-revision.txt", revision_headers)
+    validate_live_direct_headers(
+        errors,
+        "/build-revision.txt",
+        revision_headers,
+        header_contract,
+        exclude=frozenset({"cache-control"}),
+    )
 
     manifest_url = urljoin(site_root, manifest_name)
     manifest_status, manifest_headers, manifest_body = fetch_exact(manifest_url)
     if manifest_status != 200:
         errors.append(f"/{manifest_name} returned {manifest_status}, expected direct 200")
     validate_no_store_cache(errors, f"/{manifest_name}", manifest_headers)
+    validate_live_direct_headers(
+        errors,
+        f"/{manifest_name}",
+        manifest_headers,
+        header_contract,
+        exclude=frozenset({"cache-control"}),
+    )
     if manifest_body != local_manifest_bytes:
         errors.append(f"live /{manifest_name} bytes differ from retained local artifact")
 
@@ -381,7 +416,31 @@ def verify(
     if sitemap_status != 200:
         errors.append(f"/sitemap.xml returned {sitemap_status}, expected direct 200")
     validate_no_store_cache(errors, "/sitemap.xml", sitemap_headers)
+    validate_live_direct_headers(
+        errors,
+        "/sitemap.xml",
+        sitemap_headers,
+        header_contract,
+        exclude=frozenset({"cache-control"}),
+    )
     html_paths = sitemap_html_paths(errors, site_root, sitemap_body)
+    authority_by_path = {
+        item["request_path"]: item
+        for item in html_authority.get("routes", [])
+        if isinstance(item, dict) and isinstance(item.get("request_path"), str)
+    }
+    sitemap_authority_paths = {
+        item["request_path"]
+        for item in html_authority.get("routes", [])
+        if isinstance(item, dict)
+        and item.get("in_sitemap") is True
+        and isinstance(item.get("request_path"), str)
+    }
+    if sitemap_authority_paths != set(html_paths):
+        errors.append(
+            "live sitemap route set differs from retained HTML authority; "
+            f"authority={sorted(sitemap_authority_paths)}, live={sorted(html_paths)}"
+        )
 
     for item in release_manifest.get("resources", []):
         relative_url = item["request_url"]
@@ -396,6 +455,20 @@ def verify(
             continue
         if not directly_validated:
             validate_no_store_cache(errors, f"release resource {relative_url!r}", resource_headers)
+        validate_live_direct_headers(
+            errors,
+            f"release resource {relative_url!r}",
+            resource_headers,
+            header_contract,
+            exclude=frozenset({"cache-control"}),
+        )
+        if item["output_path"] == "speculation-rules.json":
+            validate_speculation_content_type(
+                errors,
+                f"release resource {relative_url!r}",
+                resource_headers,
+                header_contract,
+            )
         if item["output_path"] == "build-revision.txt":
             continue
         digest = hashlib.sha256(body).hexdigest()
@@ -407,27 +480,44 @@ def verify(
 
     pages: dict[str, str] = {}
     asset_references: list[tuple[str, str, str]] = []
-    for path in html_paths:
+    for path in sorted(authority_by_path):
         page_url = urljoin(site_root, path.lstrip("/"))
         status, headers, body_bytes = fetch_exact(page_url)
         body = body_bytes.decode("utf-8", errors="replace")
         if status != 200:
             errors.append(f"{path} returned {status}, expected direct 200")
-        validate_html_boundary(errors, path, headers, body)
+        validate_html_boundary(errors, path, headers, body, header_contract)
         validate_canonical(errors, page_url, page_url, body)
+        authority = authority_by_path.get(path)
+        if authority is not None:
+            digest = hashlib.sha256(body_bytes).hexdigest()
+            if digest != authority["sha256"]:
+                errors.append(
+                    f"{path} body differs from retained HTML authority: "
+                    f"expected {authority['sha256']}, SHA-256={digest}"
+                )
         asset_references.extend(
             collect_hashed_assets(errors, site_root, page_url, body, asset_epoch)
         )
         pages[path] = body
 
     missing_path = missing_probe_path(expected_revision)
-    if missing_probe_is_disjoint(errors, missing_path, html_paths):
+    if missing_probe_is_disjoint(errors, missing_path, sorted(authority_by_path)):
         missing_url = urljoin(site_root, missing_path.lstrip("/"))
         missing_status, missing_headers, missing_bytes = fetch_exact(missing_url)
         missing_body = missing_bytes.decode("utf-8", errors="replace")
         if missing_status != 404:
             errors.append(f"{missing_path} returned {missing_status}, expected exact 404")
-        validate_html_boundary(errors, missing_path, missing_headers, missing_body)
+        validate_html_boundary(
+            errors, missing_path, missing_headers, missing_body, header_contract
+        )
+        custom_authority = html_authority.get("custom_404", {})
+        missing_digest = hashlib.sha256(missing_bytes).hexdigest()
+        if missing_digest != custom_authority.get("sha256"):
+            errors.append(
+                f"{missing_path} body differs from retained custom-404 authority: "
+                f"expected {custom_authority.get('sha256')!r}, SHA-256={missing_digest}"
+            )
         for marker in CUSTOM_404_MARKERS:
             if marker not in missing_body:
                 errors.append(f"{missing_path} lacks custom 404 marker {marker!r}")
@@ -476,6 +566,13 @@ def verify(
         if status not in (404, 410):
             errors.append(f"tombstone {path} returned {status}, expected direct 404 or 410")
         validate_no_store_cache(errors, f"tombstone {path}", tombstone_headers)
+        validate_live_direct_headers(
+            errors,
+            f"tombstone {path}",
+            tombstone_headers,
+            header_contract,
+            exclude=frozenset({"cache-control"}),
+        )
 
     for rule in redirect_rules:
         probe_path = redirect_probe_path(rule, expected_revision)
@@ -554,6 +651,24 @@ def main() -> int:
     )
     if manifest_errors:
         parser.error("invalid retained release manifest: " + "; ".join(manifest_errors))
+    authority_path = artifact_root / AUTHORITY_NAME
+    try:
+        authority_bytes = authority_path.read_bytes()
+    except OSError as exc:
+        parser.error(f"cannot read retained HTML authority {authority_path}: {exc}")
+    html_authority, authority_errors = validate_authority(
+        authority_bytes,
+        output=artifact_root,
+        expected_revision=args.expected_revision,
+        base_url=args.base_url,
+    )
+    if authority_errors:
+        parser.error("invalid retained HTML authority: " + "; ".join(authority_errors))
+    header_contract, header_errors = load_headers(
+        artifact_root / "_headers", release_manifest
+    )
+    if header_errors or header_contract is None:
+        parser.error("invalid retained header contract: " + "; ".join(header_errors))
     redirect_rules, redirect_errors = load_redirects(artifact_root / "_redirects")
     if redirect_errors:
         parser.error("invalid retained redirect contract: " + "; ".join(redirect_errors))
@@ -570,6 +685,8 @@ def main() -> int:
                 local_manifest_bytes,
                 contract["manifest_name"],
                 redirect_rules,
+                html_authority,
+                header_contract,
             )
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]

@@ -6,13 +6,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import posixpath
 import re
 import stat
 import sys
 import tomllib
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -26,6 +27,7 @@ BASE_URL = "https://ardent.tools/"
 CSS_URL_RE = re.compile(r"url\(\s*(['\"]?)([^)'\"]+)\1\s*\)", re.I)
 TEXT_URL_RE = re.compile(r"https://ardent\.tools/[^\s)\]>'\"]+")
 HEADER_URL_RE = re.compile(r"[\"'](/[^\"']+)[\"']")
+BAD_PERCENT_RE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 
 class ResourceReferenceParser(HTMLParser):
@@ -37,6 +39,156 @@ class ResourceReferenceParser(HTMLParser):
         for name, value in attrs:
             if name in {"href", "src", "content", "data-cast"} and value:
                 self.references.append(value)
+
+
+class JsonLdParser(HTMLParser):
+    """Collect raw application/ld+json script bodies.
+
+    Script content is CDATA to the HTML parser: character references are
+    never decoded here, so a JSON string keeps its literal query separator
+    (a correct &v= or a wrong &amp;v=) exactly as authored.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.blocks: list[str] = []
+        self._recording = False
+        self._buffer: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        media_type = (dict(attrs).get("type") or "").split(";", 1)[0].strip().lower()
+        if tag == "script" and media_type == "application/ld+json":
+            self._recording = True
+            self._buffer = []
+
+    def handle_data(self, data: str) -> None:
+        if self._recording:
+            self._buffer.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self._recording:
+            self._recording = False
+            self.blocks.append("".join(self._buffer))
+
+    @property
+    def unterminated(self) -> bool:
+        return self._recording
+
+
+def normalized_origin(parsed) -> tuple[str, str, int] | None:
+    """Origin triple with the scheme's default port made explicit.
+
+    Implicit and explicit default ports (https://host vs https://host:443)
+    normalize identically, so a padded netloc cannot pose as external and
+    skip the manifest check. Non-HTTP(S) URLs have no origin here.
+    """
+    scheme = parsed.scheme.lower()
+    if scheme not in {"http", "https"}:
+        return None
+    hostname = parsed.hostname
+    if not hostname:
+        return None
+    port = parsed.port
+    if port is None:
+        port = 443 if scheme == "https" else 80
+    return scheme, hostname, port
+
+
+def canonical_resource_path(path: str) -> str:
+    """Decode and normalize a same-origin path for manifest-member identity.
+
+    Percent-encoded spellings decode first (strict UTF-8, malformed
+    sequences rejected) and dot segments resolve via posixpath.normpath, so
+    an alias such as /img/%6cogo-flame.svg or /img/./logo-flame.svg maps to
+    the same member it tries to impersonate instead of bypassing the lookup.
+    """
+    if BAD_PERCENT_RE.search(path):
+        raise ValueError(f"malformed percent-encoding in path {path!r}")
+    decoded = unquote(path, encoding="utf-8", errors="strict")
+    return posixpath.normpath(decoded)
+
+
+def inspect_manifest_reference(
+    errors: list[str], label: str, reference: str, by_path: dict[str, str]
+) -> None:
+    """Fail when a same-origin reference spells a manifest member inexactly.
+
+    The reference resolves against the site root for member lookup, but only
+    the exact root-relative manifest URL or its exact absolute spelling is
+    accepted. Aliases that decode or normalize to a member (percent-encoded,
+    dot-segment, padded-port, relative, protocol-relative, or otherwise
+    re-spelled) are still caught: the lookup is canonical, while acceptance
+    compares the authored spelling before URL resolution can erase aliases.
+    """
+    try:
+        resolved = urljoin(BASE_URL, reference)
+        parsed = urlparse(resolved)
+        origin = normalized_origin(parsed)
+    except ValueError:
+        errors.append(f"{label}: malformed public resource reference {reference!r}")
+        return
+    if origin != normalized_origin(urlparse(BASE_URL)):
+        return
+    try:
+        canonical_path = canonical_resource_path(parsed.path)
+    except (UnicodeDecodeError, ValueError) as exc:
+        errors.append(f"{label}: noncanonical resource path in {reference!r}: {exc}")
+        return
+    expected = by_path.get(canonical_path)
+    if expected is None:
+        return
+    accepted = {expected, urljoin(BASE_URL, expected)}
+    if reference not in accepted:
+        errors.append(
+            f"{label}: public resource {reference!r} must use manifest URL {expected!r}"
+        )
+
+
+def strict_json_loads(
+    raw: str,
+    label: str,
+    errors: list[str],
+    *,
+    kind: str = "application/ld+json",
+) -> object | None:
+    """Parse one JSON document, rejecting extensions and duplicate keys."""
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-JSON constant {value!r}")
+
+    def reject_duplicates(pairs: list[tuple[str, object]]) -> dict:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate key {key!r}")
+            result[key] = value
+        return result
+
+    try:
+        return json.loads(
+            raw, parse_constant=reject_constant, object_pairs_hook=reject_duplicates
+        )
+    except (ValueError, RecursionError) as exc:
+        errors.append(f"{label}: {kind} is not strict JSON: {exc}")
+        return None
+
+
+def validate_json_ld_block(
+    errors: list[str], label: str, raw: str, by_path: dict[str, str]
+) -> None:
+    """Strict-parse one JSON-LD block and inspect every string."""
+    document = strict_json_loads(raw, label, errors)
+    if document is None:
+        return
+    pending: list[object] = [document]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, dict):
+            pending.extend(value.values())
+        elif isinstance(value, list):
+            pending.extend(value)
+        elif isinstance(value, str):
+            inspect_manifest_reference(errors, label, value, by_path)
 
 
 def read_contract(path: Path = CONTRACT_PATH) -> tuple[dict, list[str]]:
@@ -174,7 +326,14 @@ def serialize_manifest(manifest: dict) -> bytes:
 
 
 def validate_public_references(output: Path, manifest: dict) -> list[str]:
-    """Require every authored reference to a manifest member to use its exact URL."""
+    """Require every authored reference to a manifest member to use its exact URL.
+
+    Coverage: HTML element attributes (entity-decoded by the parser, so the
+    authored &amp;v= separator compares as &v=), every string inside each
+    application/ld+json block (strict JSON, raw text), CSS url() targets,
+    site.webmanifest JSON strings, agent-facing text files, and _headers
+    resource values.
+    """
     errors: list[str] = []
     by_path = {
         f"/{item['output_path']}": item["request_url"]
@@ -184,43 +343,35 @@ def validate_public_references(output: Path, manifest: dict) -> list[str]:
         and isinstance(item.get("request_url"), str)
     }
 
-    def inspect(label: str, reference: str) -> None:
-        try:
-            resolved = urljoin(BASE_URL, reference)
-            parsed = urlparse(resolved)
-        except ValueError:
-            errors.append(f"{label}: malformed public resource reference {reference!r}")
-            return
-        base = urlparse(BASE_URL)
-        if (parsed.scheme.lower(), parsed.netloc.lower()) != (
-            base.scheme.lower(),
-            base.netloc.lower(),
-        ):
-            return
-        expected = by_path.get(parsed.path)
-        if expected is None:
-            return
-        actual = parsed.path + (f"?{parsed.query}" if parsed.query else "")
-        if parsed.fragment or actual != expected:
-            errors.append(
-                f"{label}: public resource {reference!r} must use manifest URL {expected!r}"
-            )
-
     for path in sorted(output.rglob("*.html")):
+        text = path.read_text()
+        label = str(path.relative_to(output))
         parser = ResourceReferenceParser()
-        parser.feed(path.read_text())
+        parser.feed(text)
+        parser.close()
         for reference in parser.references:
-            inspect(str(path.relative_to(output)), reference)
+            inspect_manifest_reference(errors, label, reference, by_path)
+        ld_parser = JsonLdParser()
+        ld_parser.feed(text)
+        ld_parser.close()
+        if ld_parser.unterminated:
+            errors.append(f"{label}: unterminated application/ld+json block")
+        for block in ld_parser.blocks:
+            validate_json_ld_block(errors, label, block, by_path)
     for path in sorted(output.rglob("*.css")):
         for match in CSS_URL_RE.finditer(path.read_text()):
-            inspect(str(path.relative_to(output)), match.group(2))
+            inspect_manifest_reference(
+                errors, str(path.relative_to(output)), match.group(2), by_path
+            )
     webmanifest = output / "site.webmanifest"
     if webmanifest.is_file():
-        try:
-            document = json.loads(webmanifest.read_text())
-        except json.JSONDecodeError as exc:
-            errors.append(f"site.webmanifest: strict JSON parse failed: {exc}")
-        else:
+        document = strict_json_loads(
+            webmanifest.read_text(),
+            "site.webmanifest",
+            errors,
+            kind="document",
+        )
+        if document is not None:
             pending: list[object] = [document]
             while pending:
                 value = pending.pop()
@@ -229,16 +380,16 @@ def validate_public_references(output: Path, manifest: dict) -> list[str]:
                 elif isinstance(value, list):
                     pending.extend(value)
                 elif isinstance(value, str):
-                    inspect("site.webmanifest", value)
+                    inspect_manifest_reference(errors, "site.webmanifest", value, by_path)
     for relative in ("llms.txt", "robots.txt"):
         path = output / relative
         if path.is_file():
             for match in TEXT_URL_RE.finditer(path.read_text()):
-                inspect(relative, match.group(0))
+                inspect_manifest_reference(errors, relative, match.group(0), by_path)
     headers = output / "_headers"
     if headers.is_file():
         for match in HEADER_URL_RE.finditer(headers.read_text()):
-            inspect("_headers", match.group(1))
+            inspect_manifest_reference(errors, "_headers", match.group(1), by_path)
     return errors
 
 
@@ -252,9 +403,17 @@ def validate_manifest(
 ) -> tuple[dict, list[str]]:
     errors: list[str] = []
     try:
-        manifest = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
         return {}, [f"release manifest is not strict UTF-8 JSON: {exc}"]
+    manifest = strict_json_loads(
+        text,
+        "release manifest",
+        errors,
+        kind="document",
+    )
+    if manifest is None:
+        return {}, errors
     if not isinstance(manifest, dict) or set(manifest) != {
         "schema_version",
         "revision",
@@ -383,7 +542,7 @@ def main() -> int:
             sys.stderr.write(f"ERROR: {error}\n")
         return 1
     sys.stdout.write(
-        f"PASS: release manifest covers {manifest['resource_count']} non-HTML artifacts\n"
+        f"PASS: release manifest covers {manifest['resource_count']} served non-HTML resources\n"
     )
     return 0
 

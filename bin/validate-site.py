@@ -21,6 +21,8 @@ from release_manifest import (
     validate_manifest,
     validate_public_references,
 )
+from header_contract import load_headers
+from html_authority import AUTHORITY_NAME, validate_authority
 from redirect_contract import load_redirects
 
 BASE_URL = "https://ardent.tools"
@@ -436,7 +438,12 @@ def main() -> int:
         parser.error("--expected-revision must be exactly one lowercase 40-hex revision")
     output = args.output.resolve()
     errors: list[str] = []
-    headers = Path("_headers").read_text()
+    headers_path = output / "_headers"
+    try:
+        headers = headers_path.read_text()
+    except OSError as exc:
+        fail(errors, f"_headers: cannot read retained control file: {exc}")
+        headers = ""
     config = tomllib.loads(Path("config.toml").read_text())
     asset_epoch = config.get("extra", {}).get("asset_epoch")
     if not isinstance(asset_epoch, str) or not ASSET_EPOCH_RE.fullmatch(asset_epoch):
@@ -469,6 +476,19 @@ def main() -> int:
             )
             errors.extend(manifest_errors)
             errors.extend(validate_public_references(output, release_manifest))
+            authority_path = output / AUTHORITY_NAME
+            if not authority_path.is_file():
+                fail(errors, f"missing {AUTHORITY_NAME}")
+            else:
+                _, authority_errors = validate_authority(
+                    authority_path.read_bytes(),
+                    output=output,
+                    expected_revision=release_revision,
+                    base_url=BASE_URL,
+                )
+                errors.extend(authority_errors)
+            _, header_errors = load_headers(headers_path, release_manifest)
+            errors.extend(header_errors)
     elif release_revision is None:
         fail(errors, "cannot validate release manifest without a valid build revision")
 

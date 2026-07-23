@@ -41,18 +41,25 @@ and `playwright.config.ts` are unchanged. CI alone sets
 `public/` and moves the already validated production tree there for Wrangler.
 
 The validated tree carries `build-revision.txt`; CI supplies the exact GitHub
-revision. It also carries a deterministic `release-resources.json` generated
-from every non-HTML regular file in that exact tree. Non-canonical resource URLs
-have one content digest and the single release asset epoch from `config.toml`.
-The post-deploy verifier refuses a different live sentinel, loads its authority
-from the retained local manifest, derives canonical HTML routes from the
-sitemap, and separately probes the custom 404. It fetches every exact resource
-URL without redirects and checks full response-body digests plus the effective
-`no-store, no-transform` policy.
+revision. `release-html.json` records the full SHA-256 body of every retained
+HTML route and the byte-identical custom 404, while marking the routes declared
+canonical by `sitemap.xml`. `release-resources.json` covers the served non-HTML
+regular resources in that exact tree, excluding the two Cloudflare Pages
+control files and the resource manifest itself. The HTML authority is one of
+those resources. Non-canonical resource URLs have one content digest and the
+single release asset epoch from `config.toml`.
+
+The post-deploy verifier refuses a different live sentinel or manifest, fetches
+every retained HTML route, probes the custom 404, and requests every exact
+resource URL without redirects. It compares full response-body digests and the
+complete configured direct-response header boundary, including the derived
+`Speculation-Rules` URL and the speculation-rules media type. The deploy job
+revalidates the retained tree after installing Wrangler and immediately before
+upload, so the uploaded directory is checked after the last dependency mutation.
 
 The complete four-rule `_redirects` file is a strict local contract. The live
-verifier requests a revision-specific
-representative for every declaration without following it and requires the
+verifier requests a revision-specific representative for every declaration
+without following it and requires the
 declared permanent status and exact same-origin destination. Redirect responses
 are not assigned cache-header claims because Cloudflare Pages applies
 `_redirects` before `_headers`.

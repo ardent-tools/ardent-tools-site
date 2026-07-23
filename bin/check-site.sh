@@ -34,6 +34,12 @@ ASSET_EPOCH=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.P
   exit 1
 }
 readonly ASSET_EPOCH
+SITE_BASE_URL=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("config.toml").read_text())["base_url"])')
+[[ "$SITE_BASE_URL" =~ ^https://[^/]+$ ]] || {
+  echo "ERROR: config.toml base_url must be one canonical HTTPS origin without a trailing slash" >&2
+  exit 1
+}
+readonly SITE_BASE_URL
 [[ "$(typst --version)" == typst\ 0.14.2* ]] || {
   echo "ERROR: Typst 0.14.2 is required for the tracked résumé" >&2
   exit 1
@@ -134,13 +140,15 @@ printf '%s\n' "$BUILD_REVISION" > "$PROD_OUTPUT/build-revision.txt"
 if [[ -f "$PROD_OUTPUT/404/index.html" ]]; then
   cp "$PROD_OUTPUT/404/index.html" "$PROD_OUTPUT/404.html"
 fi
+python3 bin/html_authority.py "$PROD_OUTPUT" \
+  --revision "$BUILD_REVISION" --base-url "$SITE_BASE_URL"
 python3 bin/release_manifest.py "$PROD_OUTPUT" \
   --revision "$BUILD_REVISION" --asset-epoch "$ASSET_EPOCH"
 themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
 python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 
 echo "==> external links"
-BASE_URL=$(sed -nE 's/^base_url[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' config.toml | head -1)
+BASE_URL=$SITE_BASE_URL
 BASE_HOST=${BASE_URL#http://}
 BASE_HOST=${BASE_HOST#https://}
 BASE_HOST=${BASE_HOST%%/*}

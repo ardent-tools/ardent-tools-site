@@ -1,7 +1,16 @@
 {# A single authored resource identity: Zola's 20-hex content digest plus the
-   release-scoped epoch from config.toml. Keep this macro as the only template
-   URL constructor for non-canonical public files. #}
+   release-scoped epoch from config.toml. Keep these macros as the only
+   template URL constructors for non-canonical public files.
+     hashed     — HTML attribute contexts: the query separator is the &amp;
+                  entity so href/src/content values stay valid HTML and the
+                  HTML parser decodes it back to &.
+     hashed_raw — raw-text JSON contexts (application/ld+json): script bodies
+                  are not entity-decoded, so the separator must be a literal &. #}
 {% macro hashed(path) -%}
 {%- set normalized = path | trim_start_matches(pat="/") -%}
 {{ get_url(path=normalized, cachebust=true) | safe }}&amp;v={{ config.extra.asset_epoch }}
 {%- endmacro hashed %}
+{% macro hashed_raw(path) -%}
+{%- set normalized = path | trim_start_matches(pat="/") -%}
+{{ get_url(path=normalized, cachebust=true) | safe }}&v={{ config.extra.asset_epoch }}
+{%- endmacro hashed_raw %}

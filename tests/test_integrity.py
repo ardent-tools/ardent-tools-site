@@ -28,6 +28,8 @@ def load_script(name: str, filename: str):
 site = load_script("ardent_validate_site", "validate-site.py")
 production = load_script("ardent_verify_production", "verify-production.py")
 redirects = load_script("ardent_redirect_contract", "redirect_contract.py")
+headers_contract = load_script("ardent_header_contract", "header_contract.py")
+html_contract = load_script("ardent_html_authority", "html_authority.py")
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
@@ -80,6 +82,8 @@ def run_production_fixture(
     resource_overrides: dict[str, tuple[int, str, bytes]] | None = None,
     redirect_statuses: dict[str, int] | None = None,
     redirect_targets: dict[str, str] | None = None,
+    root_header_overrides: dict[str, str | None] | None = None,
+    speculation_content_type: str = headers_contract.SPECULATION_MEDIA_TYPE,
 ) -> list[str]:
     assets = ASSET_MARKUP
     sitemap_body = (
@@ -89,6 +93,21 @@ def run_production_fixture(
         f"<url><loc>{BASE_URL}/about/</loc></url>"
         f"<url><loc>{BASE_URL}/evidence/</loc></url>"
         "</urlset>"
+    ).encode()
+    root_body = f'<link rel="canonical" href="{BASE_URL}/">{assets}'.encode()
+    default_about = (
+        f'<link rel="canonical" href="{BASE_URL}/about/">About{assets}'
+    ).encode()
+    evidence_body = (
+        f'<link rel="canonical" href="{BASE_URL}/evidence/">'
+        "Evidence register 0 published casts."
+        f"{assets}"
+    ).encode()
+    default_404 = (
+        f'<link rel="canonical" href="{BASE_URL}/404/">'
+        "404: no such path Return home "
+        f'<link rel="stylesheet" href="{CSS_URL}">'
+        f'<script src="{ERROR_JS_URL}" defer></script>'
     ).encode()
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory)
@@ -109,11 +128,41 @@ def run_production_fixture(
             path = output / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
+        local_html = {
+            "index.html": root_body,
+            "about/index.html": default_about,
+            "evidence/index.html": evidence_body,
+            "404/index.html": default_404,
+            "404.html": default_404,
+        }
+        for relative, body in local_html.items():
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+        html_authority = html_contract.build_authority(
+            output, EXPECTED_REVISION, BASE_URL
+        )
+        html_authority_bytes = html_contract.serialize_authority(html_authority)
+        (output / html_contract.AUTHORITY_NAME).write_bytes(html_authority_bytes)
+        files[html_contract.AUTHORITY_NAME] = html_authority_bytes
         contract, contract_errors = release.read_contract(ROOT / "release-resources.toml")
         test.assertEqual(contract_errors, [])
         manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
         manifest_bytes = release.serialize_manifest(manifest)
         (output / contract["manifest_name"]).write_bytes(manifest_bytes)
+        direct_contract, direct_contract_errors = headers_contract.expected_contract(
+            manifest
+        )
+        test.assertEqual(direct_contract_errors, [])
+        test.assertIsNotNone(direct_contract)
+
+        def direct_headers() -> dict[str, str]:
+            return dict(direct_contract.direct_response)
+
+        def with_cache(cache: str) -> dict[str, str]:
+            result = direct_headers()
+            result["cache-control"] = cache
+            return result
 
         responses: dict[tuple[str, bool], tuple[int, dict[str, str], bytes]] = {}
         for item in manifest["resources"]:
@@ -135,17 +184,27 @@ def run_production_fixture(
             if resource_overrides and item["output_path"] in resource_overrides:
                 status, cache, body = resource_overrides[item["output_path"]]
             url = f"{BASE_URL}{item['request_url']}"
-            responses[(url, False)] = (status, {"Cache-Control": cache}, body)
+            response_headers = with_cache(cache)
+            if item["output_path"] == "speculation-rules.json":
+                response_headers["content-type"] = speculation_content_type
+            responses[(url, False)] = (status, response_headers, body)
 
         responses[(f"{BASE_URL}/{contract['manifest_name']}", False)] = (
             200,
-            {"Cache-Control": GOOD_CACHE},
+            with_cache(GOOD_CACHE),
             manifest_bytes if live_manifest_body is None else live_manifest_body,
         )
-        page_headers = {"Cache-Control": GOOD_CACHE, "Content-Security-Policy": GOOD_CSP}
+        page_headers = direct_headers()
+        root_headers = direct_headers()
+        for name, value in (root_header_overrides or {}).items():
+            matches = [key for key in root_headers if key.lower() == name.lower()]
+            for key in matches:
+                del root_headers[key]
+            if value is not None:
+                root_headers[name] = value
         responses[(f"{BASE_URL}/", False)] = (
             200,
-            page_headers,
+            root_headers,
             (f'<link rel="canonical" href="{BASE_URL}/">{assets}').encode(),
         )
         default_about = (
@@ -158,15 +217,21 @@ def run_production_fixture(
         )
         responses[(f"{BASE_URL}/evidence/", False)] = (
             200,
-            {"cache-control": GOOD_CACHE, "content-security-policy": GOOD_CSP},
+            page_headers,
             (
                 f'<link rel="canonical" href="{BASE_URL}/evidence/">'
                 "Evidence register 0 published casts."
                 f"{assets}"
             ).encode(),
         )
+        responses[(f"{BASE_URL}/404/", False)] = (
+            200,
+            page_headers,
+            default_404,
+        )
         missing_path = production.missing_probe_path(EXPECTED_REVISION)
         default_404 = (
+            f'<link rel="canonical" href="{BASE_URL}/404/">'
             "404: no such path Return home "
             f'<link rel="stylesheet" href="{CSS_URL}">'
             f'<script src="{ERROR_JS_URL}" defer></script>'
@@ -174,15 +239,16 @@ def run_production_fixture(
         responses[(f"{BASE_URL}{missing_path}", False)] = (
             custom_404_status,
             {
-                "Cache-Control": custom_404_cache,
-                "Content-Security-Policy": custom_404_csp,
+                **direct_headers(),
+                "cache-control": custom_404_cache,
+                "content-security-policy": custom_404_csp,
             },
             default_404 if custom_404_body is None else custom_404_body,
         )
         for tombstone in manifest["tombstones"]:
             responses[(f"{BASE_URL}{tombstone['path']}", False)] = (
                 tombstone_status,
-                {"Cache-Control": tombstone_cache},
+                with_cache(tombstone_cache),
                 b"not found\n",
             )
         redirect_rules, redirect_errors = redirects.load_redirects(ROOT / "_redirects")
@@ -213,6 +279,8 @@ def run_production_fixture(
                 manifest_bytes,
                 contract["manifest_name"],
                 redirect_rules,
+                html_authority,
+                direct_contract,
             )
         test.assertEqual(responses, {}, f"required URLs were not requested: {responses!r}")
         test.assertEqual(len(calls), expected_calls)
@@ -647,6 +715,93 @@ class ReleaseManifestContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 3, errors)
         self.assertTrue(all("must use manifest URL" in error for error in errors), errors)
 
+    def test_json_ld_manifest_references_require_exact_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            report = next(
+                item
+                for item in manifest["resources"]
+                if item["output_path"] == "files/report.pdf"
+            )
+            exact = f"{BASE_URL}{report['request_url']}"
+            cases = {
+                "unversioned absolute": f"{BASE_URL}/files/report.pdf",
+                "unversioned relative": "files/report.pdf",
+                "explicit default port": exact.replace(
+                    "https://ardent.tools/", "https://ardent.tools:443/"
+                ),
+                "percent-encoded alias": exact.replace("report.pdf", "%72eport.pdf"),
+                "dot-segment alias": exact.replace(
+                    "/files/report.pdf", "/files/../files/report.pdf"
+                ),
+                "relative exact query": report["request_url"].lstrip("/"),
+                "protocol-relative": exact.replace("https:", ""),
+                "raw-script HTML entity": exact.replace("&v=", "&amp;v="),
+            }
+            for label, reference in cases.items():
+                with self.subTest(label=label):
+                    (output / "index.html").write_text(
+                        '<script type="application/ld+json">'
+                        f'{{"image":"{reference}"}}'
+                        "</script>"
+                    )
+                    errors = release.validate_public_references(output, manifest)
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn("must use manifest URL", errors[0])
+
+            (output / "index.html").write_text(
+                '<script type="application/ld+json">'
+                f'{{"image":"{exact}"}}'
+                "</script>"
+            )
+            self.assertEqual(release.validate_public_references(output, manifest), [])
+            (output / "index.html").write_text(
+                '<script type="application/ld+json">'
+                f'{{"image":"{report["request_url"]}"}}'
+                "</script>"
+            )
+            self.assertEqual(release.validate_public_references(output, manifest), [])
+
+    def test_json_ld_is_strict_and_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            cases = {
+                "duplicate key": '{"logo":"a","logo":"b"}',
+                "non-JSON constant": '{"value":NaN}',
+                "unterminated block": '{"value":"x"}',
+            }
+            for label, document in cases.items():
+                with self.subTest(label=label):
+                    closing = "" if label == "unterminated block" else "</script>"
+                    (output / "index.html").write_text(
+                        '<script type="application/ld+json">'
+                        f"{document}{closing}"
+                    )
+                    errors = release.validate_public_references(output, manifest)
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn("application/ld+json", errors[0])
+
+    def test_release_manifest_and_webmanifest_require_strict_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, manifest, _raw = self.make_fixture(output)
+            duplicate_manifest = b'{"resources":[],"resources":[]}'
+            _document, manifest_errors = release.validate_manifest(
+                duplicate_manifest,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+            (output / "site.webmanifest").write_text('{"name":"a","name":"b"}')
+            reference_errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(manifest_errors), 1, manifest_errors)
+        self.assertIn("duplicate key", manifest_errors[0])
+        self.assertEqual(len(reference_errors), 1, reference_errors)
+        self.assertIn("site.webmanifest", reference_errors[0])
+
     def test_tombstone_resurrection_fails_local_and_live(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -692,6 +847,202 @@ class ReleaseManifestContractTests(unittest.TestCase):
                     errors, "/resource", {"Cache-Control": policy}
                 )
                 self.assertEqual(len(errors), 1, errors)
+
+
+class HeaderContractTests(unittest.TestCase):
+    @staticmethod
+    def repository_manifest() -> dict:
+        body = (ROOT / "static/speculation-rules.json").read_bytes()
+        digest = hashlib.sha256(body).hexdigest()
+        return {
+            "resources": [
+                {
+                    "output_path": "speculation-rules.json",
+                    "request_url": (
+                        f"/speculation-rules.json?h={digest[:20]}&v={ASSET_EPOCH}"
+                    ),
+                }
+            ]
+        }
+
+    def test_repository_headers_are_the_exact_supported_contract(self) -> None:
+        contract, errors = headers_contract.validate_headers(
+            (ROOT / "_headers").read_text(), self.repository_manifest()
+        )
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(contract)
+        self.assertEqual(
+            contract.direct_response["speculation-rules"],
+            '"/speculation-rules.json?h=dd1ab64ebeb7a41864aa&v=2"',
+        )
+
+    def test_missing_wrong_duplicate_extra_and_detach_fail_closed(self) -> None:
+        raw = (ROOT / "_headers").read_text()
+        hsts = (
+            "  Strict-Transport-Security: "
+            "max-age=31536000; includeSubDomains; preload"
+        )
+        cases = {
+            "missing": raw.replace(hsts + "\n", ""),
+            "wrong": raw.replace(hsts, "  Strict-Transport-Security: max-age=60"),
+            "duplicate": raw.replace(hsts, f"{hsts}\n{hsts}"),
+            "extra path": raw + "\n/extra\n  X-Test: no\n",
+            "detach": raw.replace(hsts, "  ! Strict-Transport-Security"),
+        }
+        for label, candidate in cases.items():
+            with self.subTest(label=label):
+                _contract, errors = headers_contract.validate_headers(
+                    candidate, self.repository_manifest()
+                )
+                self.assertTrue(errors, label)
+
+    def test_live_direct_header_omission_and_duplicate_fail(self) -> None:
+        missing = run_production_fixture(
+            self,
+            root_header_overrides={"Strict-Transport-Security": None},
+        )
+        self.assertEqual(len(missing), 1, missing)
+        self.assertIn("strict-transport-security header must be exactly", missing[0])
+
+        duplicate = run_production_fixture(
+            self,
+            root_header_overrides={"X-Frame-Options": "DENY, SAMEORIGIN"},
+        )
+        self.assertEqual(len(duplicate), 1, duplicate)
+        self.assertIn("x-frame-options header must be exactly", duplicate[0])
+
+    def test_live_speculation_rules_content_type_is_exact(self) -> None:
+        errors = run_production_fixture(
+            self, speculation_content_type="application/json"
+        )
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("Content-Type must be", errors[0])
+
+
+class HtmlAuthorityContractTests(unittest.TestCase):
+    def make_fixture(self, output: Path) -> tuple[dict, bytes]:
+        sitemap = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            f"<url><loc>{BASE_URL}/</loc></url>"
+            f"<url><loc>{BASE_URL}/about/</loc></url>"
+            "</urlset>"
+        )
+        files = {
+            "sitemap.xml": sitemap.encode(),
+            "index.html": b"root\n",
+            "about/index.html": b"about\n",
+            "private-proof.html": b"not in sitemap\n",
+            "404/index.html": b"missing\n",
+            "404.html": b"missing\n",
+        }
+        for relative, body in files.items():
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+        authority = html_contract.build_authority(
+            output, EXPECTED_REVISION, BASE_URL
+        )
+        return authority, html_contract.serialize_authority(authority)
+
+    def test_authority_covers_sitemap_and_non_sitemap_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            authority, raw = self.make_fixture(output)
+            _document, errors = html_contract.validate_authority(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                base_url=BASE_URL,
+            )
+        self.assertEqual(errors, [])
+        by_path = {item["request_path"]: item for item in authority["routes"]}
+        self.assertEqual(set(by_path), {"/", "/404/", "/about/", "/private-proof.html"})
+        self.assertTrue(by_path["/"]["in_sitemap"])
+        self.assertFalse(by_path["/private-proof.html"]["in_sitemap"])
+
+    def test_stale_or_missing_non_sitemap_html_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _authority, raw = self.make_fixture(output)
+            hidden = output / "private-proof.html"
+            hidden.write_bytes(b"stale\n")
+            _document, stale_errors = html_contract.validate_authority(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                base_url=BASE_URL,
+            )
+            hidden.unlink()
+            _document, missing_errors = html_contract.validate_authority(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                base_url=BASE_URL,
+            )
+        self.assertTrue(any("differs" in error for error in stale_errors), stale_errors)
+        self.assertTrue(any("differs" in error for error in missing_errors), missing_errors)
+
+    def test_custom_404_drift_dot_segments_and_non_strict_json_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            (output / "404.html").write_bytes(b"different\n")
+            with self.assertRaisesRegex(ValueError, "byte-identical"):
+                html_contract.build_authority(output, EXPECTED_REVISION, BASE_URL)
+        with self.assertRaisesRegex(ValueError, "dot segment"):
+            html_contract.route_output_path("/about/../")
+        for raw in (
+            b'{"x":1,"x":2}',
+            b'{"x":NaN}',
+            '{"x":1}'.encode("utf-16"),
+        ):
+            with self.subTest(raw=raw):
+                _document, errors = html_contract.validate_authority(
+                    raw,
+                    output=Path("."),
+                    expected_revision=EXPECTED_REVISION,
+                    base_url=BASE_URL,
+                )
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn("strict UTF-8 JSON", errors[0])
+
+    def test_live_canonical_and_custom_404_bytes_match_authority(self) -> None:
+        stale_about = (
+            f'<link rel="canonical" href="{BASE_URL}/about/">Changed{ASSET_MARKUP}'
+        ).encode()
+        about_errors = run_production_fixture(self, about_body=stale_about)
+        self.assertTrue(
+            any("/about/ body differs from retained HTML authority" in error for error in about_errors),
+            about_errors,
+        )
+        stale_404 = (
+            f'<link rel="canonical" href="{BASE_URL}/404/">'
+            "404: no such path Return home changed "
+            f'<link rel="stylesheet" href="{CSS_URL}">'
+            f'<script src="{ERROR_JS_URL}" defer></script>'
+        ).encode()
+        missing_errors = run_production_fixture(self, custom_404_body=stale_404)
+        self.assertTrue(
+            any("custom-404 authority" in error for error in missing_errors),
+            missing_errors,
+        )
+
+
+class DeployWorkflowContractTests(unittest.TestCase):
+    def test_predeploy_revalidation_follows_wrangler_install_and_precedes_upload(self) -> None:
+        workflow = (ROOT / ".github/workflows/deploy.yml").read_text()
+        deploy = workflow.split("- name: Deploy to Cloudflare Pages", 1)[1].split(
+            "- name: Verify live authored/runtime boundary", 1
+        )[0]
+        install = deploy.index("npm install -g wrangler@4.112.0")
+        validate = deploy.index(
+            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        )
+        upload = deploy.index("wrangler pages deploy public")
+        self.assertLess(install, validate)
+        self.assertLess(validate, upload)
+        self.assertIn("GITHUB_SHA: ${{ github.sha }}", deploy)
 
 
 class CacheContractTests(unittest.TestCase):
