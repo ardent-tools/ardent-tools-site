@@ -126,7 +126,7 @@ def run_production_fixture(
     ).encode()
     evidence_body = (
         f'<link rel="canonical" href="{BASE_URL}/evidence/">'
-        "Evidence register 0 published casts."
+        "Would show: 0 published casts."
         f"{assets}"
     ).encode()
     default_404 = (
@@ -285,7 +285,7 @@ def run_production_fixture(
             page_headers,
             (
                 f'<link rel="canonical" href="{BASE_URL}/evidence/">'
-                "Evidence register 0 published casts."
+                "Would show: 0 published casts."
                 f"{assets}"
             ).encode(),
         )
