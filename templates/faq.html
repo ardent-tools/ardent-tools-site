@@ -9,9 +9,8 @@
 {% extends "page.html" %}
 
 {% block ld_json %}
-  {%- include "partials/ld-organization.html" -%}
+  {{ super() }}
   {%- include "partials/ld-faq.html" -%}
-  {{ crumb::breadcrumb(title=page.title, permalink=page.permalink, ancestors=page.ancestors) }}
 {% endblock ld_json %}
 
 {% block content %}

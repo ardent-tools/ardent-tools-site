@@ -25,7 +25,7 @@ not_shows = "The complete CI sequence or hardware bring-up on the physical AGM M
 
 ## What it is
 
-thumos is a phone operating system written from the kernel up in Rust, targeting a $90 dumbphone (the AGM M7 — MediaTek MT6739, 1 GB RAM, 240x320 screen). There is no Linux underneath it — kernel, memory manager, scheduler, and userspace crates are all Rust, cross-compiled to bare metal. The feature set targets secure communication and counter-surveillance: on-device detection for IMSI-catcher-shaped cell towers, MAC/IMEI randomization at the register level, encrypted storage, and a cellular modem firewalled at the driver boundary.
+The AGM M7 is a $90 dumbphone — MediaTek MT6739, 1 GB of RAM, a 240x320 screen. thumos is an operating system for it, written from the kernel up in Rust. Kernel, memory manager, scheduler, userspace crates — all Rust, cross-compiled to bare metal, no Linux underneath any of it. The feature set targets secure communication and counter-surveillance: on-device detection for IMSI-catcher-shaped cell towers, MAC/IMEI randomization at the register level, encrypted storage, and a cellular modem firewalled at the driver boundary.
 
 The one thing the modem, WiFi, Bluetooth, and GPS radios have in common is that MediaTek ships them as binary-only vendor blobs — there's no way to replace them with Rust, so thumos treats them as an untrusted peripheral behind a driver boundary.
 

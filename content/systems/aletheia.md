@@ -25,7 +25,7 @@ not_shows = "Memory recall, an LLM response, the TUI, or the desktop app. The pl
 
 ## What it is
 
-aletheia is a self-hosted runtime for AI agents that remember. An agent carries the conversation forward: what was said last week, preferences stated once, a knowledge graph it builds from every session rather than starting cold each time. Each agent gets its own character, goals, and memory, and agents can coordinate with each other.
+aletheia runs AI agents that remember. What was said last week, preferences stated once, a knowledge graph built from every session rather than a cold start each time — an agent carries all of it forward, with its own character, goals, and memory, and agents can coordinate with each other.
 
 It ships as a single binary — no containers, no external database, no sidecar processes. Its network posture is narrower than “offline”: the runtime makes zero unsolicited outbound connections. Fully offline operation requires a local LLM, cached model files, and network tools and messaging channels disabled. It is reachable from a terminal dashboard, an HTTP/SSE API, or Signal when those interfaces are enabled.
 

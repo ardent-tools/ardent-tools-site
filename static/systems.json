@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "428a40e767054243f077c5a6fea4b55d9288f47230cef16efe1a30d0030bf1c5",
+    "input_sha256": "fe0ce9e0bc62d23e4fc3e588292d942f423bfd4eaac5e9a8f94ae99e78d67a94",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -16,27 +16,27 @@
       },
       {
         "path": "content/systems/aletheia.md",
-        "sha256": "6d10f55b2a6e0c3b86684e1506798c64237abd1ba1ec6258713610fe3951828b"
+        "sha256": "6032095e81f8fa00ff9b5d402d0ea33cc17aaba42ea35fb8e7dab9f487707910"
       },
       {
         "path": "content/systems/hamma.md",
-        "sha256": "b52adb5a07d7050678774368af9d038f42b89866fb1a525185baa1c1407812d6"
+        "sha256": "76085dca05d7a08853c782486470410f748780ecaea1c7cff4e7c6cf55bd860c"
       },
       {
         "path": "content/systems/harmonia.md",
-        "sha256": "4eb359f0ea891391bffb252443ae1670d979393ee104f69e3221657aa5ef747f"
+        "sha256": "548b4b7276fd28dbf5065aa378be2af950036832d75fdac3436b01e1498faa38"
       },
       {
         "path": "content/systems/kanon.md",
-        "sha256": "d7bd2a5cdbec07d9ef2b316b9528ed36369391f6695acd6416ef1ef59f66aca7"
+        "sha256": "412436f9f25b60d8cf17274d854493029791fb1bfd964a1947b35b370cceedec"
       },
       {
         "path": "content/systems/logismos.md",
-        "sha256": "07be8dc71cc42afe751fc81a9d1412cdd63c3b5a57aa734e26490b309f36c99d"
+        "sha256": "591045bb146c406f707424bbd6f2b8dab86d9a64adcf10b68743d80bbf12bf98"
       },
       {
         "path": "content/systems/thumos.md",
-        "sha256": "1fadc2ce50128cfc2f16acab43f36ce851d2bbeb318f2fe0103ad2d1b816bc81"
+        "sha256": "aba5068ae391f199774df6aa373fe05da376213ac320c37f0a03c5b7d884affe"
       },
       {
         "path": "data/exact-system-licenses.json",

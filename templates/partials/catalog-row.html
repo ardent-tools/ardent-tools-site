@@ -15,7 +15,7 @@
 #}
 {% macro row(page) %}
 <li class="catalog-row">
-  <div class="catalog-row-name"><a href="{{ page.permalink | safe }}">{{ page.title }}</a></div>
+  <h3 class="catalog-row-name"><a href="{{ page.permalink | safe }}">{{ page.title }}</a></h3>
   {%- if page.description %}
   <p class="catalog-row-desc">{{ page.description }}</p>
   {%- endif %}

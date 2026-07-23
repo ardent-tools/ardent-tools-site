@@ -25,7 +25,7 @@ not_shows = "Any GPU run. Phase 4 remains hardware-blocked."
 
 ## What it is
 
-logismos is a GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP, targeting AMD's gfx1100 architecture (the W7900). It exists because the alternatives didn't: Candle has no ROCm backend, and AMD deprecated ONNX Runtime's ROCm support.
+Candle has no ROCm backend. AMD deprecated ONNX Runtime's ROCm support. For transformer embeddings on AMD hardware, the stack that should exist doesn't — so logismos builds it from the device upward in Rust and HIP, targeting the gfx1100 architecture (the W7900).
 
 ## Decisions and trade-offs
 

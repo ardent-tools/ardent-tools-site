@@ -60,8 +60,9 @@ font_preload = [
 ]
 
 # Top-nav structure. Consulting is marked as the primary action by URL in
-# partials/nav.html; its treatment never depends on list position. Resume
-# remains visible as the secondary career path.
+# partials/nav.html; its treatment never depends on list position. The
+# resume lives on /consulting/ (its PDF is career-claims-bound); /resume/
+# 301s there via _redirects + bin/redirect_contract.py.
 nav_items = [
   { url = "/systems/",    label = "Systems" },
   { url = "/evidence/",   label = "Evidence" },
@@ -69,7 +70,6 @@ nav_items = [
   { url = "/consulting/", label = "Consulting" },
   { url = "/about/",      label = "About" },
   { url = "/contact/",    label = "Contact" },
-  { url = "/resume/",     label = "Resume" },
 ]
 
 # typikon's stock ld-organization.html partial (kept, unshadowed — see
@@ -110,10 +110,6 @@ label = "FAQ"
 [[extra.footer.site_links]]
 url = "/colophon/"
 label = "Colophon"
-
-[[extra.footer.site_links]]
-url = "/resume/"
-label = "Resume"
 
 [[extra.footer.site_links]]
 url = "/atom.xml"
