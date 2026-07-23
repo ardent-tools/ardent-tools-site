@@ -672,7 +672,7 @@ h1, h2, h3 {
 }
 
 .catalog-footnote {
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -895,7 +895,7 @@ a:focus-visible .arrow {
 .badge {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border: 1px solid var(--rule);
@@ -905,10 +905,22 @@ a:focus-visible .arrow {
   text-decoration: none;
 }
 
+/* Link affordance (§3.3) — a linked badge (system.html's, to /faq/#labeling)
+   otherwise reads identical to the plain-span badge feature-block.html
+   renders; a quiet dotted underline at rest gives it away before the
+   hover state does, without borrowing the plate/button visual weight a
+   solid underline would. */
+a.badge {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 0.2em;
+}
+
 a.badge:hover,
 a.badge:focus-visible {
   color: var(--text);
   border-color: var(--text);
+  text-decoration-color: var(--text);
 }
 
 /* === Claim / receipt (§3.4) === */
@@ -991,7 +1003,7 @@ a.badge:focus-visible {
 
 .fact-row .private-chip {
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-light);
@@ -1049,9 +1061,9 @@ a.badge:focus-visible {
      lighter than the existing 5% catalog-zone tint (.zone-systems etc.
      above) so these newer wash moments read as a distinct, quieter
      register from the established zone dye baths rather than competing
-     with them — a judgment call, not a measured contrast target. Every
-     other 4% wash below (feature blocks, consulting close) follows the
-     same rationale. */
+     with them — a judgment call, not a measured contrast target. The
+     consulting-close wash below follows the same rationale; the
+     feature-block washes (§3.3) diverge from it — see their own WHY. */
   background: color-mix(in oklab, var(--zone-systems-ink) 4%, var(--bg));
 }
 
@@ -1374,7 +1386,7 @@ a:active {
 
 .site-footer-cluster {
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-light);
@@ -1382,7 +1394,7 @@ a:active {
 
 .footer-kicker {
   display: block;
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   letter-spacing: 0.08em;
   color: var(--text-light);
   margin-bottom: var(--space-3xs);
@@ -1657,7 +1669,7 @@ footer {
   align-items: baseline;
   gap: var(--space-s);
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-light);
@@ -1758,18 +1770,29 @@ footer {
   z-index: -1;
 }
 
-/* WHY 4% on all three: same wash-tint rationale as .dossier-header::before
-   above (DESIGN-v2 §1.3), not re-derived per block. */
+/* WHY 7% on all three, diverging from .dossier-header::before's 4%
+   (DESIGN-v2 §1.3 baseline): these three washes are the page's own
+   preview of the catalog's zone grammar (§02 "Selected systems") — the
+   one moment on the page meant to be *read* as a colored zone, not
+   felt as ambient texture the way the dossier-header/consulting-close
+   washes are. At 4% the tint measured perceptually flat on cheaper,
+   low-contrast panels (sRGB clipping crushes a 4% mix toward the paper
+   base before the panel's own gamma curve even applies), losing the
+   zone-preview read entirely rather than just reading quieter. 7% sits
+   at the low end of a visibly-tinted-but-still-a-wash range - short of
+   the 22%+ mixes this file reserves for deliberate ink blocks
+   (.button, ::selection) - and stays legible on a calibrated display
+   too, so the bump costs nothing there. */
 .feature-thumos::before {
-  background: color-mix(in oklab, var(--feat-thumos-ink) 4%, var(--bg));
+  background: color-mix(in oklab, var(--feat-thumos-ink) 7%, var(--bg));
 }
 
 .feature-aletheia::before {
-  background: color-mix(in oklab, var(--feat-aletheia-ink) 4%, var(--bg));
+  background: color-mix(in oklab, var(--feat-aletheia-ink) 7%, var(--bg));
 }
 
 .feature-harmonia::before {
-  background: color-mix(in oklab, var(--feat-harmonia-ink) 4%, var(--bg));
+  background: color-mix(in oklab, var(--feat-harmonia-ink) 7%, var(--bg));
 }
 
 /* Seam between abutting washes — the plain-paper edge one block's tint
@@ -1897,7 +1920,7 @@ footer {
 
 .spec-plate dt {
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-light);
@@ -2176,49 +2199,108 @@ a.proof-record:focus-visible {
   margin-block: var(--space-xl);
 }
 
-/* Index regrid (§4.3) — row index / name / receipt summary / status,
-   the register's own column set. .evidence-index-head supplies the
-   column labels and the opening 3px double rule beneath them;
-   .evidence-index carries the rows, one hairline between each; no
-   bottom rule of its own — .evidence-index-close supplies the closing
-   double rule instead, so the two ends of the register read
-   differently (open thin, close heavy) the way a real ledger does. */
-.evidence-index-head {
-  display: grid;
-  grid-template-columns: 2.5rem minmax(9rem, 0.3fr) 1fr minmax(7rem, auto);
-  gap: var(--space-m);
-  padding-bottom: var(--space-xs);
+/* Evidence table (§4.3, §7 a11y) — a real <table>: index / name /
+   receipt summary / status, the register's own column set. Real
+   thead/tbody/th/td markup (not an aria-hidden header row over a list
+   of unlabeled cells) so a screen reader gets column context per cell
+   for free. One row link (the Entry cell's <a>) is stretched to the
+   full row via ::after + tr's own position: relative, the same
+   technique .catalog-row/.ledger-cell use above — "click anywhere on
+   the row" without a <tr> wrapping an <a>, which HTML disallows. No
+   bottom rule of its own on the body — .evidence-index-close supplies
+   the closing double rule, so the two ends of the register read
+   differently (open thin, close heavy) the way a real ledger does.
+
+   Narrow-viewport contract (tests/smoke/site-quality.spec.ts): a
+   multi-column table must stay a real table and scroll horizontally
+   at <=375px, never collapse to stacked blocks — every data cell
+   holds a legibility floor (>=128px) and the table's own scroll
+   region stays inside the viewport. display: block on the <table>
+   itself (not a wrapper — .evidence-table-wrap is a plain layout
+   container, not the scroll owner) turns the table into its own
+   horizontal-scroll box while its thead/tbody/tr/td descendants keep
+   their table-part display values (the same technique this site
+   already uses for generic .prose tables: ".prose table:not(.receipt-
+   table-wrap table)" above). min-width per cell (not a fixed
+   table-layout) is the same mechanism .receipt-table-wrap already
+   uses elsewhere on this site, deliberately without adopting that
+   class's plate framing (background/border/padding) — the register
+   keeps the bare-ledger look the list version had. */
+.evidence-table-wrap {
+  max-width: 100%;
+}
+
+.evidence-table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
   margin-top: var(--space-m);
+}
+
+/* Resets typikon's generic `th, td { border-bottom; padding }` (style.css
+   §"Tables", for markdown-body tables) — this table owns its own row
+   rule (tbody tr's border-top, thead's double rule) and a directional
+   inline gap (padding-inline-end, zeroed on the last column) standing
+   in for the earlier CSS grid's own `gap`, not a border or padding on
+   every cell. min-width is the legibility floor the narrow-viewport
+   contract requires (>=128px); 9.5rem clears it with margin at the
+   16px root the mobile breakpoints already assume. */
+.evidence-table th,
+.evidence-table td {
+  text-align: left;
+  padding-block: var(--space-m);
+  padding-inline: 0 var(--space-m);
+  border-bottom: 0;
+  vertical-align: baseline;
+  min-width: 9.5rem;
+}
+
+.evidence-table th:last-child,
+.evidence-table td:last-child {
+  padding-inline-end: 0;
+  text-align: right;
+}
+
+.evidence-table thead th {
+  padding-top: 0;
+  padding-bottom: var(--space-xs);
   border-bottom: 3px double var(--text);
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-light);
 }
 
-.evidence-index-head span:last-child {
-  text-align: right;
-}
-
-.evidence-index {
-  list-style: none;
-  padding: 0;
-}
-
-.evidence-index a {
-  display: grid;
-  grid-template-columns: 2.5rem minmax(9rem, 0.3fr) 1fr minmax(7rem, auto);
-  align-items: baseline;
-  gap: var(--space-m);
-  padding-block: var(--space-m);
+.evidence-table tbody tr {
+  position: relative;
   border-top: 1px solid var(--rule);
+  transition: background-color var(--t-micro) ease-out, box-shadow var(--t-micro) ease-out;
+}
+
+.evidence-table tbody tr:has(a:hover),
+.evidence-table tbody tr:has(a:focus-visible) {
+  background: color-mix(in oklab, var(--accent) 4%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);   /* the ledger-margin tick */
+}
+
+.evidence-table tbody a {
   color: var(--text);
   text-decoration: none;
 }
 
-.evidence-index a:hover strong,
-.evidence-index a:focus-visible strong {
+.evidence-table tbody a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.evidence-table tbody tr:has(a:hover) strong,
+.evidence-table tbody tr:has(a:focus-visible) strong {
   color: var(--accent);
 }
 
@@ -2229,7 +2311,7 @@ a.proof-record:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.evidence-index a strong {
+.evidence-table tbody strong {
   font-family: var(--font-mono);
   font-weight: 600;
 }
@@ -2241,11 +2323,10 @@ a.proof-record:focus-visible {
 
 .evidence-index-status {
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-light);
-  text-align: right;
 }
 
 /* Closing rule (§4.3) — the register visibly ends rather than trailing
@@ -2257,17 +2338,36 @@ a.proof-record:focus-visible {
   border-top: 3px double var(--text);
   text-align: right;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: max(var(--step--2), 0.75rem);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-light);
   font-variant-numeric: tabular-nums;
 }
 
+/* De-weighted (§4.3, §7): a plain count line, not the heaviest plate on
+   the page — the honest zero already carries in .evidence-count-line
+   at the header; this second mention stays quiet prose so the tape-
+   script links below it, not this line, are what a visitor lands on. */
 .recording-status {
-  padding: var(--space-m);
-  border: 1px solid var(--text);
-  background: var(--bg-accent);
+  color: var(--text-mid);
+}
+
+.plan-state-script {
+  margin-left: var(--space-xs);
+}
+
+/* Primary action (§4.3) — the inspectable tape script is the row's one
+   real action; give it the same text-action treatment the site uses
+   for every other primary link, ahead of the descriptive fields below
+   it rather than trailing after them. */
+.recording-plan-primary {
+  margin-top: var(--space-xs);
+}
+
+.recording-plan-primary .text-action {
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .recording-plan-list li {
@@ -2294,28 +2394,31 @@ a.proof-record:focus-visible {
   margin: var(--space-xs) 0 0;
 }
 
-@media (max-width: 700px) {
-  .section-heading-row,
-  .home-writing-list li,
-  .evidence-index a {
+/* Home writing list (§1.3) — its own breakpoint, wider than the
+   general 700px collapse below: at 8rem date / 0.55fr title / 1fr
+   description, a long title has too little room between ~700-900px and
+   wraps 3-4 lines beside a one-line date. Stacking a step earlier
+   trades the two-column moment for a title that reads on one or two
+   lines instead. */
+@media (max-width: 900px) {
+  .home-writing-list li {
     display: block;
   }
 
-  .section-heading-row > a,
-  .home-writing-list h3,
-  .evidence-index span {
+  .home-writing-list h3 {
     display: block;
     margin-top: var(--space-xs);
   }
+}
 
-  /* A column-header row is meaningless once the columns below it
-     collapse to stacked blocks. */
-  .evidence-index-head {
-    display: none;
+@media (max-width: 700px) {
+  .section-heading-row {
+    display: block;
   }
 
-  .evidence-index-status {
-    text-align: left;
+  .section-heading-row > a {
+    display: block;
+    margin-top: var(--space-xs);
   }
 
   /* Fleet map mobile composition — a deliberate narrow-width anatomy,
