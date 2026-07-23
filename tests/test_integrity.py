@@ -710,7 +710,8 @@ class ProductionRouteContractTests(unittest.TestCase):
             any("Cache-Control must be exactly" in error for error in errors), errors
         )
         self.assertTrue(
-            any("strict zero-cast CSP differs" in error for error in errors), errors
+            any("CSP differs from the header contract" in error for error in errors),
+            errors,
         )
         self.assertTrue(
             any("Cloudflare email-protection" in error for error in errors), errors
