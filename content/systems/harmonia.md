@@ -5,10 +5,10 @@ weight = 4
 template = "system.html"
 
 [extra]
-badge = "SHIPPED CORE · 2 STUBS AT HTTP LAYER"
+badge = "SHIPPED CORE · LIVE ADAPTERS WIRED"
 repo = "https://github.com/forkwright/harmonia"
-stack = "Rust · Tokio/Axum/SQLite · 21 workspace crates"
-demo_len = "1:15"
+stack = "Rust · Tokio/Axum/SQLite · 21 workspace members"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "Shipped and wired to routes: auth, library import, feed scheduling, torrent download, queue orchestration, the streaming API"
@@ -16,18 +16,16 @@ receipt = "harmonia/README.md, capability-status table"
 
 [extra.demo]
 system = "harmonia"
-action = "server boot, health check, library scan"
-target = "seeded sample media only"
-duration = "1:15"
+action = "disposable server boot and health check"
+target = "public /api/system/health route"
 tape = "/tapes/harmonia-serve.tape"
-placeholder = "RECORDING FORTHCOMING: harmonia serve boots → a health check answers → a library scan triggers → its import queue populates, against a small seeded sample-media directory"
-shows = "A real server boot, a health check answering, and a library scan populating an import queue."
-not_shows = "The two HTTP-layer resolvers that are still null placeholders (metadata resolution and curation) — those are named in the solid/open list below."
+shows = "A real server boot from disposable configuration and SQLite state, followed by the public health route returning its documented `status: ok` response."
+not_shows = "A library scan or import. The current admin-protected `POST /api/library/scan` route returns 202 without performing a scan."
 +++
 
 ## What it is
 
-harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite server spanning 21 workspace crates, aimed at replacing the pattern of five or six separate *arr-style applications (one for movies, one for TV, one for music, one for indexing, one for requests) wired together by hand. Instead it's one coherent server covering the full media lifecycle: import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household request handling, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
+harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite server spanning 21 Cargo workspace members, aimed at replacing the pattern of five or six separate *arr-style applications (one for movies, one for TV, one for music, one for indexing, one for requests) wired together by hand. Instead it's one coherent server covering the full media lifecycle: import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household request handling, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
 
 ## Decisions and trade-offs
 
@@ -42,20 +40,22 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 ## What's solid / what's open
 
-**Solid, shipped and wired to live routes:** auth, library scan/import, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import — a completed download lands directly in the library for music, movie, and book wants.
+**Solid, shipped and wired to live routes:** auth, library read/import surfaces, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import — a completed download lands directly in the library for music, movie, and book wants.
 
-**Open:** two null placeholders remain at the HTTP layer, for metadata resolution and curation, on the live `serve` path. Audiobook, comic, podcast, and TV-series wants have no library type yet and are deferred. A fallback/test path (`AppState::with_stubs`) defines nine additional `Null*` service implementations used for testing, separate from the two live-path placeholders above. The README documents the build and test commands but not yet how to run the server day to day: no quick-start section, no example config. Reaching a running instance from a fresh clone means reading the `archon` CLI's own `--help` output rather than following a documented path.
+**Solid, on the live serve path:** `serve` wires `metadata_adapter` and `CurationAdapter(DefaultCurationService)`; the earlier metadata and curation null-resolver claim is no longer true. Audiobook, comic, podcast, and TV library types exist alongside the established media paths.
+
+**Open:** `AppState::with_stubs` remains a fallback and test constructor with ten `Null*` implementations; those stubs are not the live `serve` wiring. At pinned revision `6ab797f81c31`, the admin-protected `POST /api/library/scan` handler returns `202 Accepted` without initiating a scan, so neither this page nor the recording plan treats it as scan evidence. The README documents build and test commands but not yet a day-to-day quick start or example configuration. Reaching a running instance from a fresh clone still means reading the `archon` CLI's own `--help` output.
 
 ## Numbers, and how they were measured
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 100,460 lines Rust (code-only), 117,575 including comments | `tokei` against a local clone, 2026-07-20 | reproducible: `tokei` on a fresh clone |
-| 21 workspace crates | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
-| ~2,290 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
-| 2 null placeholders remain at the live HTTP layer (metadata resolution, curation) | stated directly in the repo's own capability-status table | `README.md`, Capability status section |
+| 100,473 Rust code lines; 117,589 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `6ab797f81c31`, 2026-07-22 | run from that revision |
+| 21 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `6ab797f81c31` | run from that revision |
+| 2,290 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `6ab797f81c31`, 2026-07-22 | run from that revision |
+| Live `serve` wires metadata and curation adapters; fallback `with_stubs` has 10 `Null*` implementations | inspect constructors and serve wiring | `crates/archon` application state and serve path |
 
 </div>
 

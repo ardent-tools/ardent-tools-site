@@ -1,0 +1,4 @@
+*.pdf binary
+# Preserve the upstream font notice byte-for-byte; its canonical text carries
+# one blank line at EOF, which is not authored site whitespace.
+resume/fonts/LICENSE whitespace=-blank-at-eof

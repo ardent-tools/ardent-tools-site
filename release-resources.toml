@@ -1,0 +1,19 @@
+schema_version = 1
+manifest_name = "release-resources.json"
+
+# These protocol or discovery endpoints must remain query-free. Every other
+# served non-HTML member of release-resources.json receives the central content
+# digest plus asset epoch; _headers, _redirects, and the manifest itself are
+# control or bootstrap files outside that member set.
+canonical_paths = [
+  "atom.xml",
+  "build-revision.txt",
+  "llms.txt",
+  "robots.txt",
+  "sitemap.xml",
+]
+
+[[tombstones]]
+path = "/tapes/aletheia-memory.tape"
+retain_through = "2026-08-21"
+reason = "Removed after an immutable predecessor response; retain through its 30-day browser-cache window."

@@ -7,8 +7,8 @@ template = "system.html"
 [extra]
 badge = "PRE-ALPHA"
 repo = "https://github.com/forkwright/hamma"
-stack = "Rust · WireGuard (boringtun) · Noise protocol"
-demo_len = "0:45"
+stack = "Rust · Noise protocol · WireGuard data plane planned"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "Noise handshake, control-protocol types, and TCP/TLS registration land in Phase A"
@@ -18,11 +18,9 @@ receipt = "hamma/README.md, Status section"
 system = "hamma"
 action = "handshake + control-protocol type tests"
 target = "hamma-core, dictyon"
-duration = "0:45"
 tape = "/tapes/hamma-tests.tape"
-placeholder = "RECORDING FORTHCOMING: cargo test -p hamma-core && cargo test -p dictyon — the Noise-handshake and control-protocol-type tests passing"
 shows = "The Noise-handshake and control-protocol-type tests passing — modest, explicitly test-suite-shaped, matching where the project actually is."
-not_shows = "Two peers joining a tailnet. That moment doesn't exist yet — the WireGuard data plane isn't wired in; this recording won't stage a fake version of it."
+not_shows = "Two peers joining a tailnet. The WireGuard data plane is not wired in."
 +++
 
 ## What it is
@@ -33,7 +31,7 @@ hamma is a clean-room Rust implementation of a Tailscale-compatible mesh network
 
 ### Clean-room, not a port
 
-hamma is written from the protocol spec and public behavior, not translated line-by-line from Tailscale's Go client. No vendor blobs, no unsafe beyond what the underlying `boringtun` crate already audits. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
+hamma is written from the protocol specification and public behavior, not translated line-by-line from Tailscale's Go client. Its current workspace denies unsafe code. BoringTun is only a commented Cargo placeholder for the planned WireGuard data plane, not a present dependency or a source of current unsafe code. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -44,16 +42,16 @@ hamma is written from the protocol spec and public behavior, not translated line
 
 **Solid:** the Noise handshake, control-protocol types, TCP/TLS registration, and the map-streaming loop, all landed as part of Phase A's `dictyon` peer client.
 
-**Open, stated as the repo itself states it:** pre-alpha, no releases yet, no stable API. The next implementation milestone is the WireGuard data plane via `boringtun` — until that lands, there's no working end-to-end tailnet, and this page won't imply otherwise. An open audit backlog tracks known gaps in map deltas, frame handling, node-key expiry, tracing, and map-stream integration coverage.
+**Open, stated as the repo itself states it:** pre-alpha, no releases yet, no stable API. The next implementation milestone is the WireGuard data plane via BoringTun — the dependency itself has not landed, and until the data plane lands there's no working end-to-end tailnet. An open audit backlog tracks known gaps in map deltas, frame handling, node-key expiry, tracing, and map-stream integration coverage.
 
 ## Numbers, and how they were measured
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 4,091 lines Rust (code-only), 5,112 including comments | `tokei` against a local clone, 2026-07-20 | reproducible: `tokei` on a fresh clone |
-| 2 workspace crates (`dictyon` peer client, `hamma-core` shared types) | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
+| 4,091 Rust code lines; 5,112 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `216e2adc83d5`, 2026-07-20 | run from that revision |
+| 2 Cargo workspace members (`dictyon` peer client, `hamma-core` shared types) | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `216e2adc83d5` | run from that revision |
 
 </div>
 

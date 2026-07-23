@@ -1,25 +1,13 @@
-# hamma-tests.tape -- VHS script; generates static/casts/hamma-tests.cast
+# hamma-tests.tape -- planned VHS script; intended output:
+# static/casts/hamma-tests.cast (not yet recorded)
 #
-# Shot:         the Noise-handshake and control-protocol-type tests
-#               passing (`cargo test -p hamma-core`, `cargo test -p
-#               dictyon`) -- modest, explicitly test-suite-shaped, matching
-#               where the project actually is.
-# Launch gate:  non-blocking (DESIGN.md §9) -- may launch as an honest
-#               placeholder if recording slips.
-# Duration:     <=45s cap (DESIGN.md §9); demo-card estimate 0:45.
-# Poster frame: the test summary.
-# Doesn't show: two peers joining a tailnet. That moment doesn't exist yet
-#               -- the WireGuard data plane isn't wired in; this recording
-#               won't stage a fake version of it.
+# Shot:         the current hamma-core and dictyon test suites passing.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=45s.
+# Doesn't show: two peers joining a tailnet or a WireGuard data plane.
 #
-# Run from the hamma repo root:
-#        vhs static/tapes/hamma-tests.tape
-# Geometry: tuned toward 80x24 to match term-panel.html's
-#           data-cols="80" data-rows="24"; confirm the actual PTY size on
-#           the build box and retune Width/Height/FontSize if it drifts.
-# ANSI palette: applied at playback time by the vendored asciinema-player
-#           theme (DESIGN.md §2.2), not by this capture step -- no Theme
-#           is set here.
+# Run from the ardent-tools-site root:
+#   ARDENT_HAMMA_ROOT=/absolute/path/to/hamma vhs static/tapes/hamma-tests.tape
 
 Output static/casts/hamma-tests.cast
 
@@ -35,24 +23,24 @@ Set WaitTimeout 45s
 Set CursorBlink false
 
 Hide
+Type "test -n \"$ARDENT_HAMMA_ROOT\" && test -d \"$ARDENT_HAMMA_ROOT/.git\""
+Enter
+Type "cd \"$ARDENT_HAMMA_ROOT\""
+Enter
 Type "clear"
 Enter
 Show
 
-Type "# hamma -- pre-alpha; modest, explicitly test-suite-shaped"
+Type "# hamma -- current control-plane tests, not an end-to-end tailnet"
 Enter
 Sleep 1s
 
-Type "cargo test -p hamma-core"
+Type "cargo test -p hamma-core && printf 'HAMMA_%s\\n' 'CORE_TESTS_OK'"
 Enter
-Wait+Screen /test result: ok/
+Wait+Screen /HAMMA_CORE_TESTS_OK/
 Sleep 1s
 
-Type "cargo test -p dictyon"
+Type "cargo test -p dictyon && printf 'HAMMA_%s\\n' 'DICTYON_TESTS_OK'"
 Enter
-Wait+Screen /test result: ok/
-Sleep 1500ms
-
-Type "# Noise handshake + control-protocol types passing -- no tailnet, no staged two-peer join; the WireGuard data plane isn't wired in yet"
-Enter
+Wait+Screen /HAMMA_DICTYON_TESTS_OK/
 Sleep 2s

@@ -8,7 +8,7 @@ template = "system.html"
 badge = "TUI DEFAULT · DESKTOP IN PREVIEW"
 repo = "https://github.com/forkwright/aletheia"
 stack = "Rust · single binary · Datalog-backed memory"
-demo_len = "1:30"
+kanon_ci = true
 
 [extra.headline_claim]
 claim = "One binary — no containers, no external databases, no sidecars"
@@ -16,20 +16,18 @@ receipt = "aletheia/README.md, Architecture section"
 
 [extra.demo]
 system = "aletheia"
-action = "memory recall across turns"
-target = "local model, no cloud key"
-duration = "1:30"
-tape = "/tapes/aletheia-memory.tape"
-placeholder = "RECORDING FORTHCOMING: TUI session — state a fact in turn 1, ask something unrelated in turn 2, ask for recall in turn 3, agent cites the turn-1 fact back correctly"
-shows = "A fact stated in turn 1, recalled correctly and cited back in turn 3, running against a local model with no cloud API key."
-not_shows = "The desktop app — it's a v1.0-target preview, installed separately from source, not the default onboarding path this recording uses."
+action = "disposable boot and health check"
+target = "public health route and seeded demo-agent registration"
+tape = "/tapes/aletheia-health.tape"
+shows = "A disposable copy of the repository's demo instance passing configuration validation, booting, answering `/api/health`, and exposing its seeded demo agent."
+not_shows = "Memory recall, an LLM response, the TUI, or the desktop app. The plan makes no model-quality claim."
 +++
 
 ## What it is
 
 aletheia is a self-hosted runtime for AI agents that remember. An agent carries the conversation forward: what was said last week, preferences stated once, a knowledge graph it builds from every session rather than starting cold each time. Each agent gets its own character, goals, and memory, and agents can coordinate with each other.
 
-It ships as a single binary — no containers, no external database, no sidecar processes. The only outbound network dependency at runtime is the configured LLM provider; on first run it downloads embedding-model files from Hugging Face, then runs fully offline after that. It's reachable from a terminal dashboard, an HTTP/SSE API, or Signal.
+It ships as a single binary — no containers, no external database, no sidecar processes. Its network posture is narrower than “offline”: the runtime makes zero unsolicited outbound connections. Fully offline operation requires a local LLM, cached model files, and network tools and messaging channels disabled. It is reachable from a terminal dashboard, an HTTP/SSE API, or Signal when those interfaces are enabled.
 
 ## Decisions and trade-offs
 
@@ -52,12 +50,12 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 
 <div class="receipt-table-wrap">
 
-| Claim | Method | Where to check |
+| Claim | Reproduction method | Where to check |
 |---|---|---|
-| 550,309 lines Rust (code-only), 622,922 including comments | `tokei` against a local clone HEAD, 2026-07-20 | reproducible: `tokei` on a fresh clone |
-| 30 workspace crates | crate count in the workspace `Cargo.toml` | reproducible on a fresh clone |
-| ~12,124 test-attribute occurrences | `rg -c '#\[(tokio::)?test'`, 2026-07-20 | reproducible: same `rg` command on a fresh clone |
-| No telemetry, no phone-home, no crash reports | stated network posture, enumerated | `docs/NETWORK.md` in the repo — every outbound call the binary makes |
+| 550,578 Rust code lines; 623,250 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `1a0ee8a29cb2`, 2026-07-22 | run from that revision |
+| 49 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `1a0ee8a29cb2` | run from that revision |
+| 12,133 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `1a0ee8a29cb2`, 2026-07-22 | run from that revision |
+| Zero unsolicited outbound connections; fully offline only with local LLM, cached models, and network tools/channels disabled | enumerated network posture | `docs/NETWORK.md` in the repo |
 
 </div>
 
@@ -66,4 +64,4 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 - Repo: [github.com/forkwright/aletheia](https://github.com/forkwright/aletheia)
 - Architecture and current tool inventory: `docs/ARCHITECTURE.md`
 - Every outbound network call the binary makes: `docs/NETWORK.md`
-- The existing scripted demo (local model, no cloud key): `demo/README.md`
+- The demo configuration and authoritative smoke-test lifecycle: `demo/README.md`, `demo/smoke-test.sh`

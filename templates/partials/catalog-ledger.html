@@ -17,7 +17,7 @@
 <ul class="catalog ledger-grid">
   {%- for item in items %}
   <li class="ledger-cell">
-    <div class="ledger-name">{{ item.name }}</div>
+    <div class="ledger-name"><a href="{{ item.repo | safe }}">{{ item.name }}</a></div>
     <p class="ledger-gloss">{{ item.gloss }}</p>
     <p class="catalog-row-desc">{{ item.one_liner }}</p>
     <div class="catalog-row-meta">

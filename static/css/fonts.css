@@ -16,7 +16,7 @@
 /* Cormorant Garamond — display */
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/cormorant-garamond-400.woff2') format('woff2');
+  src: url('/fonts/cormorant-garamond-400.woff2?h=9a842d62d34ddfa36c1a&v=2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -24,7 +24,7 @@
 }
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/cormorant-garamond-500.woff2') format('woff2');
+  src: url('/fonts/cormorant-garamond-500.woff2?h=b0606158f37f6e2a243c&v=2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -32,7 +32,7 @@
 }
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/cormorant-garamond-600.woff2') format('woff2');
+  src: url('/fonts/cormorant-garamond-600.woff2?h=cbc6f0618c997aece547&v=2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -40,7 +40,7 @@
 }
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/cormorant-garamond-400-italic.woff2') format('woff2');
+  src: url('/fonts/cormorant-garamond-400-italic.woff2?h=6bb8b0f40ab6cbef1bfa&v=2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
@@ -50,7 +50,7 @@
 /* Spectral — body */
 @font-face {
   font-family: 'Spectral';
-  src: url('/fonts/spectral-400.woff2') format('woff2');
+  src: url('/fonts/spectral-400.woff2?h=0d7b708c4b21eba1ec7d&v=2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -58,7 +58,7 @@
 }
 @font-face {
   font-family: 'Spectral';
-  src: url('/fonts/spectral-500.woff2') format('woff2');
+  src: url('/fonts/spectral-500.woff2?h=945ad1f27bd3022121b5&v=2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -66,7 +66,7 @@
 }
 @font-face {
   font-family: 'Spectral';
-  src: url('/fonts/spectral-400-italic.woff2') format('woff2');
+  src: url('/fonts/spectral-400-italic.woff2?h=e8d6035ec5f41658bc84&v=2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
@@ -74,7 +74,7 @@
 }
 @font-face {
   font-family: 'Spectral';
-  src: url('/fonts/spectral-500-italic.woff2') format('woff2');
+  src: url('/fonts/spectral-500-italic.woff2?h=ee7b7e196484668b2c42&v=2') format('woff2');
   font-weight: 500;
   font-style: italic;
   font-display: swap;
@@ -84,7 +84,7 @@
 /* IBM Plex Mono — specs */
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+  src: url('/fonts/ibm-plex-mono-400.woff2?h=8130faf9255d5d7de993&v=2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -92,7 +92,7 @@
 }
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+  src: url('/fonts/ibm-plex-mono-500.woff2?h=2e4f14e6ba4631a2b351&v=2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;

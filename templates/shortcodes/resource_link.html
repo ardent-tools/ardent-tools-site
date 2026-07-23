@@ -1,0 +1,2 @@
+{% import "partials/asset-url.html" as asset_url -%}
+<a href="{{ asset_url::hashed(path=path) | safe }}">{{ label }}</a>

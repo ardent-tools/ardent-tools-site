@@ -1,9 +1,10 @@
 # Ardent Tools
 
-> Agent infrastructure engineering. Recordings and receipts, not claims.
+> Agent infrastructure engineering documented with source-linked receipts
+> and candid lifecycle boundaries.
 > Cody Kickertz's systems, portfolio, and consulting practice. Static
-> site (Zola), strict CSP, no trackers, no analytics, no third-party
-> requests, no forms.
+> site (Zola), strict CSP, no site-authored analytics or cookies, and no
+> remote third-party runtime/application requests in authored output. Cloudflare Pages provides delivery.
 
 Content and code here are licensed for reading, not for AI-training
 ingestion — see the [code license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE)
@@ -18,7 +19,7 @@ corpus is not, absent written consent.
 - [Systems catalog](https://ardent.tools/systems/): seven systems, the
   libraries underneath them, and what's on the drawing board — seventeen
   public repositories and one private tool with a public track record.
-- [Systems catalog, machine-readable](https://ardent.tools/systems.json):
+- [Systems catalog, machine-readable](https://ardent.tools/systems.json?h=3cb30005500e75a30ce7&v=2):
   the same catalog as structured JSON.
 
 ## Practice
@@ -33,11 +34,13 @@ corpus is not, absent written consent.
   infrastructure, standards-as-code, governed AI platforms.
 - [Writing](https://ardent.tools/writing/): essays on agent infrastructure
   and systems architecture as they're finished. No cadence promised.
+- [Evidence register](https://ardent.tools/evidence/): inspectable receipts
+  available now and a separate backlog of planned terminal recordings.
 
 ## Reference
 
 - [FAQ](https://ardent.tools/faq/): private repos, maturity labels,
   location, availability, why so many systems.
 - [Colophon](https://ardent.tools/colophon/): how this site is built —
-  Zola and typikon, self-hosted fonts and player, the CSP posture, the
+  Zola and typikon, self-hosted application assets, the CSP posture, the
   gate it passes before every deploy, and what it deliberately doesn't do.

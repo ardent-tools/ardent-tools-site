@@ -1,31 +1,23 @@
-# kanon-gate.tape -- VHS script; generates static/casts/kanon-gate.cast
+# kanon-gate.tape -- planned VHS script; intended output:
+# static/casts/kanon-gate.cast (not yet recorded)
 #
-# Shot:         kanon lint finds a violation (seeded, labeled on-screen as
-#               SEEDED VIOLATION -- LABELED IN-CAST) -> kanon lint --fix
-#               clears the mechanical class -> kanon gate runs clean --
-#               run against the public aletheia repo, never kanon's own
-#               source (DESIGN.md §4.2 kanon variant).
-# Launch gate:  LAUNCH-BLOCKING (DESIGN.md §9) -- ships with a real cast,
-#               never as a placeholder.
-# Duration:     <=75s cap (DESIGN.md §9); demo-card estimate 1:15.
-# Poster frame: the violation table.
-# Doesn't show: kanon's own source. Private by choice, not by necessity --
-#               artifact available on request.
+# Shot:         a fresh disposable clone pinned to aletheia
+#               1a0ee8a29cb2; lint observes a seeded, labeled, fixable TOML
+#               violation, fixes it, proves the file clean, then runs gate.
+# Publish gate: requires the real cast and a reviewed transcript.
+# Duration:     planned cap <=75s.
+# Doesn't show: Kanon's private source. The seeded defect exists only in the
+#               disposable clone and is labeled in the recording.
 #
-# Run from wherever both kanon and a public aletheia
-#      clone are reachable:
-#        vhs static/tapes/kanon-gate.tape
-# Geometry: tuned toward 80x24 to match term-panel.html's
-#           data-cols="80" data-rows="24"; confirm the actual PTY size on
-#           the build box and retune Width/Height/FontSize if it drifts.
-# ANSI palette: applied at playback time by the vendored asciinema-player
-#           theme (DESIGN.md §2.2), not by this capture step -- no Theme
-#           is set here.
+# Run from the ardent-tools-site root:
+#   vhs static/tapes/kanon-gate.tape
+# Network prerequisite: the public aletheia repository is reachable.
 
 Output static/casts/kanon-gate.cast
 
 Require kanon
 Require git
+Require mktemp
 
 Set Shell "bash"
 Set FontSize 20
@@ -39,49 +31,48 @@ Set CursorBlink false
 Hide
 Type "clear"
 Enter
-# ALETHEIA points at a public aletheia clone on the build box -- never
-# kanon's own (private) source. Override the env var if the clone lives
-# somewhere other than $HOME/dev/aletheia.
-Type "ALETHEIA=\"${ALETHEIA:-$HOME/dev/aletheia}\""
+Type "KANON_TAPE_ROOT=\"$(mktemp -d -t kanon-gate-tape.XXXXXX)\""
+Enter
+Type "cleanup_kanon_tape() { rm -rf -- \"$KANON_TAPE_ROOT\"; }; trap cleanup_kanon_tape EXIT"
+Enter
+Type "git clone --quiet https://github.com/forkwright/aletheia.git \"$KANON_TAPE_ROOT/aletheia\""
+Enter
+Type "ALETHEIA=\"$KANON_TAPE_ROOT/aletheia\""
+Enter
+Type "PROOF_FILE=\"$ALETHEIA/scripts/release-feature-policy.toml\""
+Enter
+Type "git -C \"$ALETHEIA\" switch --detach 1a0ee8a29cb2"
+Enter
+Type "test -z \"$(git -C \"$ALETHEIA\" status --porcelain)\""
 Enter
 Show
 
-Type "# kanon -- the standards engine gating every public repo on this site, run against aletheia"
+Type "# kanon -- six featured repos carry Kanon config; enforcement is repository-specific"
 Enter
 Sleep 1s
 
-# A single mechanical violation staged for this recording only -- a
-# freeform (non-structured-tag) comment, a real kanon comment-standard
-# lint class -- never a finding manufactured to look worse or better than
-# reality, and cleaned up (below) before this tape's git state persists.
-Type "echo '// TODO fix this later' >> \"$ALETHEIA/crates/mneme/src/lib.rs\""
+Type "printf '\nkanon_recording_proof = [\n  \"seed\"\n]\n' >> \"$PROOF_FILE\""
 Enter
-Sleep 500ms
-Type "# SEEDED VIOLATION -- LABELED IN-CAST (a freeform-comment violation staged for this recording; not present on aletheia's actual HEAD)"
+Type "# SEEDED VIOLATION -- missing TOML trailing comma, absent from aletheia's pinned source"
 Enter
 Sleep 1s
 
-Type "kanon lint --diff-base main \"$ALETHEIA\""
+Type "kanon lint \"$PROOF_FILE\"; rc=$?; test \"$rc\" -eq 1 && printf 'KANON_%s\\n' 'VIOLATION_OK'"
 Enter
-Wait+Screen /violation|error|comment-standard/
-Sleep 2s
-
-Type "kanon lint --fix \"$ALETHEIA\""
-Enter
-Wait+Screen /fixed|clean|0 violations/
+Wait+Screen /KANON_VIOLATION_OK/
 Sleep 1s
 
-Hide
-Type "git -C \"$ALETHEIA\" checkout -- crates/mneme/src/lib.rs"
+Type "kanon lint --fix \"$PROOF_FILE\" && printf 'KANON_%s\\n' 'FIX_OK'"
 Enter
-Sleep 500ms
-Show
+Wait+Screen /KANON_FIX_OK/
+Sleep 1s
 
-Type "kanon gate \"$ALETHEIA\""
+Type "kanon lint \"$PROOF_FILE\" && printf 'KANON_%s\\n' 'LINT_CLEAN_OK'"
 Enter
-Wait+Screen /pass|PASS|gate/
-Sleep 2s
+Wait+Screen /KANON_LINT_CLEAN_OK/
+Sleep 1s
 
-Type "# clean gate -- none of kanon's own source appears anywhere in this recording"
+Type "kanon gate \"$ALETHEIA\" && printf 'KANON_%s\\n' 'GATE_OK'"
 Enter
+Wait+Screen /KANON_GATE_OK/
 Sleep 2s

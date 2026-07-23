@@ -10,6 +10,7 @@
 # frontmatter), two renderings (the HTML catalog, this JSON file). Never
 # hand-edit static/systems.json; it is overwritten on every run.
 
+import argparse
 import json
 import re
 import tomllib
@@ -17,6 +18,16 @@ from pathlib import Path
 
 CONTENT = Path("content/systems")
 FRONTMATTER = re.compile(r"^\+\+\+\n(.*?)\n\+\+\+\n", re.DOTALL)
+EXACT_LICENSES = json.loads(Path("data/exact-system-licenses.json").read_text())
+
+
+def exact_license(name: str, authored: str | None) -> str | None:
+    expected = EXACT_LICENSES.get(name)
+    if expected is not None and authored != expected:
+        raise SystemExit(
+            f"{name}: license must be exact SPDX {expected}, found {authored!r}"
+        )
+    return authored
 
 
 def read_frontmatter(path: Path) -> dict:
@@ -41,7 +52,7 @@ def tier1_rows() -> list[dict]:
             "one_liner": fm.get("description"),
             "badge": extra.get("badge"),
             "repo": extra.get("repo"),
-            "license": extra.get("license"),  # None until DESIGN-v1.3 §4 item 6 lands
+            "license": exact_license(slug, extra.get("license")),
             "stack": extra.get("stack"),
             "private": extra.get("private", False),
         })
@@ -60,19 +71,27 @@ def ledger_rows() -> list[dict]:
             "one_liner": entry.get("one_liner"),
             "badge": entry.get("badge"),
             "repo": entry.get("repo"),
-            "license": entry.get("license"),
+            "license": exact_license(entry["name"], entry.get("license")),
         })
     return rows
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("static/systems.json"),
+        help="destination (defaults to static/systems.json)",
+    )
+    args = parser.parse_args()
     out = {
         "$schema_note": "Generated from content/systems/*.md — do not hand-edit.",
         "site": "https://ardent.tools",
         "catalog_url": "https://ardent.tools/systems/",
         "systems": tier1_rows() + ledger_rows(),
     }
-    Path("static/systems.json").write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
+    args.output.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":

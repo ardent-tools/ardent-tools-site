@@ -1,0 +1,52 @@
+{# Consumer shadow of typikon's templates/partials/ld-article.html.
+   Sole delta: a page's og_image is a non-canonical public resource, so
+   the Article image field must carry its exact manifest identity —
+   content digest plus the release asset epoch — via
+   asset_url::hashed_raw (literal &v=; JSON-LD script bodies are raw
+   text and are never entity-decoded). Everything else is unchanged;
+   re-diff against the theme partial on every typikon-refresh.
+
+   Original theme documentation follows.
+
+   Schema.org/Article JSON-LD. Override the ld_json block from journal-entry.html.
+
+   Inputs:
+     page.title         — article headline
+     page.description   — article summary
+     page.permalink     — canonical URL
+     page.date          — ISO 8601 publication date
+     page.updated       — optional, ISO 8601
+     page.extra.author  — optional per-entry author override (string name)
+     config.extra.author.name — fallback brand author
+     config.title       — publisher name
+#}
+{% import "partials/asset-url.html" as asset_url %}
+{%- set author_name = page.extra.author | default(value=config.extra.author.name) | default(value=config.title) -%}
+{%- set image_url = "" -%}
+{%- if page.extra.og_image -%}
+  {%- set image_url = asset_url::hashed_raw(path=page.extra.og_image) -%}
+{%- endif -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ page.title | json_encode | safe }},
+  "description": {{ page.description | json_encode | safe }},
+  "url": {{ page.permalink | json_encode | safe }},
+  "datePublished": {{ page.date | json_encode | safe }},
+  "author": {
+    "@type": "Person",
+    "name": {{ author_name | json_encode | safe }}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": {{ config.title | json_encode | safe }}
+  }
+  {%- if page.updated -%},
+  "dateModified": {{ page.updated | json_encode | safe }}
+  {%- endif -%}
+  {%- if image_url -%},
+  "image": {{ image_url | json_encode | safe }}
+  {%- endif %}
+}
+</script>

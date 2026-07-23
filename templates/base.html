@@ -3,13 +3,13 @@
    templates/ wins). Delta from the theme copy, marked inline below:
    the site.css/syntax.css token-override links (the documented
    AGENTIC.md path — config.toml's `consumer_css` comment is not
-   actually wired; see typikon-capabilities.md §2), a light/dark
-   theme-color meta pair, twitter:image mirroring og:image, and the
-   player_css/player_js blocks that keep the vendored recording player
-   off pages with no panel to play. Re-diff this file against
+   actually wired; see typikon-capabilities.md §2), a light-only
+   theme-color meta, twitter:image mirroring og:image, and conditional
+   asset blocks reserved for pages with a published cast. Re-diff this file against
    themes/typikon/templates/base.html on every typikon-refresh.
 #}
 {% import "partials/ld-breadcrumb.html" as crumb %}
+{% import "partials/asset-url.html" as asset_url %}
 <!DOCTYPE html>
 <html lang="{{ lang | default(value="en") }}">
 <head>
@@ -20,30 +20,43 @@
      manifest raster set alongside it (Safari desktop/iOS don't render
      SVG favicons; source: static/img/logo-flame.svg, rasterized to
      static/img/{favicon-32,apple-touch-icon,icon-512}.png). #}
-  <link rel="icon" href="/img/logo-flame.svg" type="image/svg+xml">
-  <link rel="icon" href="/img/favicon-32.png" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
+  <link rel="icon" href="{{ asset_url::hashed(path='img/logo-flame.svg') | safe }}" type="image/svg+xml">
+  <link rel="icon" href="{{ asset_url::hashed(path='img/favicon-32.png') | safe }}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{{ asset_url::hashed(path='img/apple-touch-icon.png') | safe }}">
+  <link rel="manifest" href="{{ asset_url::hashed(path='site.webmanifest') | safe }}">
 
   {%- set site_title = config.title | default(value="") -%}
   {%- set default_description = config.description | default(value="") -%}
+  {%- set document_title = site_title -%}
+  {%- if page -%}
+    {%- set content_title = page.extra.seo_title | default(value=page.title) -%}
+    {%- set document_title = content_title ~ " - " ~ site_title -%}
+  {%- elif section and current_path != "/" -%}
+    {%- set content_title = section.extra.seo_title | default(value=section.title) -%}
+    {%- set document_title = content_title ~ " - " ~ site_title -%}
+  {%- elif section and section.extra.seo_title -%}
+    {%- set document_title = section.extra.seo_title -%}
+  {%- endif -%}
 
-  <title>{% block title %}{{ site_title }}{% endblock title %}</title>
+  {# Resolve content titles here and escape once in their final text/attribute
+     contexts. Nested title blocks caused apostrophes to be entity-escaped
+     once by the child and again by this template. #}
+  <title>{{ document_title }}</title>
   <meta name="description" content="{% block description %}{{ default_description }}{% endblock description %}">
 
-  <meta property="og:title" content="{% block og_title %}{{ site_title }}{% endblock og_title %}">
+  <meta property="og:title" content="{{ document_title }}">
   <meta property="og:description" content="{% block og_description %}{{ default_description }}{% endblock og_description %}">
   <meta property="og:type" content="{% block og_type %}website{% endblock og_type %}">
   <meta property="og:locale" content="{{ config.extra.og_locale | default(value="en_US") }}">
   {% block og_image -%}
     {%- if config.extra.og_image %}
-  <meta property="og:image" content="{{ get_url(path=config.extra.og_image, trailing_slash=false) }}">
+  <meta property="og:image" content="{{ asset_url::hashed(path=config.extra.og_image) | safe }}">
     {%- endif %}
   {%- endblock og_image %}
   {% block twitter_image -%}
     {%- if config.extra.og_image %}
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="{{ get_url(path=config.extra.og_image, trailing_slash=false) }}">
+  <meta name="twitter:image" content="{{ asset_url::hashed(path=config.extra.og_image) | safe }}">
     {%- else %}
   <meta name="twitter:card" content="summary">
     {%- endif %}
@@ -61,21 +74,19 @@
      by consumer's [extra.font_preload]); the rest load via fonts.css. #}
   {%- if config.extra.font_preload %}
     {%- for font in config.extra.font_preload %}
-  <link rel="preload" href="{{ font | safe }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ asset_url::hashed(path=font) | safe }}" as="font" type="font/woff2" crossorigin>
     {%- endfor %}
   {%- endif %}
-  <link rel="stylesheet" href="{{ get_url(path='css/fonts.css', cachebust=true) }}">
-  <link rel="stylesheet" href="{{ get_url(path='css/style.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/fonts.css') | safe }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/style.css') | safe }}">
   {# --- ardent.tools delta begins: consumer-side token override + new
      component CSS, loaded after typikon's own stylesheet so equal-
      specificity selectors here win the cascade (see site.css's own
      header comment). --- #}
-  <link rel="stylesheet" href="{{ get_url(path='css/site.css', cachebust=true) }}">
-  <link rel="stylesheet" href="{{ get_url(path='css/syntax.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/site.css') | safe }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/syntax.css') | safe }}">
   {# --- ardent.tools delta ends --- #}
-  {# Vendored player CSS: only the templates that actually render a
-     term-panel populate this (index.html, demos.html, system.html) —
-     the other 8 panel-less pages skip the ~69 KB. #}
+  {# A page may populate this block only when it renders a published cast. #}
   {% block player_css %}{% endblock player_css %}
 
   {# Default JSON-LD: Organization on every page. Consumer page templates
@@ -98,12 +109,11 @@
 
   {% block footer %}{% include "partials/footer.html" %}{% endblock footer %}
 
-  {# --- ardent.tools delta: the vendored player (panel-bearing templates
-     only, see player_css above) + the one site script, always loaded —
-     both external files (CSP script-src 'self' — no inline). site.js
-     itself no-ops when window.AsciinemaPlayer is undefined. --- #}
+  {# A page may populate this block only when it renders a published cast.
+     site.js is the site's own external enhancement script and no-ops when
+     the optional player library is absent. #}
   {% block player_js %}{% endblock player_js %}
-  <script src="{{ get_url(path='js/site.js', cachebust=true) }}" defer></script>
+  <script src="{{ asset_url::hashed(path='js/site.js') | safe }}" defer></script>
   {% block scripts %}{% endblock scripts %}
 </body>
 </html>

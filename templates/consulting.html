@@ -1,7 +1,6 @@
-{# consulting.html — the practice's portfolio-plus-consulting splash
-   (Addendum). Same restraint as the rest of the site: no "solutions,"
-   no testimonials carousel; the demos elsewhere on the site are the
-   sales page. This template only adds one data-driven block (engagement
+{# consulting.html — the practice's consulting brief. Same restraint as
+   the rest of the site: no invented outcomes or client proof; published
+   system receipts carry the technical evidence. This template adds one data-driven block (engagement
    shapes) over what page.html already gives; everything else is
    markdown body content.
 #}
@@ -35,5 +34,12 @@
   </div>
   {%- endfor %}
 </div>
+
+<aside class="consulting-inquiry" aria-labelledby="consulting-inquiry-title">
+  <p class="section-label">Start with the boundary</p>
+  <h2 id="consulting-inquiry-title">Bring the system and the hard-to-reverse decision.</h2>
+  <p>Send the operating boundary, what the team must be able to verify, and the handoff you need to leave behind.</p>
+  <a class="button" href="mailto:{{ config.extra.person.email }}?subject=Consulting%20inquiry">Start a consulting inquiry</a>
+</aside>
 {%- endif %}
 {% endblock content %}

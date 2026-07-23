@@ -1,6 +1,6 @@
 # Ardent Tools — site config (Zola + typikon).
 title = "Ardent Tools"
-description = "Agent infrastructure engineering. Recordings and receipts, not claims."
+description = "Agent infrastructure engineering, documented with source-linked system receipts and candid lifecycle boundaries."
 base_url = "https://ardent.tools"
 default_language = "en"
 output_dir = "public"
@@ -30,6 +30,10 @@ style = "class"
 theme = "github-light"
 
 [extra]
+# One release-scoped cache-key epoch shared by every authored non-canonical
+# public resource URL. Content digests still prove the response bytes; changing
+# this value gives a release a fresh CDN key without per-asset version labels.
+asset_epoch = "2"
 # Brand strings — read by typikon's base.html / nav.html / footer.html.
 # No brand_greek, no triad, no home_logo: plain-English register, no
 # Greek-branch templates activated (every Greek path in typikon is
@@ -42,7 +46,6 @@ brand_name = "ardent.tools"
 # apple-touch-icon.png, icon-512.png via site.webmanifest).
 logo_path = "img/logo-flame.svg"
 theme_color = "#F7F3E8"
-theme_color_dark = "#21201D"
 og_locale = "en_US"
 # PNG, not the source SVG (img/og-card.svg) — Twitter/LinkedIn/Slack
 # unfurlers don't render SVG og:image; twitter:card is
@@ -60,16 +63,14 @@ font_preload = [
   "/fonts/plex-mono-600-latin.woff2",
 ]
 
-# Top-nav structure (IA §1; Consulting added §1.6 note 14). No dropdowns,
-# no hamburger, not sticky. Resume is last by position —
-# static/css/site.css styles .nav-links a:last-child as the one filled
-# button on the site; the shadowed partials/nav.html marks whichever item
-# prefixes current_path with aria-current="page" (§1.6).
+# Top-nav structure. Consulting is marked as the primary action by URL in
+# partials/nav.html; its treatment never depends on list position. Resume
+# remains visible as the secondary career path.
 nav_items = [
   { url = "/systems/",    label = "Systems" },
-  { url = "/demos/",      label = "Demos" },
-  { url = "/consulting/", label = "Consulting" },
+  { url = "/evidence/",   label = "Evidence" },
   { url = "/writing/",    label = "Writing" },
+  { url = "/consulting/", label = "Consulting" },
   { url = "/about/",      label = "About" },
   { url = "/contact/",    label = "Contact" },
   { url = "/resume/",     label = "Resume" },
@@ -102,7 +103,7 @@ linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
 # per DESIGN §3.7, more structure than typikon's stock flat footer_links
 # list can carry).
 [extra.footer]
-colophon_summary = "Static site. Zola. Self-hosted fonts and player. No trackers, no analytics, no CDN."
+colophon_summary = "Static Zola site. No site-authored analytics, cookies, or remote third-party runtime/application requests in authored output."
 sibling_url = "https://ardentleatherworks.com"
 sibling_label = "SIBLING WORKSHOP: ARDENT LEATHERWORKS"
 

@@ -10,8 +10,8 @@
       "one_liner": "An RF signals toolkit in Rust: a clean-room Meshtastic mesh stack running live, CHIRP radio workflows, an encrypted credential vault, and a 17-domain signal model labeled by what actually ships.",
       "badge": "MESH LIVE · 11 OF 17 DOMAINS PLANNED",
       "repo": "https://github.com/forkwright/akroasis",
-      "license": null,
-      "stack": "Rust workspace · 7 crates · AGPL-3.0",
+      "license": "AGPL-3.0-only",
+      "stack": "Rust workspace · 7 crates · AGPL-3.0-only",
       "private": false
     },
     {
@@ -33,7 +33,7 @@
       "badge": "PRE-ALPHA",
       "repo": "https://github.com/forkwright/hamma",
       "license": null,
-      "stack": "Rust · WireGuard (boringtun) · Noise protocol",
+      "stack": "Rust · Noise protocol · WireGuard data plane planned",
       "private": false
     },
     {
@@ -41,17 +41,17 @@
       "group": "systems",
       "url": "https://ardent.tools/systems/harmonia/",
       "one_liner": "A unified self-hosted media platform: one Rust server across 21 crates, replacing a stack of separate *arr-pattern services with one coherent media lifecycle manager.",
-      "badge": "SHIPPED CORE · 2 STUBS AT HTTP LAYER",
+      "badge": "SHIPPED CORE · LIVE ADAPTERS WIRED",
       "repo": "https://github.com/forkwright/harmonia",
       "license": null,
-      "stack": "Rust · Tokio/Axum/SQLite · 21 workspace crates",
+      "stack": "Rust · Tokio/Axum/SQLite · 21 workspace members",
       "private": false
     },
     {
       "name": "kanon",
       "group": "systems",
       "url": "https://ardent.tools/systems/kanon/",
-      "one_liner": "The standards engine that gates every other repo on this site: a lint/gate CLI, code intelligence, and PR/issue orchestration, private by choice.",
+      "one_liner": "A private standards and dispatch control plane: lint and gate tooling, code intelligence, and PR/issue orchestration with public configuration receipts.",
       "badge": "PRIVATE · CASE STUDY",
       "repo": null,
       "license": null,
@@ -73,7 +73,7 @@
       "name": "thumos",
       "group": "systems",
       "url": "https://ardent.tools/systems/thumos/",
-      "one_liner": "A bare-metal Rust phone OS for the AGM M7 — no Linux underneath. The kernel boots end-to-end under QEMU, and CI proves it on every push.",
+      "one_liner": "A bare-metal Rust phone OS for the AGM M7 — no Linux underneath. The kernel boots end-to-end under QEMU, and CI proves it on pushes to main and pull requests targeting main.",
       "badge": "BOOTS UNDER EMULATION",
       "repo": "https://github.com/forkwright/thumos",
       "license": null,
@@ -98,7 +98,7 @@
       "one_liner": "Contracts for vector search, full-text search, persistence, and rank fusion. Reciprocal-rank fusion is implemented; HNSW and BM25 land by extraction from their in-app implementations.",
       "badge": "IMPLEMENTED: RRF · INTERFACES: HNSW, BM25",
       "repo": "https://github.com/forkwright/heurema",
-      "license": "AGPL-3.0"
+      "license": "AGPL-3.0-or-later"
     },
     {
       "name": "sphragis",
@@ -108,7 +108,7 @@
       "one_liner": "Post-quantum hybrid sealing: an X-Wing KEM (X25519 + ML-KEM-768) with a ChaCha20-Poly1305 envelope, behind an explicit feature flag.",
       "badge": "UNAUDITED PREVIEW",
       "repo": "https://github.com/forkwright/sphragis",
-      "license": "AGPL-3.0"
+      "license": "AGPL-3.0-only"
     },
     {
       "name": "koinon",
@@ -116,7 +116,7 @@
       "url": null,
       "gloss": "κοινόν — that which is shared",
       "one_liner": "Fleet-common Rust scaffolding: tracing init, typed errors, config loading, a CLI prelude.",
-      "badge": "v0.1.0",
+      "badge": "v0.1.1",
       "repo": "https://github.com/forkwright/koinon",
       "license": "Apache-2.0"
     },
@@ -125,7 +125,7 @@
       "group": "libraries",
       "url": null,
       "gloss": "ἐπιτέλεσις — executing-to-completion",
-      "one_liner": "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors. Every fleet subprocess call goes through it.",
+      "one_liner": "A typed subprocess wrapper over std and tokio: timeouts as contract, captured output, structured errors.",
       "badge": "v0.2.0",
       "repo": "https://github.com/forkwright/epitelesis",
       "license": "Apache-2.0 OR MIT"
@@ -138,7 +138,7 @@
       "one_liner": "Budget, cost, citation, and query contracts for agent research pipelines, with a fixture-driven deep-research loop.",
       "badge": "PHASE 1 SCAFFOLD",
       "repo": "https://github.com/forkwright/zetesis",
-      "license": "AGPL-3.0"
+      "license": "AGPL-3.0-or-later"
     },
     {
       "name": "typikon",
@@ -148,7 +148,7 @@
       "one_liner": "The Zola theme, frontmatter schemas, and CI gate bundle this site itself runs on: CSP enforcement, link checking, accessibility, smoke tests.",
       "badge": "PINNED BY COMMIT · NO RELEASE TAG",
       "repo": "https://github.com/forkwright/typikon",
-      "license": "AGPL-3.0"
+      "license": "AGPL-3.0-or-later"
     },
     {
       "name": "epistole",
@@ -158,7 +158,7 @@
       "one_liner": "Subscriber lifecycle and archive flows over an embedded store; SMTP delivery is the next phase.",
       "badge": "PHASE 1 · SMTP PENDING",
       "repo": "https://github.com/forkwright/epistole",
-      "license": "AGPL-3.0"
+      "license": "AGPL-3.0-or-later"
     },
     {
       "name": "pinax",
@@ -188,7 +188,7 @@
       "one_liner": "A specification for a web runtime where operator and agents share one capability surface: browsing, ingesting, querying, acting. Design documents only; implementation not started.",
       "badge": "DESIGN PHASE",
       "repo": "https://github.com/forkwright/dioptron",
-      "license": "AGPL-3.0"
+      "license": "AGPL-3.0-or-later"
     }
   ]
 }

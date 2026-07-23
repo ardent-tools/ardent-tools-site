@@ -52,11 +52,7 @@
                         same amber hue family, distinct from --accent-aged's
                         rust so syntax.css's three-ink pass stays three inks */
 
-  /* Catalog zone inks (replaces the six flat zone hexes) — theme-invariant,
-     never redeclared in the dark block: the wash formula below mixes each
-     ink over var(--bg), so dark derives automatically. Backgrounds only,
-     never text/borders/badges (design-delta-dye.md §1's one-interactive-
-     accent discipline is unaffected). */
+  /* Catalog zone inks. Backgrounds only, never text, borders, or badges. */
   --zone-systems-ink:   #7C3A18;   /* = --accent-aged: the flagship zone wears the brand ink */
   --zone-libraries-ink: #4A4055;   /* muted violet, family nod to thanatochromia-aged */
   --zone-web-ink:       #4A7A5A;   /* sage, family nod to aporia-aged */
@@ -64,14 +60,13 @@
   /* Paper grain (§W7) — the kill switch: 0 removes the texture entirely. */
   --grain-opacity: 0.05;
 
-  /* Terminal plate — theme-invariant across light/dark (§2.2, §2.3). */
+  /* Terminal plate reserved for a future published cast. */
   --term-bg: #16181A;
   --term-text: #D6D4CC;
   --term-dim: #8B8D8A;
   --panel-edge: var(--text);
 
-  /* ANSI palette inside recordings — tuned once, same pixels in both
-     themes. Bright variants are the base hues at +12% lightness. */
+  /* ANSI palette reserved for a future published cast. */
   --ansi-0: #16181A;  --ansi-8:  #191B1D;
   --ansi-1: #C96A55;  --ansi-9:  #D1816F;
   --ansi-2: #82A578;  --ansi-10: #95B38D;
@@ -102,7 +97,7 @@
    English headlines). */
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('/fonts/plex-mono-600-latin.woff2') format('woff2');
+  src: url('/fonts/plex-mono-600-latin.woff2?h=bcc2e809c6adce034b1d&v=2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -119,6 +114,44 @@ html {
   overflow-x: clip;
 }
 
+body {
+  animation: none;
+  opacity: 1;
+}
+
+.prose,
+.prose > *,
+.faq-answer,
+.catalog-row,
+.ledger-cell {
+  min-width: 0;
+}
+
+.prose table:not(.receipt-table-wrap table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Tables keep their semantics and readable cells while the table region,
+   never the page, owns narrow-screen overflow. */
+.prose table th,
+.prose table td {
+  min-width: 9rem;
+}
+
+.prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.prose :not(pre) > code,
+.recording-status code,
+.fleet-map code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* Paper grain (§W7) — felt, not seen: 5% over the light paper is below
    deliberate-perception threshold at reading distance. File-based (CSP-
    clean by construction: img-src 'self', no data: URI), fixed + z-index:
@@ -130,7 +163,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: url('/img/grain.svg');
+  background: url('/img/grain.svg?h=ce8b1b44003fee7e991f&v=2');
   background-size: 240px 240px;
   opacity: var(--grain-opacity);
 }
@@ -161,7 +194,7 @@ main {
 
 /* Prose blocks (§1.2) — markdown-body containers: system-page prose,
    about, colophon, contact, resume, writing, faq answers, consulting.
-   Catalog, demos stack, home composition, and terminal panels stay
+   Catalog, evidence stack, home composition, and terminal panels stay
    unwrapped at shell width (DESIGN-v1.1 §1.2's own width-wide list). */
 .prose {
   font-size: 1.1875rem;     /* 19px — load-bearing: 680px @ 16px is 95 real
@@ -187,9 +220,9 @@ main {
 
 /* Display tier (§1.2, §1.3) — short editorial text that claims a
    considered middle column: home/system-page ledes, the consulting line,
-   demos' intro paragraph. Replaces each class's own scattered 60ch cap
+   evidence intro paragraph. Replaces each class's own scattered 60ch cap
    with the one shared token. */
-.home-lede, .page-lede, .consulting-line, .demos-intro, .consulting-header, .systems-intro {
+.home-lede, .page-lede, .consulting-line, .evidence-intro, .consulting-header, .systems-intro {
   max-width: var(--width-display);
 }
 
@@ -348,32 +381,17 @@ h1, h2, h3 {
   border-top: 1px solid var(--rule);
 }
 
-/* Catalog zone washes (design-delta-dye.md §8, reworked as a Leatherworks
-   dye-entry gradient — 145deg, 3 stops, peak 6% ink — instead of a flat
-   hex). Mixing over var(--bg) means dark derives automatically; peak
-   capped at 6% so --text-light copy stays AA on every zone (verified:
-   the 6% peak stays lighter than the old flat hex's darkest point in
-   every zone, both themes). Background lands on the ::before layer
-   above, not the .catalog-group itself. */
+/* Flat washes separate archival shelves without decorative gradients. */
 .zone-systems::before {
-  background: linear-gradient(145deg,
-    color-mix(in oklab, var(--zone-systems-ink) 3%, var(--bg)) 0%,
-    color-mix(in oklab, var(--zone-systems-ink) 6%, var(--bg)) 55%,
-    color-mix(in oklab, var(--zone-systems-ink) 4%, var(--bg)) 100%);
+  background: color-mix(in oklab, var(--zone-systems-ink) 5%, var(--bg));
 }
 
 .zone-libraries::before {
-  background: linear-gradient(145deg,
-    color-mix(in oklab, var(--zone-libraries-ink) 3%, var(--bg)) 0%,
-    color-mix(in oklab, var(--zone-libraries-ink) 6%, var(--bg)) 55%,
-    color-mix(in oklab, var(--zone-libraries-ink) 4%, var(--bg)) 100%);
+  background: color-mix(in oklab, var(--zone-libraries-ink) 5%, var(--bg));
 }
 
 .zone-web::before {
-  background: linear-gradient(145deg,
-    color-mix(in oklab, var(--zone-web-ink) 3%, var(--bg)) 0%,
-    color-mix(in oklab, var(--zone-web-ink) 6%, var(--bg)) 55%,
-    color-mix(in oklab, var(--zone-web-ink) 4%, var(--bg)) 100%);
+  background: color-mix(in oklab, var(--zone-web-ink) 5%, var(--bg));
 }
 /* In-design zone: no class, no ::before — plain --bg is the treatment. */
 
@@ -441,8 +459,16 @@ h1, h2, h3 {
 }
 
 .ledger-cell {
+  position: relative;
   border-top: 1px solid var(--rule);
   padding-top: var(--space-xs);
+  transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.ledger-cell:has(a:hover),
+.ledger-cell:has(a:focus-visible) {
+  background: color-mix(in oklab, var(--accent) 4%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .ledger-name {
@@ -512,10 +538,8 @@ a:hover {
   color: var(--text);
 }
 
-/* The one button style (§3.7) — filled --text, radius 0. Nav's Resume
-   entry (last by position in nav_items) plus /resume/'s own PDF link
-   both use it. */
-.nav-links a:last-child,
+/* The one button style. Consulting is explicit; list order is irrelevant. */
+.nav-links a.nav-primary,
 .button {
   display: inline-block;
   font-family: var(--font-mono);
@@ -529,8 +553,8 @@ a:hover {
   border-radius: 0;
 }
 
-.nav-links a:last-child:hover,
-.nav-links a:last-child:focus-visible,
+.nav-links a.nav-primary:hover,
+.nav-links a.nav-primary:focus-visible,
 .button:hover,
 .button:focus-visible {
   background: var(--accent);
@@ -598,8 +622,8 @@ a:hover {
   margin-left: 0.05em;
   order: 2;
   background-color: var(--accent);
-  -webkit-mask-image: url('/img/logo-flame.svg');
-  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-image: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2');
+  mask-image: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
@@ -658,8 +682,20 @@ a.badge:focus-visible {
 }
 
 .receipt-table-wrap table {
+  width: max-content;
+  min-width: 100%;
   margin: 0;   /* the plate owns the spacing now */
   font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.receipt-table-wrap th,
+.receipt-table-wrap td {
+  min-width: 10rem;
+}
+
+.receipt-table-wrap th:first-child,
+.receipt-table-wrap td:first-child {
+  min-width: 11.5rem;
 }
 
 .receipt-table-wrap thead th {
@@ -667,7 +703,7 @@ a.badge:focus-visible {
 }
 
 .receipt-table-wrap .ok::before {
-  content: "\2713 "; /* check glyph, --ok — the one call site outside terminal content */
+  content: "✓ "; /* check glyph, --ok — the one call site outside terminal content */
   color: var(--ok);
 }
 
@@ -684,6 +720,11 @@ a.badge:focus-visible {
   margin-bottom: var(--space-l);
 }
 
+.fact-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .fact-row .private-chip {
   font-family: var(--font-mono);
   font-size: var(--step--2);
@@ -696,6 +737,14 @@ a.badge:focus-visible {
   font-family: var(--font-body);
   font-size: var(--step-1);
   color: var(--text-mid);
+}
+
+/* Typikon's list reset removes the browser's marker reservation. Preserve a
+   deliberate inline-start gutter so outside bullets and numerals remain on
+   the paper at narrow widths while prose retains its readable measure. */
+.prose ul,
+.prose ol {
+  padding-inline-start: 1.75rem;
 }
 
 /* === Terminal panel (§3.1) — the base primitive === */
@@ -712,18 +761,6 @@ a.badge:focus-visible {
   font-size: var(--step--1);
   color: var(--text-light);
   margin-bottom: var(--space-xs);
-}
-
-/* T6 (§7) — /demos/ passes heading=true so the meta line's system·action
-   text is an <h3> (the missing per-figure heading-navigation landmark),
-   not a <span>. Reset it back to the meta line's own typography so it
-   renders identically to the span it replaces everywhere else. */
-.term-meta h3 {
-  display: inline;
-  font: inherit;
-  font-weight: inherit;
-  color: inherit;
-  margin: 0;
 }
 
 .term-meta a {
@@ -796,30 +833,6 @@ a.badge:focus-visible {
   word-break: break-word;
 }
 
-/* Honest placeholder (§3.6) — same slot the real recording will occupy. */
-.term-placeholder {
-  background: var(--bg-accent);
-  border: 1px solid var(--panel-edge);
-  padding: var(--space-l) var(--space-s);
-  text-align: center;
-}
-
-.term-placeholder p {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  /* text-mid, not text-light: clears 7.5:1+ on bg-accent in both themes,
-     the wider margin for uppercase small text (pa11y only gates the
-     light render; dark is the manual pass §8.4 calls for). The v1.1
-     dark --text-light (design-delta-dye.md §5) now also clears AA on
-     bg-accent (4.58:1) — the pre-v1.1 failure this comment used to warn
-     about is resolved at the token level; text-mid is kept for margin,
-     not to route around a failure. */
-  color: var(--text-mid);
-}
-
 .term-caption {
   font-family: var(--font-body);
   font-size: var(--step--1);
@@ -850,19 +863,6 @@ a.badge:focus-visible {
   line-height: 1.5;
 }
 
-/* Placard-without-panel — a demo that cannot exist, honestly (§4.3). */
-.term-placard {
-  border: 1px solid var(--rule);
-  padding: var(--space-m);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--text-light);
-}
-
-.term-placard a {
-  color: var(--text-light);
-}
-
 /* === Catalog row (§3.2) — a ledger row, not a card === */
 .catalog {
   list-style: none;
@@ -871,12 +871,26 @@ a.badge:focus-visible {
 }
 
 .catalog-row {
+  position: relative;
   display: block;
   border-top: 1px solid var(--rule);
   padding-block: var(--space-s);
   text-decoration: none;
   color: inherit;
   transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.catalog-row-name a::after,
+.ledger-name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.catalog-row-meta a,
+.proof-links a {
+  position: relative;
+  z-index: 1;
 }
 
 .catalog-row:last-child {
@@ -903,16 +917,9 @@ a:active {
 }
 
 .button:active,
-.nav-links a:last-child:active {
+.nav-links a.nav-primary:active {
   background: var(--accent-aged);
 }
-
-/* --accent-aged's dark value (#B96534) under --bg text drops to 3.86:1,
-   below AA's 4.5:1 floor for this filled button's normal-size label
-   (verified: WCAG relative-luminance formula, both dark tokens as
-   declared above). Dark keeps the already-AA hover fill (5.08:1)
-   instead of stepping to aged on press; light's aged step is unaffected
-   (7.65:1, comfortably AA). */
 
 
 .catalog-row-name {
@@ -936,6 +943,14 @@ a:active {
   color: var(--text-mid);
   margin: var(--space-3xs) 0;
   max-width: 70ch;
+}
+
+.catalog-row-claim {
+  max-width: 76ch;
+  margin: var(--space-xs) 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text);
 }
 
 .catalog-row-meta {
@@ -1082,8 +1097,8 @@ a:active {
   margin-right: 0.4em;
   vertical-align: -0.08em;
   background-color: var(--accent);
-  -webkit-mask: url('/img/logo-flame.svg') no-repeat center / contain;
-  mask: url('/img/logo-flame.svg') no-repeat center / contain;
+  -webkit-mask: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2') no-repeat center / contain;
+  mask: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2') no-repeat center / contain;
 }
 
 footer {
@@ -1115,4 +1130,464 @@ footer {
 .engagement-shape p {
   margin-bottom: 0;
   color: var(--text-mid);
+}
+
+.consulting-inquiry {
+  max-width: var(--width-display);
+  margin-block: var(--space-xl);
+  padding: clamp(var(--space-m), 4vw, var(--space-l));
+  border: 1px solid var(--text);
+  background: var(--bg-accent);
+}
+
+.consulting-inquiry h2 {
+  max-width: 24ch;
+  margin-bottom: var(--space-s);
+}
+
+.consulting-inquiry > p:not(.section-label) {
+  max-width: 62ch;
+  color: var(--text-mid);
+}
+
+.consulting-inquiry .button {
+  margin-top: var(--space-s);
+}
+
+/* === Evidence-lab home === */
+.home-hero {
+  padding-block: var(--space-m) var(--space-xl);
+  border-bottom: 1px solid var(--text);
+}
+
+.kicker,
+.section-label {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--accent-aged);
+}
+
+.home-h1 {
+  max-width: 18ch;
+  font-size: clamp(2.25rem, 6vw, 4.75rem);
+  line-height: 1.02;
+  margin-block: var(--space-xs) var(--space-m);
+}
+
+.home-lede {
+  max-width: 38ch;
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+  line-height: 1.35;
+}
+
+.text-action {
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.proof-surface,
+.consulting-close {
+  position: relative;
+  display: grid;
+  gap: var(--space-l);
+  padding-block: var(--space-xl);
+}
+
+.proof-surface::before,
+.consulting-close::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+  background: var(--bg-accent);
+  border-block: 1px solid var(--rule);
+}
+
+@media (min-width: 900px) {
+  .proof-surface {
+    grid-template-columns: minmax(16rem, 0.8fr) minmax(24rem, 1.2fr);
+    align-items: start;
+  }
+}
+
+.proof-intro h2,
+.section-heading-row h2,
+.consulting-close h2 {
+  border: 0;
+  padding: 0;
+  margin-top: var(--space-xs);
+  max-width: 27ch;
+}
+
+.proof-intro h2::before,
+.section-heading-row h2::before,
+.consulting-close h2::before {
+  content: none;
+}
+
+.proof-record {
+  border: 1px solid var(--text);
+  background: var(--bg);
+  padding: clamp(var(--space-m), 4vw, var(--space-l));
+}
+
+.proof-record h3 {
+  font-size: var(--step-2);
+  margin-block: var(--space-s) var(--space-xs);
+}
+
+.proof-record h3 a {
+  color: var(--text);
+}
+
+.proof-receipt {
+  margin-block: var(--space-m);
+  border-top: 3px double var(--text);
+}
+
+.proof-receipt > div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.3fr) minmax(0, 1fr);
+  gap: var(--space-s);
+  padding-block: var(--space-xs);
+  border-bottom: 1px solid var(--rule);
+}
+
+.proof-receipt dt,
+.proof-links {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+}
+
+.proof-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s) var(--space-m);
+}
+
+.home-section {
+  padding-block: var(--space-xl);
+  border-bottom: 1px solid var(--rule);
+}
+
+.section-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--space-m);
+}
+
+.section-heading-row > a {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+}
+
+.selected-catalog .catalog-row {
+  padding-block: var(--space-m);
+}
+
+.fleet-map {
+  margin-top: var(--space-l);
+  padding: clamp(var(--space-m), 4vw, var(--space-l));
+  border: 1px solid var(--text);
+  background: var(--bg-accent);
+}
+
+.fleet-map-source {
+  max-width: 24rem;
+  margin-inline: auto;
+  padding: var(--space-m);
+  border: 2px solid var(--text);
+  background: var(--bg);
+  text-align: center;
+}
+
+.fleet-map-source strong,
+.fleet-map-source span,
+.fleet-map-nodes strong,
+.fleet-map-nodes span {
+  display: block;
+}
+
+.fleet-map-source strong,
+.fleet-map-nodes strong {
+  font-family: var(--font-mono);
+}
+
+.fleet-map-source span,
+.fleet-map-nodes span,
+.fleet-map figcaption {
+  color: var(--text-mid);
+}
+
+.fleet-map-link {
+  display: grid;
+  place-items: center;
+  height: 4rem;
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  color: var(--accent-aged);
+}
+
+.fleet-map-link::before {
+  content: "";
+  width: 1px;
+  height: 100%;
+  background: var(--text);
+  grid-area: 1 / 1;
+}
+
+.fleet-map-link span {
+  grid-area: 1 / 1;
+  padding: 0 var(--space-xs);
+  background: var(--bg-accent);
+}
+
+.fleet-map-nodes {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+  margin: 0;
+  background: var(--text);
+}
+
+.fleet-map-nodes a {
+  display: block;
+  height: 100%;
+  padding: var(--space-s);
+  color: var(--text);
+  background: var(--bg);
+  text-decoration: none;
+}
+
+.fleet-map-nodes a:hover,
+.fleet-map-nodes a:focus-visible {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.fleet-map-nodes span {
+  margin-top: var(--space-3xs);
+  font-family: var(--font-mono);
+  font-size: max(var(--step--2), 0.75rem);
+}
+
+.fleet-map figcaption {
+  max-width: 75ch;
+  margin-top: var(--space-m);
+}
+
+.home-writing-list,
+.recording-plan-list {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-l);
+}
+
+.home-writing-list li {
+  display: grid;
+  grid-template-columns: 8rem minmax(12rem, 0.55fr) minmax(16rem, 1fr);
+  gap: var(--space-m);
+  padding-block: var(--space-m);
+  border-top: 1px solid var(--rule);
+}
+
+.home-writing-list time,
+.plan-state {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  color: var(--text-light);
+}
+
+.home-writing-list h3,
+.home-writing-list p {
+  margin: 0;
+}
+
+.home-writing-list h3 a {
+  color: var(--text);
+}
+
+.consulting-close {
+  display: block;
+}
+
+.consulting-close > p:not(.section-label) {
+  max-width: 60ch;
+  font-size: var(--step-1);
+}
+
+.consulting-close .button {
+  margin-top: var(--space-m);
+  font-size: max(var(--step--1), 0.8125rem);
+}
+
+/* === Evidence register === */
+.evidence-header,
+.evidence-section {
+  max-width: var(--width-display);
+}
+
+.evidence-section {
+  margin-block: var(--space-xl);
+}
+
+.evidence-index {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-m);
+  border-bottom: 1px solid var(--rule);
+}
+
+.evidence-index a {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.4fr) minmax(0, 1fr);
+  gap: var(--space-m);
+  padding-block: var(--space-m);
+  border-top: 1px solid var(--rule);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.evidence-index a:hover strong,
+.evidence-index a:focus-visible strong {
+  color: var(--accent);
+}
+
+.recording-status {
+  padding: var(--space-m);
+  border: 1px solid var(--text);
+  background: var(--bg-accent);
+}
+
+.recording-plan-list li {
+  padding-block: var(--space-m);
+  border-top: 1px solid var(--rule);
+}
+
+.recording-plan-list li > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-s);
+}
+
+.recording-plan-list h3 {
+  margin: 0;
+}
+
+.recording-plan-list h3 a {
+  color: var(--text);
+}
+
+.recording-plan-list p {
+  max-width: 75ch;
+  margin: var(--space-xs) 0 0;
+}
+
+@media (max-width: 700px) {
+  .section-heading-row,
+  .home-writing-list li,
+  .evidence-index a {
+    display: block;
+  }
+
+  .section-heading-row > a,
+  .home-writing-list h3,
+  .evidence-index span {
+    display: block;
+    margin-top: var(--space-xs);
+  }
+
+  .fleet-map-nodes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .journal-list a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-xs) var(--space-s);
+  }
+
+  .journal-list .entry-name,
+  .journal-list .entry-components {
+    grid-column: 1 / -1;
+  }
+
+  .journal-list .entry-date-inline,
+  .journal-list .entry-words {
+    font-size: max(var(--step--2), 0.75rem);
+  }
+
+  .journal-list .entry-words {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    padding-inline: var(--space-s);
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
+  }
+
+  nav,
+  main,
+  footer {
+    max-width: 100%;
+  }
+
+  .nav-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .nav-links a,
+  .site-footer-cluster,
+  .site-footer-colophon,
+  .catalog-row-meta,
+  .fact-row,
+  .receipt,
+  .entry-date,
+  .entry-header .entry-components,
+  .specs {
+    font-size: max(var(--step--2), 0.75rem);
+  }
+
+  .nav-links a.nav-primary {
+    justify-content: center;
+    padding-inline: var(--space-xs);
+  }
+
+  .home-h1 {
+    font-size: 2.35rem;
+  }
+
+  .home-lede {
+    font-size: 1.35rem;
+  }
+
+  .proof-receipt > div,
+  .fleet-map-nodes {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-table-wrap {
+    width: 100%;
+    margin-inline: 0;
+    padding: var(--space-xs);
+  }
 }

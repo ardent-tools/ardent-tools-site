@@ -1,6 +1,6 @@
 +++
 title = "Three ways to count the same thing"
-description = "One number confirmed by three methods with no shared failure mode; a gate stamp the server recomputes before honoring; an audit run that checks agents against the tracker they filed into."
+description = "One number triangulated three ways; a SHA-bound local gate stamp followed by independent post-push CI; an audit checked against its tracker."
 date = 2026-07-21
 
 [extra]
@@ -34,7 +34,9 @@ The distrust behind all this counting was earned. The first time a drift audit r
 
 The same rule holds in a second codebase that shares no code and no domain with the first. kanon — the name is Greek for a measuring rod — runs the git forge, the lint engine, and the audit machinery for my own repositories, where AI agents work alongside me daily.
 
-A commit that passes kanon's local quality gate is stamped with a trailer in its message: `Gate-Passed: kanon 0.5.2 +ruleset:fleet-2026q2` — which binary validated it, under which version of the rule set, so that what was enforced stays reconstructible after the rules drift. The stamp is also plain text, and the decision record that introduced it names the exposure in its own consequences list: a push can carry the trailer without the gate ever having run. Anything that writes commit messages can write stamps. So the forge's post-receive hook recomputes the answer. It validates every trailer against the actual gate outcome, and a mismatched or forged stamp rejects the push. The trailer is a claim made by the party that wants the push accepted; the server re-derives the fact before honoring the claim.
+When kanon's local gate stamps a commit, the trailer records the installed Kanon version, the stages that ran, and the exact Git tree SHA it checked. The SHA binding is landed: reusing that local trailer after changing the tree fails the local clean-tree check. The trailer is still plain text, however, and any process that can write a commit message can forge its shape.
+
+In the source inspected on 2026-07-22, the forge does not turn that trailer into synchronous push rejection. Its post-receive hook runs after the ref has moved, posts the pushed SHA to the server, and enqueues CI keyed to that revision; the resulting run reports independently on the pushed artifact. That is useful verification, but it cannot retroactively make a forged trailer prevent the push that carried it. Trailer rejection at the receive boundary is accepted design work, not a property of the post-receive mechanism.
 
 kanon's audit engine fans finder agents out over a codebase, then verifies, deduplicates, and files what survives. The invariant list in its decision record includes this one: after every batch, the orchestrator queries the issue tracker and reconciles the filed count against what the agents reported. The self-report is never accepted, only checked. The engine's runbook carries the mirror rule: a finding that an agent's reply omits is kept and flagged, never silently dropped, and only an explicit mechanical verdict — confirmed unreal, or a high-confidence duplicate — removes anything from the run. Every run closes with a disposition report in which each candidate is accounted for: filed, dropped with a stated reason, or flagged for review.
 

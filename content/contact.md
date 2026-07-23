@@ -1,11 +1,11 @@
 +++
 title = "Contact"
-description = "Direct contact methods. No form — email, GitHub, LinkedIn, resume, and where I am."
+description = "Contact Cody Kickertz about agent-infrastructure consulting or engineering roles by email, GitHub, or LinkedIn."
 +++
 
 # Contact
 
-Direct methods only. No contact form — the strict CSP this site runs under (see the [colophon](/colophon/)) doesn't carry a third-party form-processor allowlist entry, and a mailto link doesn't need one.
+For a consulting conversation, include the system boundary, the decision you need to make, and what another engineer must be able to verify when the work is handed over. For an engineering role, include the team, the problem, and the operating context.
 
 - Email: [cody@ardent.tools](mailto:cody@ardent.tools)
 - GitHub: [github.com/forkwright](https://github.com/forkwright)
@@ -13,4 +13,4 @@ Direct methods only. No contact form — the strict CSP this site runs under (se
 - Resume: [resume](/resume/)
 - Remote-first, based in Austin, TX
 
-For consulting engagements specifically, see [consulting](/consulting/).
+The site uses direct links instead of a form and introduces no third-party form processor. Consulting fit, process, and likely deliverables are described on [consulting](/consulting/).

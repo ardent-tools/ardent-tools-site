@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+{# Consumer mitigation for typikon#38: the declaration above is byte zero.
+   Keep the theme's skip_sitemap behavior while the upstream fix is pending. #}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  {%- for sitemap_entry in entries %}
+    {%- if not sitemap_entry.extra or not sitemap_entry.extra.skip_sitemap %}
+  <url>
+    <loc>{{ sitemap_entry.permalink | escape_xml | safe }}</loc>
+        {%- if sitemap_entry.updated %}
+    <lastmod>{{ sitemap_entry.updated }}</lastmod>
+        {%- elif sitemap_entry.date %}
+    <lastmod>{{ sitemap_entry.date }}</lastmod>
+        {%- endif %}
+  </url>
+    {%- endif %}
+  {%- endfor %}
+</urlset>

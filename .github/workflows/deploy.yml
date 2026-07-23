@@ -19,9 +19,9 @@ name: Deploy to Cloudflare Pages
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -57,6 +57,21 @@ jobs:
         run: |
           python3 -m pip install --user jsonschema==4.26.0
 
+      - name: Install Typst and PDF inspection tools
+        env:
+          TYPST_VERSION: 0.14.2
+          TYPST_SHA256: a6044cbad2a954deb921167e257e120ac0a16b20339ec01121194ff9d394996d
+        run: |
+          curl -L "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+            -o typst.tar.xz
+          echo "${TYPST_SHA256}  typst.tar.xz" | sha256sum -c
+          mkdir -p typst-extract
+          tar -xJf typst.tar.xz -C typst-extract --strip-components=1
+          sudo mv typst-extract/typst /usr/local/bin/
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          typst --version
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -82,111 +97,28 @@ jobs:
           rm -rf lychee.tar.gz lychee-extract
 
       # ── Strict gate ────────────────────────────────────────────
-      - name: typikon-validate (frontmatter schemas)
-        run: themes/typikon/bin/typikon-validate .
-
-      - name: zola check (internal links + assets)
-        run: zola check
-
-      - name: Generate systems.json from content frontmatter
-        # DESIGN-v1.3 §4 item 5 — derived from the same content/systems/*.md
-        # frontmatter systems.html/catalog-ledger.html already render; must
-        # run before zola build so static/systems.json copies through.
-        run: python3 bin/generate-systems-json.py
-
-      - name: zola build
-        run: zola build
-
-      - name: Copy _headers + _redirects + 404 into public/
-        # Cloudflare Pages reads _headers and _redirects from the deploy
-        # root. wrangler ships public/, so the files at repo root never
-        # get applied. Copy them in (idempotent — overwrites if present).
-        # CF Pages also serves public/404.html for any 404, but Zola
-        # generates content/404.md as public/404/index.html — copy it to
-        # the expected name so the consumer's branded 404 page wins over
-        # CF's generic one.
-        run: |
-          [ -f _headers ] && cp _headers public/_headers
-          [ -f _redirects ] && cp _redirects public/_redirects
-          [ -f public/404/index.html ] && cp public/404/index.html public/404.html
-          true
-
-      - name: csp-enforce (no inline script/style/handlers)
-        run: themes/typikon/ci/csp-enforce.sh public/
-
-      - name: lychee (external links)
-        # Self-host absolute URLs (the site's own base_url) get excluded
-        # at link-check time, otherwise lychee checks the LIVE site for
-        # pages this very build is trying to deploy — a chicken-and-egg
-        # that bricks every PR that adds a new page. zola check covers
-        # internal-link integrity at source-tree level, so we don't lose
-        # coverage by skipping them here.
-        run: |
-          BASE_URL=$(grep -E '^base_url\s*=' config.toml | head -1 | sed -E 's/^base_url\s*=\s*"([^"]+)".*/\1/' | sed 's:/$::')
-          BASE_HOST=$(printf '%s' "$BASE_URL" | sed -E 's|^https?://||' | sed -E 's|/.*$||')
-          ESCAPED_HOST=$(printf '%s' "$BASE_HOST" | sed 's/\./\\./g')
-          echo "Excluding self-host links: ^https?://${ESCAPED_HOST}/"
-          lychee --config themes/typikon/ci/lychee.toml \
-            --root-dir "$GITHUB_WORKSPACE/public" \
-            --exclude "^https?://${ESCAPED_HOST}/" \
-            public/
-
-      - name: Serve site for browser-based gates
-        run: |
-          # WHY: the deploy build uses the production base_url, so its HTML
-          # references assets at absolute https URLs. Serving that build would
-          # make pa11y + the prose-measure playwright gate load the ALREADY-
-          # DEPLOYED css/js instead of this commit's — a gate that can never
-          # pass a css change before it ships. Build a throwaway local-URL copy
-          # for the browser gates; public/ (prod) stays intact for deploy.
-          # (substrate gap — filed on typikon.)
-          zola build --base-url http://127.0.0.1:8080 --output-dir public-local
-          cd public-local && python3 -m http.server 8080 &
-          echo $! > /tmp/server.pid
-          sleep 2
-
-      - name: pa11y (WCAG 2.1 AA)
-        run: pa11y-ci --config themes/typikon/ci/pa11y.config.js
-
-      - name: playwright (per-route smoke)
-        if: ${{ hashFiles('tests/smoke/**/*.spec.ts') != '' }}
-        run: |
-          cp themes/typikon/ci/playwright.config.ts ./playwright.config.ts
-          # WHY: the copied root config's `import '@playwright/test'` can't resolve
-          # the global install from the repo root; NODE_PATH points Node at the
-          # global node_modules so the config loads (substrate gap — filed on typikon).
-          export NODE_PATH="$(npm root -g)"
-          npx playwright test
-
-      - name: Tear down static server
-        if: always()
-        run: |
-          kill "$(cat /tmp/server.pid 2>/dev/null)" 2>/dev/null || true
+      - name: Repository-owned isolated strict gate
+        env:
+          # Retain the exact production tree the helper validates; normal
+          # local runs remain temporary and leave the worktree unchanged.
+          ARDENT_RETAIN_VALIDATED_PUBLIC: '1'
+          ARDENT_BUILD_REVISION: ${{ github.sha }}
+        run: bin/check-site.sh
 
       # ── Deploy on green pushes to main only ───────────────────
-      # Conditioned on ref being main (or master, for legacy consumer
-      # repos that haven't migrated their default branch). Decoupled
-      # from GH's default-branch setting so deploy fires whenever the
-      # gate is green on the ship branch — independent of repo config
-      # drift.
       - name: Deploy to Cloudflare Pages
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          # Ensure CF Pages production-branch matches the ship branch.
-          # Idempotent: if it's already correct, the API call is a no-op.
-          # Required so wrangler's deploy below registers as production
-          # rather than as a per-branch preview deployment.
-          BRANCH="${GITHUB_REF##*/}"
-          curl -fsS -X PATCH \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data "{\"production_branch\": \"${BRANCH}\"}" \
-            > /tmp/cf-edit.json
-          echo "production_branch set to: $(jq -r '.result.production_branch // .errors' /tmp/cf-edit.json)"
-
           npm install -g wrangler@4.112.0
-          wrangler pages deploy public --project-name=ardent-tools --branch="${BRANCH}"
+          python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"
+          wrangler pages deploy public --project-name=ardent-tools --branch=main
+
+      - name: Verify live authored/runtime boundary
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 13 --delay 10 --expected-revision "$GITHUB_SHA" --artifact-root public

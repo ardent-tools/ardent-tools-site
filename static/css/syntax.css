@@ -48,11 +48,8 @@ pre.giallo code {
 
 .z-comment {
   /* text-mid, not text-light: on the pre.giallo `--bg-accent` panel,
-     text-mid clears comfortably in both themes (6.65:1+ dark, 8+:1
-     light) with the larger margin. The v1.1 dark --text-light
-     (design-delta-dye.md §5) was raised specifically to clear this exact
-     surface too (now 4.58:1, passing) — text-mid is kept here regardless
-     for the wider margin, not because text-light still fails. */
+     text-mid clears the light-only surface comfortably and keeps comments
+     visually subordinate without approaching the AA contrast floor. */
   color: var(--text-mid);
   font-style: italic;
 }

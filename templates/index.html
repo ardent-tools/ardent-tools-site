@@ -1,33 +1,8 @@
-{# Consumer shadow of typikon's templates/index.html. Typikon's own home
-   template is Leatherworks-specific (hidden nav/footer, logo, triad
-   mark) — this site's home is a fully custom composition per DESIGN-v1.1
-   §2's 8-element order: masthead, kicker, h1+lede, hero panel, a
-   Selected-work band, a Consulting band, the practice line, footer.
-   Nav/footer blocks are left un-overridden so base.html's defaults
-   (visible top nav + the shadowed footer partial) render normally.
-
-   content/_index.md frontmatter: title, [extra] kicker, h1, lede,
-   [extra.hero_demo] (term-panel macro input), extra.selected_work
-   (array of systems/<slug> filenames), extra.consulting_line. Body
-   markdown is the practice paragraph (§2 item 7 — home owns the
-   sibling-Leatherworks sentence; the USMC/MBA/AI sentence and the
-   receipts-promise sentence both left home per §2's closing note).
-#}
+{# Evidence-lab home. All catalog facts come from content/systems and all
+   writing links come from content/writing; this template owns only the
+   composition. No recording surface renders without a published cast. #}
 {% extends "base.html" %}
-{% import "partials/term-panel.html" as term_panel %}
 {% import "partials/catalog-row.html" as catalog_row %}
-
-{# Home renders the hero term-panel — one of the three panel-bearing
-   templates (base.html T2 scoping); the player loads here. #}
-{% block player_css %}
-  <link rel="stylesheet" href="{{ get_url(path='vendor/asciinema/asciinema-player.css', cachebust=true) }}">
-{% endblock player_css %}
-{% block player_js %}
-  <script src="{{ get_url(path='vendor/asciinema/asciinema-player.min.js', cachebust=true) }}" defer></script>
-{% endblock player_js %}
-
-{% block title %}{{ section.extra.seo_title | default(value=config.title) }}{% endblock title %}
-{% block og_title %}{{ section.extra.seo_title | default(value=config.title) }}{% endblock og_title %}
 
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
@@ -38,43 +13,110 @@
 {% endblock ld_json %}
 
 {% block content %}
-<p class="kicker">{{ section.extra.kicker }}</p>
-<h1 class="home-h1">{{ section.extra.h1 }}</h1>
-<p class="home-lede">{{ section.extra.lede }}</p>
-
-{%- if section.extra.hero_demo %}
-{{ term_panel::panel(demo=section.extra.hero_demo, hero=true, label="Read the system") }}
-<p><a href="/systems/{{ section.extra.hero_demo.system }}/">Read the system &rarr;</a></p>
-{%- endif %}
-
-{# Two bands, back to back (§1.4 exception noted at the CSS level —
-   .section-band + .section-band carries its own separating margin so
-   two consecutive bands read as two zones, not one merged mass). #}
 {%- set systems = get_section(path="systems/_index.md") %}
+{%- set writing = get_section(path="writing/_index.md") %}
 {%- set selected = section.extra.selected_work | default(value=[]) %}
-{%- set_global public_count = 0 %}
-{%- for p in systems.pages %}{% if not p.extra.private %}{% set_global public_count = public_count + 1 %}{% endif %}{% endfor %}
-{%- set ledger_count = systems.extra.ledger | length %}
-{%- set total_public = public_count + ledger_count %}
 
-<div class="section-band">
-  <h2>Selected work</h2>
-  <ul class="catalog">
+<header class="home-hero">
+  <p class="kicker">{{ section.extra.kicker }}</p>
+  <h1 class="home-h1">{{ section.extra.h1 }}</h1>
+  <p class="home-lede">{{ section.extra.lede }}</p>
+  <div class="home-ctas" aria-label="Ways to work together">
+    <a href="/consulting/" class="button">Discuss a consulting engagement</a>
+    <a href="/resume/" class="text-action">Hiring for a role? Read the resume&nbsp;&rarr;</a>
+  </div>
+</header>
+
+<section class="proof-surface" aria-labelledby="proof-heading">
+  <div class="proof-intro">
+    <p class="section-label">Published receipt</p>
+    <h2 id="proof-heading">The rule is only real where the mechanism enforces it.</h2>
+    <p>Kanon is the private standards and dispatch control plane behind this practice. Its public receipt is deliberately narrower than its source.</p>
+  </div>
+  {%- for p in systems.pages %}
+    {%- if p.slug == section.extra.proof_system %}
+  <div class="proof-record">
+    <div>
+      <span class="badge">{{ p.extra.badge }}</span>
+      <h3><a href="{{ p.permalink | safe }}">{{ p.title }}</a></h3>
+      <p>{{ p.extra.headline_claim.claim }}</p>
+    </div>
+    <dl class="proof-receipt">
+      <div><dt>Mechanism</dt><dd>{{ p.extra.headline_claim.receipt }}</dd></div>
+      <div><dt>Boundary</dt><dd>Private source; public configurations and a case-study receipt.</dd></div>
+    </dl>
+    <p class="proof-links"><a href="{{ p.permalink | safe }}">Inspect the case study&nbsp;&rarr;</a> <a href="/writing/hardest-honest-rung/">Read the enforcement method&nbsp;&rarr;</a></p>
+  </div>
+    {%- endif %}
+  {%- endfor %}
+</section>
+
+<section class="home-section" aria-labelledby="selected-heading">
+  <div class="section-heading-row">
+    <div>
+      <p class="section-label">Selected systems</p>
+      <h2 id="selected-heading">Different work, one receipt discipline.</h2>
+    </div>
+    <a href="/systems/">Open the full catalog&nbsp;&rarr;</a>
+  </div>
+  <ul class="catalog selected-catalog">
     {%- for p in systems.pages %}
       {%- if p.slug in selected %}
         {{ catalog_row::row(page=p) }}
       {%- endif %}
     {%- endfor %}
   </ul>
-  <p class="selected-work-close"><a href="/systems/">THE FLEET: {{ total_public }} PUBLIC REPOSITORIES &rarr;</a> &middot; <a href="/demos/">EVERY RECORDING &rarr;</a> &middot; <a href="/writing/">WRITING &rarr;</a></p>
-</div>
+</section>
 
-<div class="section-band">
-  <p class="consulting-line">{{ section.extra.consulting_line }}</p>
-  <div class="home-ctas">
-    <a href="/consulting/" class="button">Work with Ardent Tools &rarr;</a>
+<section class="home-section fleet-map-section" aria-labelledby="map-heading">
+  <div class="section-heading-row">
+    <div>
+      <p class="section-label">Fleet map</p>
+      <h2 id="map-heading">Standards travel through repository-owned configuration.</h2>
+    </div>
   </div>
-</div>
+  <figure class="fleet-map">
+    <div class="fleet-map-source">
+      <strong>Kanon</strong>
+      <span>rules · gates · dispatch</span>
+    </div>
+    <div class="fleet-map-link" aria-hidden="true"><span>.kanon-ci.toml</span></div>
+    <ul class="fleet-map-nodes">
+      {%- for p in systems.pages %}
+        {%- if p.extra.kanon_ci %}
+      <li><a href="{{ p.permalink | safe }}"><strong>{{ p.title }}</strong><span>{{ p.extra.badge }}</span></a></li>
+        {%- endif %}
+      {%- endfor %}
+    </ul>
+    <figcaption>Each of the six featured public system repositories carries its own <code>.kanon-ci.toml</code>. That proves configuration is present, not identical enforcement; scope remains repository-specific.</figcaption>
+  </figure>
+</section>
+
+<section class="home-section" aria-labelledby="writing-heading">
+  <div class="section-heading-row">
+    <div>
+      <p class="section-label">Recent writing</p>
+      <h2 id="writing-heading">Methods behind the systems.</h2>
+    </div>
+    <a href="/writing/">All essays&nbsp;&rarr;</a>
+  </div>
+  <ol class="home-writing-list">
+    {%- for entry in writing.pages | slice(end=3) %}
+    <li>
+      <time datetime="{{ entry.date }}">{{ entry.date | date(format="%Y-%m-%d") }}</time>
+      <h3><a href="{{ entry.permalink | safe }}">{{ entry.title }}</a></h3>
+      <p>{{ entry.description }}</p>
+    </li>
+    {%- endfor %}
+  </ol>
+</section>
+
+<section class="consulting-close" aria-labelledby="consulting-close-heading">
+  <p class="section-label">Consulting</p>
+  <h2 id="consulting-close-heading">Make the operating evidence part of the system.</h2>
+  <p>{{ section.extra.consulting_line }}</p>
+  <p><a href="/consulting/" class="button">See fit, process, and deliverables</a></p>
+</section>
 
 <div class="practice-paragraph">
 {{ section.content | safe }}
