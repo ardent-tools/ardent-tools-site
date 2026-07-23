@@ -1534,13 +1534,14 @@ class ContentAddressContractTests(unittest.TestCase):
             "sha256": digest,
         }
         entry = {
+            "kind": "snapshot",
             "sequence": 1,
             "previous_entry_sha256": None,
             "resource_count": 1,
             "resources": [resource],
         }
         document = {
-            "schema_version": 1,
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
             "entry_count": 1,
             "entries": [entry],
         }
@@ -1683,6 +1684,304 @@ class ContentAddressContractTests(unittest.TestCase):
             if pattern.search(text):
                 violations.append(path.relative_to(ROOT).as_posix())
         self.assertEqual(violations, [])
+
+
+class AssetRetentionLifetimeContractTests(unittest.TestCase):
+    """Coverage for the unbounded-history redesign: dedupe, the soft/hard
+    entry thresholds, checkpoint compaction, and checkpoint-rooted
+    validate_history_prefix() acceptance/rejection."""
+
+    @staticmethod
+    def resource_for(logical_path: str, body: bytes) -> tuple[dict, bytes]:
+        digest = hashlib.sha256(body).hexdigest()
+        output_path = f"a/{digest}{Path(logical_path).suffix}"
+        return (
+            {
+                "logical_path": logical_path,
+                "output_path": output_path,
+                "sha256": digest,
+            },
+            body,
+        )
+
+    def build_ledger_with_repeated_entries(
+        self, root: Path, entry_count: int
+    ) -> tuple[Path, Path]:
+        """Directly construct a valid, chained ledger of `entry_count`
+        entries that all reference the SAME single physical resource.
+
+        This intentionally bypasses record_snapshot()'s real dedupe/append
+        path (which would collapse identical consecutive snapshots to one
+        entry, exactly as it should for a genuine build). It exists purely
+        to exercise entry-COUNT thresholds in isolation, fast and without
+        entangling them with the separate, pre-existing MAX_RETAINED_RESOURCES
+        bound: reusing one resource keeps the retained-assets union at size 1
+        regardless of entry count, since validate_ledger() never forbids two
+        different entries from repeating identical resources — only
+        record_snapshot()'s append policy does that.
+        """
+        assets = root / "retained-assets"
+        resource, body = self.resource_for("img/fixture.svg", b"hard-limit-fixture\n")
+        (assets / "a").mkdir(parents=True, exist_ok=True)
+        (assets / resource["output_path"]).write_bytes(body)
+        entries = []
+        previous_digest = None
+        for index in range(entry_count):
+            entry = {
+                "kind": "snapshot",
+                "sequence": index + 1,
+                "previous_entry_sha256": previous_digest,
+                "resource_count": 1,
+                "resources": [resource],
+            }
+            previous_digest = asset_retention.entry_digest(entry)
+            entries.append(entry)
+        document = {
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
+            "entry_count": entry_count,
+            "entries": entries,
+        }
+        ledger = root / "asset-retention.json"
+        ledger.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
+        return ledger, assets
+
+    def test_consecutive_identical_snapshots_do_not_grow_the_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("img/a.svg", b"same\n")
+            document = asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            self.assertEqual(document["entry_count"], 1)
+            document_again = asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            self.assertEqual(document_again["entry_count"], 1)
+
+    def test_validate_ledger_accepts_history_far_past_the_old_128_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, assets = self.build_ledger_with_repeated_entries(
+                root, asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES
+            )
+            document, bodies = asset_retention.validate_ledger(ledger, assets)
+        self.assertEqual(
+            document["entry_count"], asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES
+        )
+        self.assertEqual(len(bodies), 1)
+
+    def test_soft_warning_fires_at_threshold_and_names_compact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, assets = self.build_ledger_with_repeated_entries(
+                root, asset_retention.RETENTION_HISTORY_SOFT_WARN_ENTRIES - 1
+            )
+            resource, body = self.resource_for("img/new.svg", b"fresh\n")
+            stderr = io.StringIO()
+            with mock.patch.object(asset_retention.sys, "stderr", stderr):
+                document = asset_retention.record_snapshot(
+                    ledger, assets, [resource], {resource["output_path"]: body}
+                )
+        self.assertEqual(
+            document["entry_count"], asset_retention.RETENTION_HISTORY_SOFT_WARN_ENTRIES
+        )
+        self.assertIn("WARNING", stderr.getvalue())
+        self.assertIn("asset_retention.py compact", stderr.getvalue())
+
+    def test_hard_limit_blocks_append_and_names_the_compact_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, assets = self.build_ledger_with_repeated_entries(
+                root, asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES
+            )
+            resource, body = self.resource_for("img/new.svg", b"fresh\n")
+            with self.assertRaisesRegex(
+                ValueError, "asset_retention.py compact"
+            ) as context:
+                asset_retention.record_snapshot(
+                    ledger, assets, [resource], {resource["output_path"]: body}
+                )
+        self.assertIn(
+            str(asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES),
+            str(context.exception),
+        )
+
+    def test_compact_unions_resources_across_superseded_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old styles\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new styles\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            before, before_bodies = asset_retention.validate_ledger(ledger, assets)
+            self.assertEqual(before["entry_count"], 2)
+            self.assertEqual(len(before_bodies), 2)
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            self.assertEqual(compacted["entry_count"], 1)
+            checkpoint = compacted["entries"][0]
+            self.assertEqual(checkpoint["kind"], "checkpoint")
+            self.assertEqual(checkpoint["superseded_entry_count"], 2)
+            output_paths = {item["output_path"] for item in checkpoint["resources"]}
+            self.assertEqual(
+                output_paths, {first["output_path"], second["output_path"]}
+            )
+            # Compaction never drops a retention obligation or a physical
+            # body — only the granular per-commit entry history shrinks.
+            after, after_bodies = asset_retention.validate_ledger(ledger, assets)
+            self.assertEqual(after_bodies, before_bodies)
+
+    def test_compact_with_at_most_one_entry_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("img/a.svg", b"solo\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            with self.assertRaisesRegex(ValueError, "nothing to compact"):
+                asset_retention.record_checkpoint(ledger, assets)
+
+    def test_validate_history_prefix_accepts_a_faithful_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            asset_retention.validate_history_prefix(compacted, prior_path)
+
+    def test_validate_history_prefix_rejects_a_fabricated_checkpoint_root(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            forged = copy.deepcopy(compacted)
+            forged["entries"][0]["checkpoint_root_sha256"] = "0" * 64
+            # With the fabricated root rejected, the transition falls back to
+            # the ordinary literal-prefix check — which a lone checkpoint
+            # entry can never satisfy against a longer, un-compacted prior
+            # history, so this fails closed via truncation rather than a
+            # byte-mismatch, but it still fails closed.
+            with self.assertRaisesRegex(ValueError, "truncated"):
+                asset_retention.validate_history_prefix(forged, prior_path)
+
+    def test_validate_history_prefix_rejects_same_length_forged_checkpoint(
+        self,
+    ) -> None:
+        # Same entry count on both sides isolates the byte-mismatch branch
+        # from the truncation branch exercised above.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("css/old.css", b"old\n")
+            document = asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            forged = copy.deepcopy(document)
+            forged["entries"][0] = {
+                "kind": "checkpoint",
+                "sequence": 1,
+                "previous_entry_sha256": None,
+                "resource_count": 1,
+                "resources": document["entries"][0]["resources"],
+                "checkpoint_root_sha256": "0" * 64,
+                "superseded_entry_count": 2,
+            }
+            with self.assertRaisesRegex(ValueError, "append-only base prefix"):
+                asset_retention.validate_history_prefix(forged, prior_path)
+
+    def test_checkpoint_entry_shape_is_strictly_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            document = asset_retention.record_checkpoint(ledger, assets)
+
+            cases = {
+                "malformed root": (
+                    lambda candidate: candidate["entries"][0].update(
+                        checkpoint_root_sha256="not-hex"
+                    ),
+                    "checkpoint_root_sha256",
+                ),
+                "boolean superseded count": (
+                    lambda candidate: candidate["entries"][0].update(
+                        superseded_entry_count=True
+                    ),
+                    "superseded_entry_count",
+                ),
+                "superseded count too small": (
+                    lambda candidate: candidate["entries"][0].update(
+                        superseded_entry_count=1
+                    ),
+                    "superseded_entry_count",
+                ),
+                "checkpoint not at index 0": (
+                    lambda candidate: candidate["entries"].append(
+                        {**candidate["entries"][0], "sequence": 2}
+                    )
+                    or candidate.update(entry_count=2),
+                    "first entry",
+                ),
+                "unknown kind": (
+                    lambda candidate: candidate["entries"][0].update(kind="snapshot"),
+                    "unexpected or missing keys",
+                ),
+            }
+            for label, (mutate, expected) in cases.items():
+                with self.subTest(label=label):
+                    candidate = copy.deepcopy(document)
+                    mutate(candidate)
+                    ledger.write_text(json.dumps(candidate))
+                    with self.assertRaisesRegex(ValueError, expected):
+                        asset_retention.validate_ledger(ledger, assets)
+            ledger.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
 
 
 class ReleaseManifestContractTests(unittest.TestCase):

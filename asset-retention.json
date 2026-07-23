@@ -1,6 +1,7 @@
 {
   "entries": [
     {
+      "kind": "snapshot",
       "previous_entry_sha256": null,
       "resource_count": 37,
       "resources": [
@@ -193,7 +194,8 @@
       "sequence": 1
     },
     {
-      "previous_entry_sha256": "5ca0eaf2277912767250bea178e29dc04cb6218d04ed541719974581f1937194",
+      "kind": "snapshot",
+      "previous_entry_sha256": "bb8c365c689441561b2d6933be447d55e789c9acf427f1fa31493ef06078e24b",
       "resource_count": 37,
       "resources": [
         {
@@ -385,7 +387,8 @@
       "sequence": 2
     },
     {
-      "previous_entry_sha256": "4afc01eb4d5f98742183136aa1f72ad495f083c3142073ba4582b1e96732a728",
+      "kind": "snapshot",
+      "previous_entry_sha256": "b8c6c1dad86de59478389e353aeff645c76de502a9b19e7935588668e9043e4d",
       "resource_count": 37,
       "resources": [
         {
@@ -577,7 +580,8 @@
       "sequence": 3
     },
     {
-      "previous_entry_sha256": "3725d25fa8b067c04cc060f15bc9e994a1784602c5869c6418e6775ef9ba7e3f",
+      "kind": "snapshot",
+      "previous_entry_sha256": "261148e4bb42935a751caa64038321e7344249e8f9c511d66305c5ccb775e5d1",
       "resource_count": 37,
       "resources": [
         {
@@ -769,7 +773,8 @@
       "sequence": 4
     },
     {
-      "previous_entry_sha256": "dd7040df26f0e67e02d0436cf20185b5126a704dd91df2b903e958cf0449d0a2",
+      "kind": "snapshot",
+      "previous_entry_sha256": "456bf984a42e1320113b00d7b0f03193135700c7e6b18546bf4d5da9da9a08dd",
       "resource_count": 37,
       "resources": [
         {
@@ -962,5 +967,5 @@
     }
   ],
   "entry_count": 5,
-  "schema_version": 1
+  "schema_version": 2
 }

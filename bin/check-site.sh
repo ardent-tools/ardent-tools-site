@@ -99,7 +99,7 @@ themes/typikon/bin/typikon-validate .
 
 if [[ -n "${ARDENT_RETENTION_BASE_LEDGER:-}" ]]; then
   echo "==> append-only asset-retention history"
-  python3 bin/asset_retention.py \
+  python3 bin/asset_retention.py verify \
     --ledger asset-retention.json \
     --assets retained-assets \
     --prior-ledger "$ARDENT_RETENTION_BASE_LEDGER"

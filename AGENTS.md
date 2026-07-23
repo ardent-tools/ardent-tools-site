@@ -101,7 +101,13 @@ full-body digests, while dependency-capable addressed XML fails closed.
 bytes and special media types. A changed current map must be recorded with
 `python3 bin/site.py retain-assets`. Pull-request and push CI select the event's
 base/before revision; recovery dispatch validates `HEAD^`. Its ledger must remain
-an exact prefix.
+an exact append-only prefix of the trusted base's ledger, or extend it via one
+checkpoint entry that hash-chains over everything it replaces
+(`python3 bin/asset_retention.py compact`) — history grows one entry per
+asset-touching commit with no hard ceiling; a soft warning at 128 entries
+names the compaction command well before the deep, corruption-only safety
+limit. See the module docstring in `bin/asset_retention.py` for the full
+design.
 The verifier fetches every retained
 HTML route, separately requests a revision-specific missing route, checks every
 manifest resource, and requires the complete configured direct-response header
