@@ -2357,3 +2357,35 @@ a.proof-record:focus-visible {
     padding: var(--space-xs);
   }
 }
+
+/* === Forced colors — verification, not a redesign. Every wash tint
+   (.section-band/.catalog-group zone fills, .dossier-header,
+   .feature-block, .consulting-close ::before layers) is a plain
+   background-color; a forced-colors user agent replaces author
+   background-color with Canvas by default, so the tint disappears and
+   the plain page shows through underneath instead. Every plate and band
+   edge (.proof-record, .spec-plate, .fleet-map-source, .receipt-table-
+   wrap, .term-mat, .section-band::before's border-block, and the rest)
+   is a real `border`/`border-block` declaration, which a forced-colors
+   user agent recolors to a system ink rather than discarding — so the
+   edge that frames each evidence object, and the text it frames, both
+   stay legible with zero rules below this comment. Stated explicitly so
+   the degradation is a verified fact, not an untested assumption.
+   The one place that does not degrade safely on its own: the flame
+   mark's mask-image + flat background-color technique (.logo::before,
+   .site-footer-colophon::before, the wordmark and footer seal — the
+   flame budget's two ink appearances, §1.4). The mask shape's only ink
+   is that background-color; a user agent that also mutes it to Canvas
+   paints an invisible silhouette against the same Canvas page
+   background. Forced to CanvasText below so the mark survives at both
+   ink appearances. The third appearance, the home-hero emboss, is left
+   alone: it is deliberately near-invisible even outside forced-colors
+   (opacity 0.035, paper texture rather than a mark meant to be read),
+   so its disappearance here loses nothing a forced-colors visitor could
+   have read anyway. */
+@media (forced-colors: active) {
+  .logo::before,
+  .site-footer-colophon::before {
+    background-color: CanvasText;
+  }
+}
