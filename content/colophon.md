@@ -27,6 +27,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | Construction | AI agents build and maintain this site - the templates, the stylesheet, the prose, the release machinery - under my direction, through the gate below. The gate covers what's automatable; I check the rest by hand |
 | Method | The [essays](/writing/) carry the operating method behind this site and the systems it documents - how the gates, counts, and review loops actually run |
 | Legible to agents | The site's structured surfaces - [llms.txt](/llms.txt), [systems.json](/systems.json), [career-claims.json](/career-claims.json), and this repository's own `AGENTS.md` - are readable by an agent doing live retrieval on a visitor's behalf. The same system frontmatter derives the human catalog and the machine one, diff-checked so they cannot drift. The [AI use policy](https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md) draws a separate line at bulk collection into a training corpus, which stays prohibited without written consent |
+| Ownership | Ardent Works LLC, a Texas company. This practice operates under it; the site and its evidence are the practice's work |
 | Family | Sibling of [Ardent Leatherworks](https://ardentleatherworks.com) - shared paper stock, shared press ink, shared flame mark |
 
 </div>

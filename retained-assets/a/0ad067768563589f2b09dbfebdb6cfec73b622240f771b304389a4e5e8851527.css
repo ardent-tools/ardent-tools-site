@@ -150,7 +150,7 @@
    English headlines). */
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('/fonts/plex-mono-600-latin.woff2') format('woff2');
+  src: url('/a/bcc2e809c6adce034b1de8baebf38dfeea8952d9754060ecf7f8f1419906e7b8.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -226,7 +226,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: url('/img/grain.svg');
+  background: url('/a/ce8b1b44003fee7e991fef48691388ec2b9ac94686cc7af4b121a221f332f2b9.svg');
   background-size: 240px 240px;
   opacity: var(--grain-opacity);
 }
@@ -881,8 +881,8 @@ a:focus-visible .arrow {
   margin-left: 0.05em;
   order: 2;
   background-color: var(--accent);
-  -webkit-mask-image: url('/img/logo-flame.svg');
-  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
@@ -1446,8 +1446,8 @@ a:active {
   margin-right: 0.4em;
   vertical-align: -0.08em;
   background-color: var(--accent);
-  -webkit-mask: url('/img/logo-flame.svg') no-repeat center / contain;
-  mask: url('/img/logo-flame.svg') no-repeat center / contain;
+  -webkit-mask: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg') no-repeat center / contain;
+  mask: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg') no-repeat center / contain;
 }
 
 /* Rhythm law (§1.2, §5 component kit) — the footer's own share of the
@@ -1563,8 +1563,8 @@ footer {
   aspect-ratio: 1;
   background-color: var(--text);
   opacity: 0.035;
-  -webkit-mask-image: url('/img/logo-flame.svg');
-  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
