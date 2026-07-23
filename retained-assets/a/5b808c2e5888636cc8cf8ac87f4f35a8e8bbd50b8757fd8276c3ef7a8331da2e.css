@@ -150,7 +150,7 @@
    English headlines). */
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('/fonts/plex-mono-600-latin.woff2') format('woff2');
+  src: url('/a/bcc2e809c6adce034b1de8baebf38dfeea8952d9754060ecf7f8f1419906e7b8.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -226,7 +226,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: url('/img/grain.svg');
+  background: url('/a/ce8b1b44003fee7e991fef48691388ec2b9ac94686cc7af4b121a221f332f2b9.svg');
   background-size: 240px 240px;
   opacity: var(--grain-opacity);
 }
@@ -881,8 +881,8 @@ a:focus-visible .arrow {
   margin-left: 0.05em;
   order: 2;
   background-color: var(--accent);
-  -webkit-mask-image: url('/img/logo-flame.svg');
-  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
@@ -1437,8 +1437,8 @@ a:active {
   margin-right: 0.4em;
   vertical-align: -0.08em;
   background-color: var(--accent);
-  -webkit-mask: url('/img/logo-flame.svg') no-repeat center / contain;
-  mask: url('/img/logo-flame.svg') no-repeat center / contain;
+  -webkit-mask: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg') no-repeat center / contain;
+  mask: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg') no-repeat center / contain;
 }
 
 /* Rhythm law (§1.2, §5 component kit) — the footer's own share of the
@@ -1554,8 +1554,8 @@ footer {
   aspect-ratio: 1;
   background-color: var(--text);
   opacity: 0.035;
-  -webkit-mask-image: url('/img/logo-flame.svg');
-  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
@@ -2203,40 +2203,30 @@ a.proof-record:focus-visible {
    receipt summary / status, the register's own column set. Real
    thead/tbody/th/td markup (not an aria-hidden header row over a list
    of unlabeled cells) so a screen reader gets column context per cell
-   for free. One row link (the Entry cell's <a>) is stretched to the
-   full row via ::after + tr's own position: relative, the same
-   technique .catalog-row/.ledger-cell use above — "click anywhere on
-   the row" without a <tr> wrapping an <a>, which HTML disallows. No
-   bottom rule of its own on the body — .evidence-index-close supplies
-   the closing double rule, so the two ends of the register read
-   differently (open thin, close heavy) the way a real ledger does.
-
-   Narrow-viewport contract (tests/smoke/site-quality.spec.ts): a
-   multi-column table must stay a real table and scroll horizontally
-   at <=375px, never collapse to stacked blocks — every data cell
-   holds a legibility floor (>=128px) and the table's own scroll
-   region stays inside the viewport. display: block on the <table>
-   itself (not a wrapper — .evidence-table-wrap is a plain layout
-   container, not the scroll owner) turns the table into its own
-   horizontal-scroll box while its thead/tbody/tr/td descendants keep
-   their table-part display values (the same technique this site
-   already uses for generic .prose tables: ".prose table:not(.receipt-
-   table-wrap table)" above). min-width per cell (not a fixed
-   table-layout) is the same mechanism .receipt-table-wrap already
-   uses elsewhere on this site, deliberately without adopting that
-   class's plate framing (background/border/padding) — the register
-   keeps the bare-ledger look the list version had. */
+   for free. table-layout: fixed + explicit per-column widths on
+   nth-child (this site's strict CSP forbids inline <col style>, the
+   usual home for fixed-table column widths) approximate the anatomy
+   the earlier CSS-grid version specified. One row link (the Entry
+   cell's <a>) is stretched to the full row via ::after + tr's own
+   position: relative, the same technique .catalog-row/.ledger-cell use
+   above — "click anywhere on the row" without a <tr> wrapping an <a>,
+   which HTML disallows. No bottom rule of its own on the body —
+   .evidence-index-close supplies the closing double rule, so the two
+   ends of the register read differently (open thin, close heavy) the
+   way a real ledger does. */
+/* Scroll-safety wrapper only (§6: "own overflow-x: auto; the page body
+   never scrolls horizontally") — no plate framing here, unlike
+   .receipt-table-wrap: the register keeps the bare-ledger look the
+   list version had, not a receipt plate's border/background. */
 .evidence-table-wrap {
-  max-width: 100%;
+  overflow-x: auto;
 }
 
 .evidence-table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 32rem;
   border-collapse: collapse;
+  table-layout: fixed;
   margin-top: var(--space-m);
 }
 
@@ -2245,9 +2235,7 @@ a.proof-record:focus-visible {
    rule (tbody tr's border-top, thead's double rule) and a directional
    inline gap (padding-inline-end, zeroed on the last column) standing
    in for the earlier CSS grid's own `gap`, not a border or padding on
-   every cell. min-width is the legibility floor the narrow-viewport
-   contract requires (>=128px); 9.5rem clears it with margin at the
-   16px root the mobile breakpoints already assume. */
+   every cell. */
 .evidence-table th,
 .evidence-table td {
   text-align: left;
@@ -2255,13 +2243,11 @@ a.proof-record:focus-visible {
   padding-inline: 0 var(--space-m);
   border-bottom: 0;
   vertical-align: baseline;
-  min-width: 9.5rem;
 }
 
 .evidence-table th:last-child,
 .evidence-table td:last-child {
   padding-inline-end: 0;
-  text-align: right;
 }
 
 .evidence-table thead th {
@@ -2274,6 +2260,22 @@ a.proof-record:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-light);
+}
+
+.evidence-table th:first-child,
+.evidence-table td:first-child {
+  width: 2.5rem;
+}
+
+.evidence-table th:nth-child(2),
+.evidence-table td:nth-child(2) {
+  width: 22%;
+}
+
+.evidence-table th:last-child,
+.evidence-table td:last-child {
+  width: 7rem;
+  text-align: right;
 }
 
 .evidence-table tbody tr {
@@ -2419,6 +2421,44 @@ a.proof-record:focus-visible {
   .section-heading-row > a {
     display: block;
     margin-top: var(--space-xs);
+  }
+
+  /* A column-header row is meaningless once the columns below it
+     collapse to stacked blocks; the table itself stacks to plain
+     blocks (rule/rhythm stay on the row, now a block box instead of a
+     table-row — position: relative still holds it as the stretched
+     link's containing block either way) rather than scrolling a table
+     this narrow. */
+  .evidence-table thead {
+    display: none;
+  }
+
+  .evidence-table {
+    min-width: 0;
+  }
+
+  .evidence-table,
+  .evidence-table tbody,
+  .evidence-table tr,
+  .evidence-table td {
+    display: block;
+    width: auto;
+  }
+
+  .evidence-table tr {
+    padding-block: var(--space-m);
+  }
+
+  .evidence-table td {
+    padding: 0;
+  }
+
+  .evidence-table td + td {
+    margin-top: var(--space-xs);
+  }
+
+  .evidence-table td:last-child {
+    text-align: left;
   }
 
   /* Fleet map mobile composition — a deliberate narrow-width anatomy,

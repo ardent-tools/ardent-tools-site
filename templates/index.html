@@ -2,7 +2,6 @@
    writing links come from content/writing; this template owns only the
    composition. No recording surface renders without a published cast. #}
 {% extends "base.html" %}
-{% import "partials/asset-url.html" as asset_url %}
 {% import "partials/feature-block.html" as feature_block %}
 
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
@@ -19,15 +18,19 @@
   <p class="home-lede">{{ section.extra.lede }}</p>
   <div class="home-ctas" aria-label="Ways to work together">
     <a href="/consulting/" class="button">Discuss a consulting engagement</a>
-    <a href="{{ asset_url::hashed(path="files/cody-kickertz-resume.pdf") | safe }}" download="cody-kickertz-resume.pdf" class="text-action">Hiring for a role? Read the resume&nbsp;<span class="arrow">&rarr;</span></a>
+    <a href="/hire/" class="text-action">Hiring for a role? Read the resume&nbsp;<span class="arrow">&rarr;</span></a>
   </div>
 </header>
+
+<div class="practice-paragraph">
+{{ section.content | safe }}
+</div>
 
 <section class="proof-surface" aria-labelledby="proof-heading">
   <div class="proof-intro reveal">
     <p class="section-label"><span class="section-label-index">01</span> &middot; Published receipt</p>
     <h2 id="proof-heading">The rule is only real where the mechanism enforces it.</h2>
-    <p>Kanon is the private standards and dispatch control plane behind this practice. Its public receipt is deliberately narrower than its source.</p>
+    <p>Kanon is the private standards and dispatch control plane behind this practice. Its public receipt is deliberately narrower than its source. A receipt here is the claim, the mechanism that checks it, and where to verify it - never the claim by itself.</p>
   </div>
   {%- for p in systems.pages %}
     {%- if p.slug == section.extra.proof_system %}
@@ -111,7 +114,7 @@
         {%- endif %}
       {%- endfor %}
     </ul>
-    <figcaption>Each of the six featured public system repositories carries its own <code>.kanon-ci.toml</code>. That proves configuration is present, not identical enforcement; scope remains repository-specific.</figcaption>
+    <figcaption>Six featured public repositories carry the control plane's own <code>.kanon-ci.toml</code> file. That proves configuration is present, not identical enforcement - scope remains repository-specific.</figcaption>
   </figure>
 </section>
 
@@ -142,8 +145,4 @@
     <p><a href="/consulting/" class="button">See fit, process, and deliverables</a></p>
   </div>
 </section>
-
-<div class="practice-paragraph">
-{{ section.content | safe }}
-</div>
 {% endblock content %}

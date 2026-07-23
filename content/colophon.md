@@ -3,8 +3,6 @@ title = "Colophon"
 description = "How this site is built: Zola and typikon, self-hosted assets, strict CSP, evidence checks, and Cloudflare Pages delivery."
 +++
 
-# Colophon
-
 Static Zola site. Self-hosted application assets. No site-authored analytics or cookies, and no remote third-party runtime/application requests in authored output.
 
 The repo is public: the gate config, CSP, source content, recording plans, and derived-data checks are inspectable. [View source →](https://github.com/ardent-tools/ardent-tools-site)
@@ -25,8 +23,10 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | CSP - script-src | `'self'` only. With zero published casts, no player is requested and no `wasm-unsafe-eval` exception remains |
 | CSP - style-src | `'self'` only, no inline `style="..."` anywhere - code listings use Zola's class-based syntax highlighting instead of inline colors |
 | CSP - form-action | `'self'` only. No third-party form destination, because the site carries no form at all |
+| Color scheme | Light-only, by decision - `color-scheme: light` is declared, not omitted, and no dark palette is built |
 | Construction | AI agents build and maintain this site - the templates, the stylesheet, the prose, the release machinery - under my direction, through the gate below. The gate covers what's automatable; I check the rest by hand |
 | Method | The [essays](/writing/) carry the operating method behind this site and the systems it documents - how the gates, counts, and review loops actually run |
+| Legible to agents | The site's structured surfaces - [llms.txt](/llms.txt), [systems.json](/systems.json), [career-claims.json](/career-claims.json), and this repository's own `AGENTS.md` - are readable by an agent doing live retrieval on a visitor's behalf. The same system frontmatter derives the human catalog and the machine one, diff-checked so they cannot drift. The [content license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE-DOCS) draws a separate line at bulk collection into a training corpus, which stays prohibited without written consent |
 | Family | Sibling of [Ardent Leatherworks](https://ardentleatherworks.com) - shared paper stock, shared press ink, shared flame mark |
 
 </div>

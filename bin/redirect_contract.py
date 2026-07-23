@@ -29,11 +29,11 @@ SUPPORTED_REDIRECTS = (
     RedirectRule("/404", "/404/", 308),
     RedirectRule("/404.html", "/404/", 308),
     RedirectRule("/demos", "/evidence/", 301),
-    RedirectRule("/resume", "/consulting/", 301),
+    RedirectRule("/resume", "/hire/", 301),
     RedirectRule("/systems/ergon-tools/*", "/systems/", 301),
     RedirectRule("/systems/nosologia/*", "/systems/", 301),
     RedirectRule("/demos/*", "/evidence/", 301),
-    RedirectRule("/resume/*", "/consulting/", 301),
+    RedirectRule("/resume/*", "/hire/", 301),
 )
 EXACT_PROBE_PATHS = {
     "/demos/*": "/demos/",

@@ -25,7 +25,7 @@
 </div>
 
 {%- if page.extra.engagement_shapes %}
-<h2>04 &mdash; Engagement shapes</h2>
+<h2>Engagement shapes</h2>
 <div class="engagement-shapes">
   {%- for shape in page.extra.engagement_shapes %}
   <div class="engagement-shape">
@@ -40,6 +40,7 @@
   <h2 id="consulting-inquiry-title">Bring the system and the hard-to-reverse decision.</h2>
   <p>Send the operating boundary, what the team must be able to verify, and the handoff you need to leave behind.</p>
   <a class="button" href="mailto:{{ config.extra.person.email }}?subject=Consulting%20inquiry">Start a consulting inquiry</a>
+  <p class="consulting-inquiry-fallback">or write <a href="mailto:{{ config.extra.person.email }}">{{ config.extra.person.email }}</a></p>
 </aside>
 {%- endif %}
 {% endblock content %}

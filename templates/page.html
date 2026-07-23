@@ -1,9 +1,15 @@
 {# Consumer shadow of typikon's templates/page.html (theme.toml's Zola
-   template-shadow rule). Delta from the theme copy: the content block
-   wraps page.content (+ the product-gallery/video partials it already
-   carries) in .prose (§1.2) — narrows generic content pages (about,
-   colophon, contact, 404) to the reading measure instead of the
-   full 1200px wide shell. Everything else is unchanged from typikon's
+   template-shadow rule). Delta from the theme copy: a designed
+   `.page-header` (h1 + optional lede) renders ahead of page.content,
+   matching every other interior page (about, catalog, evidence,
+   consulting, dossier) instead of leaving the markdown body's own
+   `#` heading to stand in for it; page.content (+ the product-gallery/
+   video partials it already carries) then wraps in .prose (§1.2) —
+   narrows generic content pages (colophon, contact, 404, hire) to the
+   reading measure instead of the full 1200px wide shell. Markdown
+   bodies for pages that render through this template as-is must not
+   carry their own leading `#` heading (about.md set the precedent) or
+   the title doubles. Everything else is unchanged from typikon's
    own page.html; re-diff against themes/typikon/templates/page.html on
    every typikon-refresh.
 
@@ -42,6 +48,12 @@
 {% endblock ld_json %}
 
 {% block content %}
+<header class="page-header reveal">
+<h1>{{ page.title }}</h1>
+{%- if page.description %}
+<p class="page-lede">{{ page.description }}</p>
+{%- endif %}
+</header>
 <div class="prose">
 {# Product gallery renders before page content when extra.images is set —
    the operator drops the placeholder <div class="product-images"> from
