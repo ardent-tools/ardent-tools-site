@@ -51,6 +51,10 @@ REQUIRED_RELEASE_LOGICAL_PATHS = (
     "speculation-rules.json",
 )
 CUSTOM_404_MARKERS = ("404: no such path", "Return home")
+# Both classes are served at /a/<full-sha256>.<ext> — provably immutable by
+# construction, so they carry the long-lived immutable policy rather than
+# the root no-store default (see release_manifest.py's cache_class values).
+ADDRESSED_ASSET_CACHE_CLASSES = frozenset({"addressed", "retained"})
 STRICT_ZERO_CAST_CSP = {
     "default-src": ("'self'",),
     "img-src": ("'self'",),
@@ -152,6 +156,24 @@ def validate_no_store_cache(
         errors.append(
             f"{label} Cache-Control must be exactly no-store, no-transform; "
             f"found {cache_control!r}"
+        )
+
+
+def validate_immutable_cache(
+    errors: list[str], label: str, headers: dict[str, str]
+) -> None:
+    """Addressed/retained resources live at /a/<full-sha256>.<ext> — provably
+    immutable by construction — and carry the matching long-lived policy
+    instead of the root no-store default."""
+    cache_control = header(headers, "Cache-Control")
+    directives = cache_directives(headers)
+    expected = Counter(
+        {("public", None): 1, ("max-age", "31536000"): 1, ("immutable", None): 1}
+    )
+    if Counter(directives) != expected:
+        errors.append(
+            f"{label} Cache-Control must be exactly public, max-age=31536000, "
+            f"immutable; found {cache_control!r}"
         )
 
 
@@ -541,9 +563,14 @@ def verify(
             )
             continue
         if not directly_validated:
-            validate_no_store_cache(
-                errors, f"release resource {relative_url!r}", resource_headers
-            )
+            if item.get("cache_class") in ADDRESSED_ASSET_CACHE_CLASSES:
+                validate_immutable_cache(
+                    errors, f"release resource {relative_url!r}", resource_headers
+                )
+            else:
+                validate_no_store_cache(
+                    errors, f"release resource {relative_url!r}", resource_headers
+                )
         validate_live_direct_headers(
             errors,
             f"release resource {relative_url!r}",
@@ -570,7 +597,6 @@ def verify(
                 f"expected {item['sha256']}, SHA-256={digest}"
             )
 
-    pages: dict[str, str] = {}
     asset_references: list[tuple[str, str, str]] = []
     for path in sorted(authority_by_path):
         page_url = urljoin(site_root, path.lstrip("/"))
@@ -593,7 +619,6 @@ def verify(
         asset_references.extend(
             collect_hashed_assets(errors, site_root, page_url, body, canonical_root)
         )
-        pages[path] = body
 
     for alias_path, target_path in html_alias_redirects(html_authority):
         alias_url = urljoin(site_root, alias_path.lstrip("/"))
@@ -673,14 +698,13 @@ def verify(
                     f"expected {custom_digest!r}, SHA-256={alias_digest}"
                 )
 
-    evidence_body = pages.get("/evidence/", "")
-    for marker in (
-        'href="https://ardent.tools/evidence/"',
-        "Would show:",
-        "0 published casts.",
-    ):
-        if marker not in evidence_body:
-            errors.append(f"/evidence/ lacks deployment marker {marker!r}")
+    # /evidence/'s CONTENT correctness (not just deployment currency) is
+    # checked at gate time against the built tree, before merge —
+    # bin/validate-site.py's EVIDENCE_PAGE_DEPLOYMENT_MARKERS. Here, the
+    # build-revision.txt self-report plus the byte-for-byte digest match
+    # against release-html.json above already prove the live page is
+    # identical to what that exact commit built; a further live substring
+    # scan would only re-check bytes this loop already hashed in full.
 
     assets = distinct_assets(errors, asset_references)
     manifest_urls = {
@@ -701,7 +725,11 @@ def verify(
                 )
             continue
         if not in_manifest:
-            validate_no_store_cache(
+            # collect_hashed_assets() only accepts /a/<full-sha256>.<extension>
+            # references, so any asset reaching this branch is, by
+            # construction, under the immutable /a/* policy regardless of its
+            # (missing) manifest entry.
+            validate_immutable_cache(
                 errors, f"authored {kind} asset {asset_url!r}", asset_headers
             )
         digest = hashlib.sha256(asset_body).hexdigest()

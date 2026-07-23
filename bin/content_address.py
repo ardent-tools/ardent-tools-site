@@ -1301,7 +1301,8 @@ def finalize_tree(
         if ledger["entries"][-1]["resources"] != expected_snapshot:
             raise ValueError(
                 "latest asset-retention snapshot differs from this finalized release; "
-                "record the new snapshot explicitly before deployment"
+                "run `python3 bin/site.py retain-assets` and commit the updated ledger "
+                "before deployment"
             )
         for output_path, body in retained_bodies.items():
             current = finalized_bodies.get(output_path)

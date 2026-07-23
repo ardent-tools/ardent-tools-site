@@ -22,6 +22,42 @@ const AUTHORITATIVE_404_PATH = "/404/";
 const HTML_AUTHORITY_PATH = "/release-html.json";
 const RELEASE_MANIFEST_PATH = "/release-resources.json";
 const ADDRESSED_SPECULATION_PATTERN = /^\/a\/([0-9a-f]{64})\.json$/;
+const DEGRADED_NOT_FOUND_BODY =
+  '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
+  "<title>404</title></head><body><h1>404: no such path</h1>" +
+  "<p>The retained error page is temporarily unavailable.</p>" +
+  "</body></html>";
+
+// Thrown only by fetchRetainedAsset() below, exclusively for a failure in the
+// ASSETS.fetch call itself (network-class: the binding is unreachable, times
+// out, or otherwise never returns a Response). Every other throw in this
+// file — a non-200 status, invalid JSON, or a shape/identity mismatch on a
+// Response that DID come back — stays a plain Error and stays fail-closed:
+// that distinction is what lets authoritativeNotFound() degrade only for the
+// former and still reject the latter.
+class RetainedAssetUnavailableError extends Error {}
+
+async function fetchRetainedAsset(context, request) {
+  try {
+    return await context.env.ASSETS.fetch(request);
+  } catch (cause) {
+    throw new RetainedAssetUnavailableError(
+      `ASSETS.fetch is unavailable: ${cause instanceof Error ? cause.message : cause}`,
+    );
+  }
+}
+
+function degradedNotFound(requestMethod) {
+  const guarded = new Response(
+    requestMethod === "HEAD" ? null : DEGRADED_NOT_FOUND_BODY,
+    { status: 404, statusText: "Not Found" },
+  );
+  guarded.headers.set("content-type", "text/html; charset=utf-8");
+  for (const [name, value] of Object.entries(DIRECT_RESPONSE_HEADERS)) {
+    guarded.headers.set(name, value);
+  }
+  return guarded;
+}
 
 function addAlias(aliases, source, target) {
   if (aliases.has(source)) {
@@ -105,7 +141,8 @@ function aliasTargets(authority) {
 
 async function retainedHtmlAuthority(context) {
   const authorityUrl = new URL(HTML_AUTHORITY_PATH, context.request.url);
-  const response = await context.env.ASSETS.fetch(
+  const response = await fetchRetainedAsset(
+    context,
     new Request(authorityUrl, {
       method: "GET",
       headers: { Accept: "application/json" },
@@ -123,7 +160,8 @@ async function retainedHtmlAuthority(context) {
 
 async function retainedSpeculationRulesUrl(context) {
   const manifestUrl = new URL(RELEASE_MANIFEST_PATH, context.request.url);
-  const response = await context.env.ASSETS.fetch(
+  const response = await fetchRetainedAsset(
+    context,
     new Request(manifestUrl, {
       method: "GET",
       headers: { Accept: "application/json" },
@@ -210,19 +248,38 @@ function contractResponse(
 
 async function authoritativeNotFound(context, speculationRulesUrl) {
   const fallbackUrl = new URL(AUTHORITATIVE_404_PATH, context.request.url);
-  const fallback = await context.env.ASSETS.fetch(
-    new Request(fallbackUrl, {
-      method: "GET",
-      headers: { Accept: "text/html" },
-    }),
-  );
+  let resolvedSpeculationRulesUrl;
+  let fallback;
+  try {
+    // The two ASSETS.fetch calls this needs have no data dependency on each
+    // other, so run them concurrently rather than paying two sequential
+    // round-trips on every visitor typo.
+    [resolvedSpeculationRulesUrl, fallback] = await Promise.all([
+      speculationRulesUrl,
+      fetchRetainedAsset(
+        context,
+        new Request(fallbackUrl, {
+          method: "GET",
+          headers: { Accept: "text/html" },
+        }),
+      ),
+    ]);
+  } catch (error) {
+    if (error instanceof RetainedAssetUnavailableError) {
+      // The ASSETS binding itself is unreachable — not a shape/integrity
+      // mismatch in something it did return — so degrade to a hardcoded 404
+      // instead of letting the platform's raw unhandled-Error 500 through.
+      return degradedNotFound(context.request.method);
+    }
+    throw error;
+  }
   if (fallback.status !== 200) {
     throw new Error("retained 404 authority is unavailable");
   }
   return contractResponse(
     fallback,
     context.request.method,
-    speculationRulesUrl,
+    resolvedSpeculationRulesUrl,
     404,
   );
 }
@@ -238,8 +295,9 @@ export async function onRequest(context) {
     response.status === 304 ||
     response.status === 404
   ) {
-    const speculationRulesUrl = await retainedSpeculationRulesUrl(context);
-    return authoritativeNotFound(context, speculationRulesUrl);
+    // Pass the pending promise, not its awaited value: authoritativeNotFound()
+    // races it against its own ASSETS.fetch for the retained 404 body.
+    return authoritativeNotFound(context, retainedSpeculationRulesUrl(context));
   }
 
   if (!GUARDED_ERROR_STATUSES.has(response.status)) {

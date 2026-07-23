@@ -5,6 +5,14 @@
 # disposition before the build can pass. Pages itself replaces Cache-Control
 # on generated 404 responses; the narrowly-routed Function applies this exact
 # policy to missing paths, retained tombstones, and Function-routed HTML aliases.
+#
+# Cloudflare Pages composes overlapping sections by joining same-name headers
+# with a comma rather than letting a later section override an earlier one,
+# so /a/* cannot just add its own Cache-Control line — it must first detach
+# the one /* already set (the documented `!` syntax), then declare its own.
+# Every non-HTML resource is served at /a/<full-sha256>.<ext>, provably
+# immutable by construction (content_address.py), so it carries a long-lived
+# immutable policy instead of the root no-store default.
 
 /*
   Cache-Control: no-store, no-transform
@@ -15,6 +23,10 @@
   Permissions-Policy: accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()
   Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
   Speculation-Rules: "/speculation-rules.json"
+
+/a/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
 
 /speculation-rules.json
   Content-Type: application/speculationrules+json

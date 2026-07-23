@@ -74,6 +74,7 @@ ASSET_MARKUP = (
     f'<link rel="stylesheet" href="{CSS_URL}"><script src="{JS_URL}" defer></script>'
 )
 GOOD_CACHE = "no-store, no-transform"
+GOOD_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 GOOD_CSP = (
     "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
     "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
@@ -88,9 +89,9 @@ def run_production_fixture(
     revision: str = EXPECTED_REVISION,
     revision_cache: str = "no-store, no-transform",
     css_body: bytes = CSS_BODY,
-    css_cache: str = GOOD_CACHE,
+    css_cache: str = GOOD_IMMUTABLE_CACHE,
     js_body: bytes = JS_BODY,
-    js_cache: str = GOOD_CACHE,
+    js_cache: str = GOOD_IMMUTABLE_CACHE,
     js_status: int = 200,
     error_js_body: bytes = ERROR_JS_BODY,
     about_status: int = 200,
@@ -227,7 +228,11 @@ def run_production_fixture(
             body = files[item["output_path"]]
             logical_path = item["logical_path"]
             status = 200
-            cache = GOOD_CACHE
+            cache = (
+                GOOD_IMMUTABLE_CACHE
+                if item["cache_class"] in {"addressed", "retained"}
+                else GOOD_CACHE
+            )
             if logical_path == "build-revision.txt":
                 body = f"{revision}\n".encode()
                 cache = revision_cache
@@ -475,13 +480,22 @@ class ProductionAssetContractTests(unittest.TestCase):
         )
         self.assertTrue(all(JS_OUTPUT in error for error in errors), errors)
 
-    def test_immutable_asset_cache_policy_fails(self) -> None:
+    def test_malformed_immutable_asset_cache_policy_fails(self) -> None:
         errors = run_production_fixture(
             self,
             js_cache="public, max-age=0, must-revalidate, no-transform, immutable",
         )
         self.assertEqual(len(errors), 1, errors)
-        self.assertIn("must be exactly no-store, no-transform", errors[0])
+        self.assertIn(
+            "must be exactly public, max-age=31536000, immutable", errors[0]
+        )
+
+    def test_addressed_asset_no_store_cache_policy_fails(self) -> None:
+        errors = run_production_fixture(self, js_cache=GOOD_CACHE)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn(
+            "must be exactly public, max-age=31536000, immutable", errors[0]
+        )
 
     def test_non_200_authored_asset_fails(self) -> None:
         errors = run_production_fixture(self, js_status=404, js_body=b"not found")
@@ -1520,13 +1534,14 @@ class ContentAddressContractTests(unittest.TestCase):
             "sha256": digest,
         }
         entry = {
+            "kind": "snapshot",
             "sequence": 1,
             "previous_entry_sha256": None,
             "resource_count": 1,
             "resources": [resource],
         }
         document = {
-            "schema_version": 1,
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
             "entry_count": 1,
             "entries": [entry],
         }
@@ -1669,6 +1684,466 @@ class ContentAddressContractTests(unittest.TestCase):
             if pattern.search(text):
                 violations.append(path.relative_to(ROOT).as_posix())
         self.assertEqual(violations, [])
+
+
+class AssetRetentionLifetimeContractTests(unittest.TestCase):
+    """Coverage for the unbounded-history redesign: dedupe, the soft/hard
+    entry thresholds, checkpoint compaction, and checkpoint-rooted
+    validate_history_prefix() acceptance/rejection."""
+
+    @staticmethod
+    def resource_for(logical_path: str, body: bytes) -> tuple[dict, bytes]:
+        digest = hashlib.sha256(body).hexdigest()
+        output_path = f"a/{digest}{Path(logical_path).suffix}"
+        return (
+            {
+                "logical_path": logical_path,
+                "output_path": output_path,
+                "sha256": digest,
+            },
+            body,
+        )
+
+    def build_ledger_with_repeated_entries(
+        self, root: Path, entry_count: int
+    ) -> tuple[Path, Path]:
+        """Directly construct a valid, chained ledger of `entry_count`
+        entries that all reference the SAME single physical resource.
+
+        This intentionally bypasses record_snapshot()'s real dedupe/append
+        path (which would collapse identical consecutive snapshots to one
+        entry, exactly as it should for a genuine build). It exists purely
+        to exercise entry-COUNT thresholds in isolation, fast and without
+        entangling them with the separate, pre-existing MAX_RETAINED_RESOURCES
+        bound: reusing one resource keeps the retained-assets union at size 1
+        regardless of entry count, since validate_ledger() never forbids two
+        different entries from repeating identical resources — only
+        record_snapshot()'s append policy does that.
+        """
+        assets = root / "retained-assets"
+        resource, body = self.resource_for("img/fixture.svg", b"hard-limit-fixture\n")
+        (assets / "a").mkdir(parents=True, exist_ok=True)
+        (assets / resource["output_path"]).write_bytes(body)
+        entries = []
+        previous_digest = None
+        for index in range(entry_count):
+            entry = {
+                "kind": "snapshot",
+                "sequence": index + 1,
+                "previous_entry_sha256": previous_digest,
+                "resource_count": 1,
+                "resources": [resource],
+            }
+            previous_digest = asset_retention.entry_digest(entry)
+            entries.append(entry)
+        document = {
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
+            "entry_count": entry_count,
+            "entries": entries,
+        }
+        ledger = root / "asset-retention.json"
+        ledger.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
+        return ledger, assets
+
+    def test_consecutive_identical_snapshots_do_not_grow_the_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("img/a.svg", b"same\n")
+            document = asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            self.assertEqual(document["entry_count"], 1)
+            document_again = asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            self.assertEqual(document_again["entry_count"], 1)
+
+    def test_validate_ledger_accepts_history_far_past_the_old_128_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, assets = self.build_ledger_with_repeated_entries(
+                root, asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES
+            )
+            document, bodies = asset_retention.validate_ledger(ledger, assets)
+        self.assertEqual(
+            document["entry_count"], asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES
+        )
+        self.assertEqual(len(bodies), 1)
+
+    def test_soft_warning_fires_at_threshold_and_names_compact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, assets = self.build_ledger_with_repeated_entries(
+                root, asset_retention.RETENTION_HISTORY_SOFT_WARN_ENTRIES - 1
+            )
+            resource, body = self.resource_for("img/new.svg", b"fresh\n")
+            stderr = io.StringIO()
+            with mock.patch.object(asset_retention.sys, "stderr", stderr):
+                document = asset_retention.record_snapshot(
+                    ledger, assets, [resource], {resource["output_path"]: body}
+                )
+        self.assertEqual(
+            document["entry_count"], asset_retention.RETENTION_HISTORY_SOFT_WARN_ENTRIES
+        )
+        self.assertIn("WARNING", stderr.getvalue())
+        self.assertIn("asset_retention.py compact", stderr.getvalue())
+
+    def test_hard_limit_blocks_append_and_names_the_compact_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger, assets = self.build_ledger_with_repeated_entries(
+                root, asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES
+            )
+            resource, body = self.resource_for("img/new.svg", b"fresh\n")
+            with self.assertRaisesRegex(
+                ValueError, "asset_retention.py compact"
+            ) as context:
+                asset_retention.record_snapshot(
+                    ledger, assets, [resource], {resource["output_path"]: body}
+                )
+        self.assertIn(
+            str(asset_retention.RETENTION_HISTORY_HARD_LIMIT_ENTRIES),
+            str(context.exception),
+        )
+
+    def test_compact_unions_resources_across_superseded_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old styles\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new styles\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            before, before_bodies = asset_retention.validate_ledger(ledger, assets)
+            self.assertEqual(before["entry_count"], 2)
+            self.assertEqual(len(before_bodies), 2)
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            self.assertEqual(compacted["entry_count"], 1)
+            checkpoint = compacted["entries"][0]
+            self.assertEqual(checkpoint["kind"], "checkpoint")
+            self.assertEqual(checkpoint["superseded_entry_count"], 2)
+            output_paths = {item["output_path"] for item in checkpoint["resources"]}
+            self.assertEqual(
+                output_paths, {first["output_path"], second["output_path"]}
+            )
+            # Compaction never drops a retention obligation or a physical
+            # body — only the granular per-commit entry history shrinks.
+            after, after_bodies = asset_retention.validate_ledger(ledger, assets)
+            self.assertEqual(after_bodies, before_bodies)
+
+    def test_compact_with_at_most_one_entry_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("img/a.svg", b"solo\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            with self.assertRaisesRegex(ValueError, "nothing to compact"):
+                asset_retention.record_checkpoint(ledger, assets)
+
+    @staticmethod
+    def v1_entry(sequence: int, previous_digest: str | None, resources: list[dict]) -> dict:
+        """A schema-v1 entry: same shape as v2's snapshot kind, minus the
+        "kind" field that didn't exist yet."""
+        return {
+            "sequence": sequence,
+            "previous_entry_sha256": previous_digest,
+            "resource_count": len(resources),
+            "resources": resources,
+        }
+
+    def test_validate_history_prefix_accepts_a_migrated_v1_prior(self) -> None:
+        # Every prior ledger CI selects comes from an independently earlier
+        # commit; today that commit's ledger is still schema v1 (this
+        # repository's own migration to v2 lives only on this branch), so
+        # this is not a hypothetical — it is the actual first-run shape.
+        first, _first_body = self.resource_for("css/old.css", b"old\n")
+        second, _second_body = self.resource_for("css/new.css", b"new\n")
+        entry1 = self.v1_entry(1, None, [first])
+        entry2 = self.v1_entry(
+            2, asset_retention.entry_digest(entry1), [first, second]
+        )
+        v1_document = {
+            "schema_version": 1,
+            "entry_count": 2,
+            "entries": [entry1, entry2],
+        }
+        migrated_entries = asset_retention.migrate_v1_entries([entry1, entry2])
+        current = {
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
+            "entry_count": len(migrated_entries),
+            "entries": migrated_entries,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            prior_path = Path(directory) / "prior-asset-retention.json"
+            prior_path.write_text(json.dumps(v1_document))
+            asset_retention.validate_history_prefix(current, prior_path)
+
+    def test_validate_history_prefix_rejects_a_tampered_v1_prior(self) -> None:
+        first, _first_body = self.resource_for("css/old.css", b"old\n")
+        second, _second_body = self.resource_for("css/new.css", b"new\n")
+        entry1 = self.v1_entry(1, None, [first])
+        entry2 = self.v1_entry(
+            2, asset_retention.entry_digest(entry1), [first, second]
+        )
+        migrated_entries = asset_retention.migrate_v1_entries([entry1, entry2])
+        current = {
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
+            "entry_count": len(migrated_entries),
+            "entries": migrated_entries,
+        }
+
+        tampered_second = copy.deepcopy(entry2)
+        tampered_resource = tampered_second["resources"][1]
+        tampered_resource["sha256"] = "0" * 64
+        tampered_resource["output_path"] = "a/" + "0" * 64 + ".css"
+        tampered_document = {
+            "schema_version": 1,
+            "entry_count": 2,
+            "entries": [entry1, tampered_second],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            prior_path = Path(directory) / "prior-asset-retention.json"
+            prior_path.write_text(json.dumps(tampered_document))
+            # Normalization must not launder a tampered prior into a match:
+            # current was migrated from the ORIGINAL entry2, so it cannot
+            # literal-match a prior whose migrated entry2 now differs.
+            with self.assertRaisesRegex(ValueError, "append-only base prefix"):
+                asset_retention.validate_history_prefix(current, prior_path)
+
+    def test_migrate_v1_entries_matches_the_checked_in_migration(self) -> None:
+        # This is the exact correctness property CI depends on: normalizing
+        # ANY real, unmodified v1 prior must reproduce byte-for-byte what
+        # this repository's own v1-to-v2 migration produced, or literal
+        # prefix-equality against a real historical base would false-fail.
+        v1_ledger = json.loads((ROOT / "asset-retention.json").read_text())
+        v1_ledger = copy.deepcopy(v1_ledger)
+        # Reproduce the pre-migration (schema 1, no "kind") shape from the
+        # currently-checked-in v2 ledger by stripping exactly what
+        # migrate_v1_entries() adds, so this test stays correct even after
+        # the real repository ledger no longer has a v1 predecessor on disk.
+        for entry in v1_ledger["entries"]:
+            del entry["kind"]
+        v1_ledger["schema_version"] = 1
+        migrated = asset_retention.migrate_v1_entries(v1_ledger["entries"])
+        current_ledger = json.loads((ROOT / "asset-retention.json").read_text())
+        self.assertEqual(migrated, current_ledger["entries"])
+
+    def test_validate_history_prefix_accepts_a_faithful_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            asset_retention.validate_history_prefix(compacted, prior_path)
+
+    def test_validate_history_prefix_accepts_checkpoint_strictly_ahead_of_prior(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            # A local ledger legitimately ahead of the checked-in base before
+            # compacting carries a resource the base never named; the
+            # checkpoint must still be accepted since it's a SUPERSET of the
+            # base's obligations, not required to match them exactly.
+            ahead = copy.deepcopy(compacted)
+            third, _third_body = self.resource_for("css/newer.css", b"newer\n")
+            checkpoint = ahead["entries"][0]
+            checkpoint["resources"] = asset_retention.snapshot_resources(
+                checkpoint["resources"] + [third]
+            )
+            checkpoint["resource_count"] = len(checkpoint["resources"])
+            asset_retention.validate_history_prefix(ahead, prior_path)
+
+    def test_validate_history_prefix_rejects_checkpoint_missing_prior_obligation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            # Simulate a hand-edited or buggy compaction: the root digest is
+            # correct (this really is a checkpoint over prior's exact final
+            # entry), but the resources list silently drops one obligation
+            # prior's history held — as if the corresponding file under
+            # retained-assets/ had also been deleted. The root digest alone
+            # cannot catch this; only the superset check can.
+            tampered = copy.deepcopy(compacted)
+            checkpoint = tampered["entries"][0]
+            dropped = next(
+                item
+                for item in checkpoint["resources"]
+                if item["output_path"] == first["output_path"]
+            )
+            checkpoint["resources"] = [
+                item for item in checkpoint["resources"] if item is not dropped
+            ]
+            checkpoint["resource_count"] = len(checkpoint["resources"])
+            with self.assertRaisesRegex(
+                ValueError, "drops retention obligations"
+            ) as context:
+                asset_retention.validate_history_prefix(tampered, prior_path)
+            self.assertIn(first["output_path"], str(context.exception))
+
+    def test_validate_history_prefix_rejects_a_fabricated_checkpoint_root(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            forged = copy.deepcopy(compacted)
+            forged["entries"][0]["checkpoint_root_sha256"] = "0" * 64
+            # With the fabricated root rejected, the transition falls back to
+            # the ordinary literal-prefix check — which a lone checkpoint
+            # entry can never satisfy against a longer, un-compacted prior
+            # history, so this fails closed via truncation rather than a
+            # byte-mismatch, but it still fails closed.
+            with self.assertRaisesRegex(ValueError, "truncated"):
+                asset_retention.validate_history_prefix(forged, prior_path)
+
+    def test_validate_history_prefix_rejects_same_length_forged_checkpoint(
+        self,
+    ) -> None:
+        # Same entry count on both sides isolates the byte-mismatch branch
+        # from the truncation branch exercised above.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("css/old.css", b"old\n")
+            document = asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            prior_path = root / "prior-asset-retention.json"
+            prior_path.write_bytes(ledger.read_bytes())
+
+            forged = copy.deepcopy(document)
+            forged["entries"][0] = {
+                "kind": "checkpoint",
+                "sequence": 1,
+                "previous_entry_sha256": None,
+                "resource_count": 1,
+                "resources": document["entries"][0]["resources"],
+                "checkpoint_root_sha256": "0" * 64,
+                "superseded_entry_count": 2,
+            }
+            with self.assertRaisesRegex(ValueError, "append-only base prefix"):
+                asset_retention.validate_history_prefix(forged, prior_path)
+
+    def test_checkpoint_entry_shape_is_strictly_validated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            document = asset_retention.record_checkpoint(ledger, assets)
+
+            cases = {
+                "malformed root": (
+                    lambda candidate: candidate["entries"][0].update(
+                        checkpoint_root_sha256="not-hex"
+                    ),
+                    "checkpoint_root_sha256",
+                ),
+                "boolean superseded count": (
+                    lambda candidate: candidate["entries"][0].update(
+                        superseded_entry_count=True
+                    ),
+                    "superseded_entry_count",
+                ),
+                "superseded count too small": (
+                    lambda candidate: candidate["entries"][0].update(
+                        superseded_entry_count=1
+                    ),
+                    "superseded_entry_count",
+                ),
+                "checkpoint not at index 0": (
+                    lambda candidate: candidate["entries"].append(
+                        {**candidate["entries"][0], "sequence": 2}
+                    )
+                    or candidate.update(entry_count=2),
+                    "first entry",
+                ),
+                "unknown kind": (
+                    lambda candidate: candidate["entries"][0].update(kind="snapshot"),
+                    "unexpected or missing keys",
+                ),
+            }
+            for label, (mutate, expected) in cases.items():
+                with self.subTest(label=label):
+                    candidate = copy.deepcopy(document)
+                    mutate(candidate)
+                    ledger.write_text(json.dumps(candidate))
+                    with self.assertRaisesRegex(ValueError, expected):
+                        asset_retention.validate_ledger(ledger, assets)
+            ledger.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
 
 
 class ReleaseManifestContractTests(unittest.TestCase):
@@ -2302,6 +2777,53 @@ class HeaderContractTests(unittest.TestCase):
                 )
                 self.assertTrue(errors, label)
 
+    def test_addressed_asset_cache_control_must_detach_the_inherited_value(
+        self,
+    ) -> None:
+        raw = self.finalized_headers()
+        detach_line = "  ! Cache-Control\n"
+        self.assertIn(detach_line, raw)
+        without_detach = raw.replace(detach_line, "")
+        _contract, errors = headers_contract.validate_headers(
+            without_detach, self.repository_manifest()
+        )
+        self.assertTrue(
+            any("must detach the inherited" in error for error in errors), errors
+        )
+
+    def test_addressed_asset_section_missing_entirely_fails(self) -> None:
+        raw = self.finalized_headers()
+        without_section = raw.replace(
+            "\n/a/*\n  ! Cache-Control\n  Cache-Control: public, max-age=31536000, immutable\n",
+            "\n",
+        )
+        self.assertNotEqual(without_section, raw)
+        _contract, errors = headers_contract.validate_headers(
+            without_section, self.repository_manifest()
+        )
+        self.assertTrue(
+            any("supported path set differs" in error for error in errors), errors
+        )
+
+    def test_parse_headers_tracks_detach_independent_of_the_resulting_map(
+        self,
+    ) -> None:
+        raw = "/a/*\n  ! Cache-Control\n  Cache-Control: public, max-age=1, immutable\n"
+        sections, detached, errors = headers_contract.parse_headers(raw)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            sections["/a/*"], {"cache-control": "public, max-age=1, immutable"}
+        )
+        self.assertIn("cache-control", detached["/a/*"])
+
+        bare_detach = "/a/*\n  ! Cache-Control\n"
+        bare_sections, bare_detached, bare_errors = headers_contract.parse_headers(
+            bare_detach
+        )
+        self.assertEqual(bare_errors, [])
+        self.assertEqual(bare_sections["/a/*"], {})
+        self.assertIn("cache-control", bare_detached["/a/*"])
+
     def test_live_direct_header_omission_and_duplicate_fail(self) -> None:
         missing = run_production_fixture(
             self,
@@ -2491,59 +3013,254 @@ class HtmlAuthorityContractTests(unittest.TestCase):
         )
 
 
+def _workflow_line_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def _workflow_strip_inline_comment(text: str) -> str:
+    in_single = in_double = False
+    for index, character in enumerate(text):
+        if character == "'" and not in_double:
+            in_single = not in_single
+        elif character == '"' and not in_single:
+            in_double = not in_double
+        elif character == "#" and not in_single and not in_double:
+            if index == 0 or text[index - 1] == " ":
+                return text[:index].rstrip()
+    return text.rstrip()
+
+
+def _workflow_unquote(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+class _WorkflowYamlParser:
+    """Structural extraction for exactly the GitHub Actions YAML subset this
+    repository's deploy.yml uses: 2-space-indented block mappings, "- "
+    sequences, and literal "|" block scalars. This is deliberately not a
+    general YAML parser (no flow collections, anchors, folded ">" scalars,
+    or multi-document streams) — PyYAML availability on the CI runner's
+    system python3 is unconfirmed, so structured assertions here are worth
+    more than a raw-text index()/split() chain without adding a dependency.
+    """
+
+    def __init__(self, lines: list[str]) -> None:
+        self._lines = lines
+        self._index = 0
+
+    def _peek(self) -> tuple[int, str] | None:
+        while self._index < len(self._lines):
+            line = self._lines[self._index]
+            if line.strip() == "" or line.lstrip(" ").startswith("#"):
+                self._index += 1
+                continue
+            return _workflow_line_indent(line), line
+        return None
+
+    def parse_block(self, indent: int):
+        peeked = self._peek()
+        if peeked is None or peeked[0] < indent:
+            return None
+        _, content = peeked
+        if content.lstrip(" ").startswith("- "):
+            return self.parse_sequence(indent)
+        return self.parse_mapping(indent)
+
+    def parse_sequence(self, indent: int) -> list:
+        items = []
+        while True:
+            peeked = self._peek()
+            if peeked is None or peeked[0] != indent:
+                break
+            _, line = peeked
+            stripped = line.lstrip(" ")
+            if not stripped.startswith("- "):
+                break
+            self._index += 1
+            remainder = stripped[2:]
+            item_indent = indent + 2
+            if remainder.strip() == "":
+                items.append(self.parse_block(item_indent))
+                continue
+            self._lines.insert(self._index, " " * item_indent + remainder)
+            items.append(self.parse_mapping(item_indent))
+        return items
+
+    def parse_mapping(self, indent: int) -> dict:
+        result: dict = {}
+        while True:
+            peeked = self._peek()
+            if peeked is None or peeked[0] != indent:
+                break
+            _, line = peeked
+            stripped = line.lstrip(" ")
+            if stripped.startswith("- "):
+                break
+            self._index += 1
+            clean = _workflow_strip_inline_comment(stripped)
+            if ":" not in clean:
+                continue
+            key, _, value = clean.partition(":")
+            key = _workflow_unquote(key)
+            value = value.strip()
+            if value == "|":
+                result[key] = self._parse_block_scalar(indent)
+            elif value == "":
+                nested = self._peek()
+                result[key] = (
+                    self.parse_block(indent + 2)
+                    if nested is not None and nested[0] > indent
+                    else None
+                )
+            else:
+                result[key] = _workflow_unquote(value)
+        return result
+
+    def _parse_block_scalar(self, key_indent: int) -> str:
+        body: list[str] = []
+        body_indent: int | None = None
+        while self._index < len(self._lines):
+            line = self._lines[self._index]
+            if line.strip() == "":
+                body.append("")
+                self._index += 1
+                continue
+            current_indent = _workflow_line_indent(line)
+            if current_indent <= key_indent:
+                break
+            if body_indent is None:
+                body_indent = current_indent
+            body.append(line[body_indent:])
+            self._index += 1
+        while body and body[-1] == "":
+            body.pop()
+        return "\n".join(body)
+
+
+def parse_workflow_yaml(text: str) -> dict:
+    parser = _WorkflowYamlParser(text.split("\n"))
+    return parser.parse_mapping(0)
+
+
+def workflow_step(steps: list[dict], name: str) -> dict:
+    matches = [step for step in steps if step.get("name") == name]
+    if len(matches) != 1:
+        raise AssertionError(f"expected exactly one step named {name!r}, found {len(matches)}")
+    return matches[0]
+
+
 class DeployWorkflowContractTests(unittest.TestCase):
     def test_predeploy_revalidation_follows_wrangler_compile_and_precedes_upload(
         self,
     ) -> None:
-        workflow = (ROOT / ".github/workflows/deploy.yml").read_text()
-        install = workflow.index("npm install -g wrangler@4.112.0")
-        compile_function = workflow.index("wrangler pages functions build functions")
-        deploy = workflow.split("- name: Deploy to Cloudflare Pages", 1)[1].split(
-            "- name: Verify live authored/runtime boundary", 1
-        )[0]
-        validate = deploy.index(
-            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        workflow_text = (ROOT / ".github/workflows/deploy.yml").read_text()
+        workflow = parse_workflow_yaml(workflow_text)
+        steps = workflow["jobs"]["gate-and-deploy"]["steps"]
+        step_names = [step.get("name") for step in steps]
+
+        checkout_step = steps[0]
+        self.assertIsNone(checkout_step.get("name"))
+        self.assertEqual(checkout_step.get("uses", "").split("@")[0], "actions/checkout")
+        self.assertEqual(checkout_step["with"]["fetch-depth"], "0")
+
+        compile_step = workflow_step(steps, "Compile the Pages error boundary")
+        install = compile_step["run"].index("npm install -g wrangler@4.112.0")
+        compile_function = compile_step["run"].index(
+            "wrangler pages functions build functions"
         )
-        upload = deploy.index("wrangler pages deploy --branch=main")
         self.assertLess(install, compile_function)
         self.assertLess(
-            compile_function,
-            workflow.index("- name: Deploy to Cloudflare Pages"),
+            step_names.index("Compile the Pages error boundary"),
+            step_names.index("Deploy to Cloudflare Pages"),
         )
-        self.assertNotIn("--compatibility-date", workflow)
-        self.assertNotIn("wrangler pages deploy public", deploy)
+        self.assertNotIn("--compatibility-date", workflow_text)
+
+        deploy_step = workflow_step(steps, "Deploy to Cloudflare Pages")
+        deploy_run = deploy_step["run"]
+        self.assertNotIn("wrangler pages deploy public", deploy_run)
+        validate = deploy_run.index(
+            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        )
+        upload = deploy_run.index("wrangler pages deploy --branch=main")
         self.assertLess(validate, upload)
-        self.assertIn("GITHUB_SHA: ${{ github.sha }}", deploy)
-        self.assertIn('--commit-hash "$GITHUB_SHA"', deploy)
-        self.assertIn("WRANGLER_OUTPUT_FILE_PATH:", deploy)
-        self.assertIn("bin/pages_deployment_receipt.py", deploy)
-        self.assertIn("ARDENT_IMMUTABLE_URL", workflow)
-        self.assertIn("fetch-depth: 0", workflow)
-        self.assertIn("github.event.pull_request.base.sha", workflow)
-        self.assertIn("github.event.before", workflow)
-        self.assertIn("retention bootstrap is forbidden", workflow)
-        self.assertIn("HEAD is the repository root commit", workflow)
-        self.assertNotIn("No prior revision exists", workflow)
-        self.assertIn('git show "${base_revision}:asset-retention.json"', workflow)
-        self.assertIn("ARDENT_RETENTION_BASE_LEDGER", workflow)
+        self.assertEqual(deploy_step["env"]["GITHUB_SHA"], "${{ github.sha }}")
+        self.assertIn('--commit-hash "$GITHUB_SHA"', deploy_run)
+        self.assertIn("WRANGLER_OUTPUT_FILE_PATH", deploy_step["env"])
+        self.assertIn("bin/pages_deployment_receipt.py", deploy_run)
+        self.assertIn("ARDENT_IMMUTABLE_URL", deploy_run)
+
+        retention_step = workflow_step(steps, "Select prior asset-retention authority")
+        retention_run = retention_step["run"]
+        self.assertIn(
+            "github.event.pull_request.base.sha", retention_step["env"]["PR_BASE_SHA"]
+        )
+        self.assertIn(
+            "github.event.before", retention_step["env"]["PUSH_BEFORE_SHA"]
+        )
+        self.assertIn("retention bootstrap is forbidden", retention_run)
+        self.assertIn("HEAD is the repository root commit", retention_run)
+        self.assertNotIn("No prior revision exists", workflow_text)
+        self.assertIn(
+            'git show "${base_revision}:asset-retention.json"', retention_run
+        )
+        self.assertIn("ARDENT_RETENTION_BASE_LEDGER", retention_run)
         self.assertIn(
             "python3 bin/asset_retention.py", (ROOT / "bin/check-site.sh").read_text()
         )
-        verify = workflow.split("- name: Verify live authored/runtime boundary", 1)[1]
-        self.assertEqual(verify.count("python3 bin/verify-production.py"), 2)
+
+        verify_step = workflow_step(steps, "Verify live authored/runtime boundary")
+        verify_run = verify_step["run"]
+        self.assertIn("ARDENT_IMMUTABLE_URL", verify_run)
+        self.assertEqual(verify_run.count("python3 bin/verify-production.py"), 2)
         self.assertLess(
-            verify.index('--base-url "$ARDENT_IMMUTABLE_URL"'),
-            verify.index("--base-url https://ardent.tools"),
+            verify_run.index('--base-url "$ARDENT_IMMUTABLE_URL"'),
+            verify_run.index("--base-url https://ardent.tools"),
         )
-        self.assertEqual(verify.count("--canonical-origin https://ardent.tools"), 2)
-        self.assertEqual(verify.count("--require-logical-alias-tombstones"), 1)
-        immutable_verify, custom_verify = verify.split(
+        self.assertEqual(
+            verify_run.count("--canonical-origin https://ardent.tools"), 2
+        )
+        self.assertEqual(verify_run.count("--require-logical-alias-tombstones"), 1)
+        immutable_verify, custom_verify = verify_run.split(
             "python3 bin/verify-production.py", 2
         )[1:]
         self.assertIn("--require-logical-alias-tombstones", immutable_verify)
         self.assertNotIn("--require-logical-alias-tombstones", custom_verify)
         self.assertIn("--attempts 37 --delay 10", immutable_verify)
         self.assertIn("--attempts 13 --delay 10", custom_verify)
+
+    def test_workflow_yaml_parser_handles_flow_scalars_and_detach_edges(
+        self,
+    ) -> None:
+        sample = (
+            "on:\n"
+            "  push:\n"
+            "    branches: [main]\n"
+            "  workflow_dispatch:\n"
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@abc123 # v4\n"
+            "        with:\n"
+            "          fetch-depth: 0\n"
+            "      - name: Say hi\n"
+            "        run: |\n"
+            "          echo hi  # not a YAML comment inside a block scalar\n"
+            "\n"
+            "          echo bye\n"
+        )
+        parsed = parse_workflow_yaml(sample)
+        self.assertEqual(parsed["on"]["push"]["branches"], "[main]")
+        self.assertIsNone(parsed["on"]["workflow_dispatch"])
+        steps = parsed["jobs"]["build"]["steps"]
+        self.assertEqual(steps[0]["uses"], "actions/checkout@abc123")
+        self.assertEqual(steps[0]["with"]["fetch-depth"], "0")
+        self.assertEqual(
+            steps[1]["run"],
+            "echo hi  # not a YAML comment inside a block scalar\n\necho bye",
+        )
 
 
 class PagesDeploymentReceiptTests(unittest.TestCase):
@@ -2659,6 +3376,26 @@ class PagesRuntimeContractTests(unittest.TestCase):
         }
         (output / pages_runtime.AUTHORITY_NAME).write_text(json.dumps(authority))
 
+    def make_fixture_with_extra_routes(
+        self, output: Path, extra_request_paths: list[str]
+    ) -> None:
+        self.make_fixture(output)
+        authority = json.loads((output / pages_runtime.AUTHORITY_NAME).read_text())
+        for index, request_path in enumerate(extra_request_paths):
+            output_path = f"{request_path.strip('/')}/index.html"
+            page = output / output_path
+            page.parent.mkdir(parents=True, exist_ok=True)
+            page.write_text(f"page {index}\n")
+            authority["routes"].append(
+                {
+                    "request_path": request_path,
+                    "output_path": output_path,
+                    "sha256": f"{index:064x}",
+                }
+            )
+        authority["route_count"] = len(authority["routes"])
+        (output / pages_runtime.AUTHORITY_NAME).write_text(json.dumps(authority))
+
     def test_routes_leave_retained_artifacts_static_and_missing_paths_guarded(
         self,
     ) -> None:
@@ -2708,6 +3445,106 @@ class PagesRuntimeContractTests(unittest.TestCase):
             hashlib.sha256((ROOT / "wrangler.toml").read_bytes()).hexdigest(),
         )
         self.assertEqual(errors, [])
+
+    def test_same_prefix_route_family_collapses_to_one_safe_wildcard(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture_with_extra_routes(
+                output,
+                [
+                    "/systems/",
+                    "/systems/akroasis/",
+                    "/systems/aletheia/",
+                    "/systems/kanon/",
+                ],
+            )
+            include_count, exclude_count = pages_runtime.write_runtime(output)
+            routes = json.loads((output / pages_runtime.ROUTES_NAME).read_text())
+            errors = pages_runtime.validate_runtime(output)
+        self.assertEqual(errors, [])
+        self.assertEqual(include_count, 1)
+        self.assertEqual(exclude_count, len(routes["exclude"]))
+        self.assertIn("/systems/*", routes["exclude"])
+        for member in (
+            "/systems/",
+            "/systems/akroasis/",
+            "/systems/aletheia/",
+            "/systems/kanon/",
+        ):
+            self.assertNotIn(member, routes["exclude"])
+        # The pre-existing hand-authored redirect wildcards for these two
+        # slugs are subsumed by the broader family wildcard rather than left
+        # behind as a separate, now-redundant, overlapping rule.
+        self.assertNotIn("/systems/ergon-tools/*", routes["exclude"])
+        self.assertNotIn("/systems/nosologia/*", routes["exclude"])
+        self.assertNotIn("/about/*", routes["exclude"])
+        self.assertIn("/about/", routes["exclude"])
+
+    def test_single_member_prefix_is_left_uncollapsed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            routes, errors = pages_runtime.build_routes(output)
+        self.assertEqual(errors, [])
+        self.assertIn("/about/", routes["exclude"])
+        self.assertNotIn("/about/*", routes["exclude"])
+
+    def test_collapse_route_families_derives_and_fails_closed(self) -> None:
+        safe = ["/systems/", "/systems/a/", "/systems/b/", "/other/"]
+        collapsed, notes = pages_runtime.collapse_route_families(safe)
+        self.assertEqual(collapsed, sorted(["/systems/*", "/other/"]))
+        self.assertEqual(len(notes), 1)
+
+        # A lone root with no siblings never forms a family at all.
+        lone_root = sorted(["/systems/", "/other/"])
+        collapsed_lone, notes_lone = pages_runtime.collapse_route_families(lone_root)
+        self.assertEqual(collapsed_lone, lone_root)
+        self.assertEqual(notes_lone, [])
+
+        # The safety re-check inside collapse_route_families() is what makes
+        # the design fail closed: replacing a family's members must leave no
+        # route besides the wildcard itself still matching the wildcard's own
+        # prefix. Exercise that guard directly against a deliberately
+        # incomplete replacement (as if a family were only partially known).
+        incomplete_candidate = sorted({"/systems/a/", "/systems/*"})
+        leftover = [
+            route
+            for route in incomplete_candidate
+            if route != "/systems/*" and route.startswith("/systems/")
+        ]
+        self.assertEqual(leftover, ["/systems/a/"])
+
+    def test_route_rule_soft_warning_names_the_growth_trend(self) -> None:
+        with tempfile.TemporaryDirectory() as baseline_directory:
+            baseline_output = Path(baseline_directory)
+            self.make_fixture(baseline_output)
+            baseline_routes, baseline_errors = pages_runtime.build_routes(
+                baseline_output
+            )
+            self.assertEqual(baseline_errors, [])
+            baseline_count = len(baseline_routes["exclude"])
+        needed = pages_runtime.WARN_ROUTE_RULES - baseline_count + 5
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture_with_extra_routes(
+                output, [f"/solo-{index}/" for index in range(needed)]
+            )
+            stdout = io.StringIO()
+            with (
+                mock.patch.object(
+                    pages_runtime.sys,
+                    "argv",
+                    ["pages_runtime.py", str(output)],
+                ),
+                mock.patch.object(pages_runtime.sys, "stdout", stdout),
+            ):
+                exit_code = pages_runtime.main()
+        self.assertEqual(exit_code, 0)
+        output_text = stdout.getvalue()
+        self.assertIn("PASS", output_text)
+        self.assertIn("WARNING", output_text)
+        self.assertIn(str(pages_runtime.WARN_ROUTE_RULES), output_text)
+        self.assertIn(str(pages_runtime.MAX_ROUTE_RULES), output_text)
 
     def test_wrangler_config_is_exact_and_compatibility_date_is_pinned(self) -> None:
         source = (ROOT / pages_runtime.WRANGLER_RELATIVE_PATH).read_bytes()
@@ -2849,6 +3686,105 @@ class CacheContractTests(unittest.TestCase):
             any("must be exactly no-store, no-transform" in error for error in errors),
             errors,
         )
+
+    def test_addressed_asset_prefix_requires_the_detached_immutable_override(
+        self,
+    ) -> None:
+        headers = """/*
+  Cache-Control: no-store, no-transform
+
+/a/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("a").mkdir()
+            output.joinpath("a/" + "0" * 64 + ".css").write_text("body{}")
+            errors: list[str] = []
+            site.validate_cache_contract(errors, output, headers)
+        self.assertEqual(errors, [])
+
+    def test_addressed_asset_prefix_without_detach_joins_and_fails(self) -> None:
+        # Cloudflare Pages joins same-name headers from overlapping sections
+        # rather than letting the later one win; a /a/* Cache-Control line
+        # with no preceding detach leaves both the inherited no-store value
+        # and the new immutable one in effect, which is neither policy.
+        headers = """/*
+  Cache-Control: no-store, no-transform
+
+/a/*
+  Cache-Control: public, max-age=31536000, immutable
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("a").mkdir()
+            output.joinpath("a/" + "0" * 64 + ".css").write_text("body{}")
+            errors: list[str] = []
+            site.validate_cache_contract(errors, output, headers)
+        self.assertTrue(
+            any("2 effective Cache-Control" in error for error in errors), errors
+        )
+
+    def test_repository_headers_pass_the_two_tier_cache_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("a").mkdir()
+            output.joinpath("a/" + "1" * 64 + ".css").write_text("body{}")
+            output.joinpath("index.html").write_text("home\n")
+            errors: list[str] = []
+            site.validate_cache_contract(
+                errors, output, (ROOT / "_headers").read_text()
+            )
+        self.assertEqual(errors, [])
+
+
+class EvidencePageMarkerGateContractTests(unittest.TestCase):
+    """A content regression that drops an /evidence/ marker must fail the
+    gate against the BUILT tree, before merge — not only the post-deploy
+    live verifier, which can only prove byte-identity to whatever the
+    build already produced (see bin/verify-production.py's rationale
+    comment where the equivalent live check used to live)."""
+
+    def write_evidence_page(self, output: Path, body: str) -> None:
+        page = output / "evidence/index.html"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(body)
+
+    def test_complete_evidence_page_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.write_evidence_page(
+                output,
+                '<link rel="canonical" href="https://ardent.tools/evidence/">'
+                "Would show: 0 published casts.",
+            )
+            errors: list[str] = []
+            site.validate_evidence_page_markers(errors, output)
+        self.assertEqual(errors, [])
+
+    def test_each_missing_marker_fails_closed(self) -> None:
+        complete = (
+            '<link rel="canonical" href="https://ardent.tools/evidence/">'
+            "Would show: 0 published casts."
+        )
+        for marker in site.EVIDENCE_PAGE_DEPLOYMENT_MARKERS:
+            with self.subTest(marker=marker):
+                with tempfile.TemporaryDirectory() as directory:
+                    output = Path(directory)
+                    self.write_evidence_page(output, complete.replace(marker, ""))
+                    errors: list[str] = []
+                    site.validate_evidence_page_markers(errors, output)
+                self.assertTrue(
+                    any(marker in error for error in errors), (marker, errors)
+                )
+
+    def test_unreadable_evidence_page_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            errors: list[str] = []
+            site.validate_evidence_page_markers(errors, output)
+        self.assertTrue(errors)
 
 
 class RecordingContractTests(unittest.TestCase):

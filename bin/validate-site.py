@@ -23,12 +23,23 @@ from release_manifest import (
     validate_public_references,
 )
 from pages_limits import validate_static_tree
-from header_contract import load_headers
+from header_contract import ADDRESSED_ASSET_CACHE_CONTROL, ADDRESSED_ASSET_PATH, load_headers
 from html_authority import AUTHORITY_NAME, validate_authority
 from pages_runtime import validate_runtime
 from redirect_contract import load_redirects
 
 BASE_URL = "https://ardent.tools"
+# The live verifier proves deployment CURRENCY for /evidence/ (build-revision.txt
+# plus a byte-for-byte digest match against release-html.json) — it does not,
+# and structurally cannot, prove the built page's CONTENT is correct, since a
+# regression baked in at authoring time reproduces identically at every later
+# digest check. That is exactly what these markers guard, so they are checked
+# here against the built tree, at gate time, before a content edit can merge.
+EVIDENCE_PAGE_DEPLOYMENT_MARKERS = (
+    'href="https://ardent.tools/evidence/"',
+    "Would show:",
+    "0 published casts.",
+)
 ATOM = "{http://www.w3.org/2005/Atom}"
 SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 FRONTMATTER = re.compile(r"^\+\+\+\n(.*?)\n\+\+\+\n", re.DOTALL)
@@ -216,14 +227,43 @@ def validate_cache_contract(errors: list[str], output: Path, headers_text: str) 
                     value.strip().strip('"').lower() if separator else None,
                 )
             )
-        if Counter(directives) != Counter(
-            {("no-store", None): 1, ("no-transform", None): 1}
-        ):
+        # /a/* is provably immutable by construction (content-addressed);
+        # every other path keeps the root no-store default.
+        if fnmatch.fnmatchcase(path, ADDRESSED_ASSET_PATH):
+            expected = Counter(
+                {("public", None): 1, ("max-age", "31536000"): 1, ("immutable", None): 1}
+            )
+            description = ADDRESSED_ASSET_CACHE_CONTROL
+        else:
+            expected = Counter({("no-store", None): 1, ("no-transform", None): 1})
+            description = "no-store, no-transform"
+        if Counter(directives) != expected:
             fail(
                 errors,
-                f"_headers: {path} Cache-Control must be exactly no-store, no-transform; "
+                f"_headers: {path} Cache-Control must be exactly {description}; "
                 f"found {cache_values[0]!r}",
             )
+
+
+def validate_evidence_page_markers(errors: list[str], output: Path) -> None:
+    """Require the built /evidence/ page to carry every deployment marker.
+
+    The live verifier proves deployment CURRENCY (build-revision.txt plus a
+    byte-for-byte digest match against release-html.json) — it cannot prove
+    the built page's CONTENT is correct, since a regression baked in at
+    authoring time reproduces identically at every later digest check. This
+    runs against the BUILT tree, at gate time, so a content edit that drops
+    a marker fails before merge instead of after the next production deploy.
+    """
+    evidence_path = output / "evidence/index.html"
+    try:
+        evidence_html = evidence_path.read_text()
+    except OSError as exc:
+        fail(errors, f"/evidence/ page is unreadable: {exc}")
+        return
+    for marker in EVIDENCE_PAGE_DEPLOYMENT_MARKERS:
+        if marker not in evidence_html:
+            fail(errors, f"/evidence/ lacks required marker {marker!r}")
 
 
 def inspect_asset_reference(
@@ -704,9 +744,7 @@ def main() -> int:
     if not evidence_path.is_file():
         fail(errors, "canonical /evidence/ page is missing")
     else:
-        evidence_html = evidence_path.read_text()
-        if 'href="https://ardent.tools/evidence/"' not in evidence_html:
-            fail(errors, "/evidence/ does not publish its canonical URL")
+        validate_evidence_page_markers(errors, output)
     if demos_path.exists():
         fail(errors, "compatibility-only /demos/ was generated as a canonical page")
 

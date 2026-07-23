@@ -10,6 +10,18 @@ from pages_limits import MAX_HEADER_RULES, require_media_type_rule_capacity
 from release_manifest import SPECIAL_MEDIA_TYPES, SPECULATION_MEDIA_TYPE
 
 ROOT_PATH = "/*"
+ADDRESSED_ASSET_PATH = "/a/*"
+
+# Every non-HTML resource is served at /a/<full-sha256>.<ext>, provably
+# immutable by construction (content_address.py content-addresses the path
+# itself), so it carries a long-lived immutable policy instead of the root
+# no-store default. Cloudflare Pages joins same-name headers from
+# overlapping sections with a comma rather than letting the later section
+# override the earlier one, so this section's Cache-Control cannot simply
+# coexist with /*'s — it must detach the inherited value first (see the `!`
+# line in _headers); validate_headers() requires that detach explicitly.
+ADDRESSED_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+ADDRESSED_ASSET_HEADERS = {"cache-control": ADDRESSED_ASSET_CACHE_CONTROL}
 
 DIRECT_RESPONSE_HEADERS = {
     "cache-control": "no-store, no-transform",
@@ -85,8 +97,21 @@ def expected_contract(manifest: dict) -> tuple[HeaderContract | None, list[str]]
     ), []
 
 
-def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
+def parse_headers(
+    raw: str,
+) -> tuple[dict[str, dict[str, str]], dict[str, frozenset[str]], list[str]]:
+    """Parse each section to its own resulting header map, independent of any
+    other section (this contract never simulates Cloudflare's cross-section
+    join — see validate-site.py's effective_headers() for that live
+    simulation). A `! Header-Name` detach line removes that key from the
+    section-in-progress; `detached` separately records which names were ever
+    detached per section, since a detach that is never followed by a reset
+    resolves to the same missing-key shape as one that never happened at all
+    — callers that require a detach (e.g. a section overriding an inherited
+    value) must check `detached`, not just the resulting flat map.
+    """
     sections: dict[str, dict[str, str]] = {}
+    detached: dict[str, set[str]] = {}
     errors: list[str] = []
     current_path: str | None = None
     for line_number, raw_line in enumerate(raw.splitlines(), start=1):
@@ -114,6 +139,7 @@ def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
                 continue
             current_path = stripped
             sections[current_path] = {}
+            detached[current_path] = set()
             continue
 
         if current_path is None:
@@ -121,10 +147,15 @@ def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
                 f"_headers:{line_number}: header has no valid path declaration"
             )
             continue
-        if stripped.startswith("!"):
-            errors.append(
-                f"_headers:{line_number}: detach operations are unsupported by this exact contract"
-            )
+        if stripped.startswith("! "):
+            detach_name = stripped[2:].strip().lower()
+            if not detach_name:
+                errors.append(
+                    f"_headers:{line_number}: detach operation names no header"
+                )
+                continue
+            sections[current_path].pop(detach_name, None)
+            detached[current_path].add(detach_name)
             continue
         if ":" not in stripped:
             errors.append(
@@ -144,14 +175,14 @@ def parse_headers(raw: str) -> tuple[dict[str, dict[str, str]], list[str]]:
             )
             continue
         section[normalized_name] = normalized_value
-    return sections, errors
+    return sections, {path: frozenset(names) for path, names in detached.items()}, errors
 
 
 def validate_headers(
     raw: str, manifest: dict
 ) -> tuple[HeaderContract | None, list[str]]:
     contract, errors = expected_contract(manifest)
-    sections, parse_errors = parse_headers(raw)
+    sections, detached, parse_errors = parse_headers(raw)
     errors.extend(parse_errors)
     if len(sections) > MAX_HEADER_RULES:
         errors.append(
@@ -162,6 +193,7 @@ def validate_headers(
         return None, errors
     expected_sections = {
         ROOT_PATH: contract.direct_response,
+        ADDRESSED_ASSET_PATH: ADDRESSED_ASSET_HEADERS,
         **{
             path: {"content-type": media_type}
             for path, media_type in contract.media_types.items()
@@ -178,6 +210,13 @@ def validate_headers(
             errors.append(
                 f"_headers: {path} header map differs; expected={expected!r}, found={actual!r}"
             )
+    if "cache-control" not in detached.get(ADDRESSED_ASSET_PATH, frozenset()):
+        errors.append(
+            f"_headers: {ADDRESSED_ASSET_PATH!r} must detach the inherited "
+            "cache-control header (`! Cache-Control`) before declaring its "
+            "own — Cloudflare Pages joins same-name headers from overlapping "
+            "sections rather than letting the later one win"
+        )
     return contract, errors
 
 
