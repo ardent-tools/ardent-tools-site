@@ -31,7 +31,7 @@
 {% endblock player_js %}
 
 {% block content %}
-<header>
+<header class="dossier-header">
   <h1>{{ page.title }}</h1>
   {%- if page.description %}
   <p class="page-lede">{{ page.description }}</p>
@@ -41,7 +41,7 @@
     <a href="/faq/#labeling" class="badge">{{ page.extra.badge }}</a>
     {%- endif %}
     {%- if page.extra.repo %}
-    <a href="{{ page.extra.repo | safe }}">Repo &rarr;</a>
+    <a href="{{ page.extra.repo | safe }}">Repo <span class="arrow">&rarr;</span></a>
     {%- endif %}
     {%- if page.extra.stack %}
     <span>{{ page.extra.stack }}</span>
@@ -85,10 +85,10 @@
      the heavier/later one, or the chain reads backwards against the
      catalog's own top-to-bottom order. #}
   {%- if page.lower %}
-  <a href="{{ page.lower.permalink | safe }}" rel="prev">&larr; {{ page.lower.title }}</a>
+  <a href="{{ page.lower.permalink | safe }}" rel="prev"><span class="arrow">&larr;</span> {{ page.lower.title }}</a>
   {%- endif %}
   {%- if page.higher %}
-  <a href="{{ page.higher.permalink | safe }}" rel="next">{{ page.higher.title }} &rarr;</a>
+  <a href="{{ page.higher.permalink | safe }}" rel="next">{{ page.higher.title }} <span class="arrow">&rarr;</span></a>
   {%- endif %}
 </nav>
 {% endblock content %}
