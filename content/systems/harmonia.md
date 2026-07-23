@@ -42,9 +42,9 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 **Solid, shipped and wired to live routes:** auth, library read/import surfaces, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import - a completed download lands directly in the library for music, movie, and book wants.
 
-**Solid, on the live serve path:** `serve` wires `metadata_adapter` and `CurationAdapter(DefaultCurationService)`; the earlier metadata and curation null-resolver claim is no longer true. Audiobook, comic, podcast, and TV library types exist alongside the established media paths.
+**Solid, on the live serve path:** `serve` wires `metadata_adapter` and `CurationAdapter(DefaultCurationService)`. The earlier metadata and curation null-resolver claim is no longer true. Audiobook, comic, podcast, and TV library types exist alongside the established media paths.
 
-**Open:** `AppState::with_stubs` remains a fallback and test constructor with ten `Null*` implementations; those stubs are not the live `serve` wiring. At pinned revision `6ab797f81c31`, the admin-protected `POST /api/library/scan` handler returns `202 Accepted` without initiating a scan, so neither this page nor the recording plan treats it as scan evidence. The README documents build and test commands but not yet a day-to-day quick start or example configuration. Reaching a running instance from a fresh clone still means reading the `archon` CLI's own `--help` output.
+**Open:** `AppState::with_stubs` remains a fallback and test constructor with ten `Null*` implementations. Those stubs are not the live `serve` wiring. At pinned revision `6ab797f81c31`, the admin-protected `POST /api/library/scan` handler returns `202 Accepted` without initiating a scan, so neither this page nor the recording plan treats it as scan evidence. The README documents build and test commands but not yet a day-to-day quick start or example configuration. Reaching a running instance from a fresh clone still means reading the `archon` CLI's own `--help` output.
 
 ## Numbers, and how they were measured
 

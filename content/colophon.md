@@ -40,10 +40,10 @@ Pushes to `main` and pull requests targeting `main` run the same sequence before
 3. `bin/site.py check` - reject derivation drift, then run Zola's internal-link and asset check
 4. Python and Node regressions - release, runtime, cache, evidence, and error-boundary contracts
 5. Résumé authority - compile twice from pinned fonts, byte-compare the PDFs, inspect embedded fonts, validate extracted text, and check the career manifest
-6. `bin/site.py build` - build the production tree; derive its HTML, runtime, and resource authorities; run the pinned CSP preflight and strict XML/content/header/claim audit
+6. `bin/site.py build` - build the production tree, derive its HTML, runtime, and resource authorities, then run the pinned CSP preflight and strict XML/content/header/claim audit
 7. `lychee` - external link integrity against that production tree
 8. Local-origin build and browser gate - serve a second build, then run all-route WCAG 2.1 AA and Playwright checks at every configured width
-9. Cleanliness check - prove the gate did not alter tracked or untracked worktree state; production subsequently verifies every retained route, the custom 404, and every manifest resource at the live boundary
+9. Cleanliness check - prove the gate did not alter tracked or untracked worktree state. Production subsequently verifies every retained route, the custom 404, and every manifest resource at the live boundary
 
 ## What this site does not do
 

@@ -33,7 +33,7 @@ It ships as a single binary - no containers, no external database, no sidecar pr
 
 ### One binary over an external-database architecture
 
-Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real: an external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling.
+Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real. An external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|

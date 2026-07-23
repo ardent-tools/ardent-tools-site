@@ -78,6 +78,8 @@ Source: the corpus study at theke `site-design/VOICE-CODY.md` (~1,500 verbatim o
 
 **Tiering** — the bans on generic filler (semicolons, however/moreover, delve-class lexicon) are hygiene, true of any terse engineer. The signature is elsewhere: dash-glued acknowledgments, inline chaining, both-ways hedging, label-colons, genuine questions. Prose that only clears hygiene has not found the voice.
 
+**Calibration** — the shape is measured from chat; the finish is not. Site prose keeps the measured shape and raises the finish: complete sentences, precise word choice, no chat elisions, rhythm attended. The target register is his long-form reasoning voice - unperformed but composed. Chat verbatim is under-finished; book register is over-crafted; the site sits between, nearer the hand.
+
 ## Register (where this site diverges from the book, deliberately)
 
 | Surface | Book contract | This site |

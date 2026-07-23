@@ -31,7 +31,7 @@ Candle has no ROCm backend. AMD deprecated ONNX Runtime's ROCm support. For tran
 
 ### Build the correctness harness before the GPU is available to prove performance
 
-Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware - the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first.
+Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware - the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -40,9 +40,9 @@ Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end
 
 ## What's solid / what's open
 
-**Solid:** Phases 0 through 3 - the full CPU inference path for Stella 1.5B, verified against a committed golden fixture. The parity test is marked `#[ignore]`; the proof command must include `-- --ignored`, and it requires the Stella model at `/models/stella-1.5b-v5`. A green run that executes zero tests is not evidence.
+**Solid:** Phases 0 through 3 - the full CPU inference path for Stella 1.5B, verified against a committed golden fixture. The parity test is marked `#[ignore]`. The proof command must include `-- --ignored`, and it requires the Stella model at `/models/stella-1.5b-v5`. A green run that executes zero tests is not evidence.
 
-**Open:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery; GPU-specific code paths exist but are unverified until it's back.
+**Open:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery. GPU-specific code paths exist but are unverified until it's back.
 
 ## Numbers, and how they were measured
 

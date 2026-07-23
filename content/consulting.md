@@ -32,4 +32,4 @@ No client list exists yet - the practice is new, and a client gets named only wi
 
 {{ resource_link(path="files/cody-kickertz-resume.pdf", label="Download the resume (PDF)", download="cody-kickertz-resume.pdf") }}
 
-The [About page](/about/) and the resume share their Marine Corps facts under stable claim IDs, with a [public verification receipt](/career-claims.json) on a one-year review window. The release gate checks that authority against the About copy, the Typst source, and the text of the exact shipped PDF. The receipt covers the public surfaces; the underlying service record stays private.
+The [About page](/about/) and the resume share their Marine Corps facts under stable claim IDs, with a [public verification receipt](/career-claims.json) on a one-year review window. The release gate checks that authority against the About copy, the Typst source, and the text of the exact shipped PDF. The receipt covers the public surfaces - the underlying service record stays private.
