@@ -635,6 +635,20 @@ a:hover {
   outline-offset: 2px;
 }
 
+/* Text-action arrow slide (§2.4) — the span every text-action arrow is
+   already wrapped in (templates, phase 1). :focus-visible pairs with
+   :hover here, as it does at every other hover site in this file, so a
+   keyboard visitor gets the same affordance a mouse visitor does. */
+.arrow {
+  display: inline-block;
+  transition: translate var(--t-micro) var(--ease-settle);
+}
+
+a:hover .arrow,
+a:focus-visible .arrow {
+  translate: 3px 0;
+}
+
 /* Nav hover: kill the Leatherworks per-item dye-color cycle; one accent,
    underline offset 3px, 120ms (§3.7, §5.2). Matches style.css's
    `.nav-links a:nth-child(N):hover` specificity so the later stylesheet
@@ -1497,6 +1511,7 @@ footer {
   border: 1px solid var(--text);
   background: var(--bg);
   padding: clamp(var(--space-m), 4vw, var(--space-l));
+  transition: border-color var(--t-small) ease-out;
 }
 
 .proof-record h3 {
@@ -1696,6 +1711,7 @@ footer {
   border: 1px solid var(--text);
   padding: var(--space-m);
   font-variant-numeric: tabular-nums;
+  transition: border-color var(--t-small) ease-out;
 }
 
 .spec-plate > div {
@@ -1732,6 +1748,21 @@ footer {
   font-family: var(--font-mono);
   font-size: var(--step--1);
   color: var(--text);
+}
+
+/* Plate border-ink hover (§2.4) — "hover, only when the plate is a link
+   target." Neither plate is one yet: the spec plate is frontmatter-only
+   (the terminal plate that would wrap it in a link replaces it when a
+   cast ships, §3.3/§5) and the proof record's own links live inside it,
+   not around it. This selector is dormant by construction until either
+   is — the same standing-frame pattern the terminal-plate tokens above
+   already use — rather than hovering an element that has nothing to
+   activate. */
+a.spec-plate:hover,
+a.spec-plate:focus-visible,
+a.proof-record:hover,
+a.proof-record:focus-visible {
+  border-color: var(--text);
 }
 
 /* === Fleet map (§3.4) — a schematic, not a boxed table. No outer mat:
@@ -1847,10 +1878,15 @@ footer {
   color: var(--text);
   background: var(--bg);
   text-decoration: none;
+  transition: border-color var(--t-small) ease-out;
 }
 
+/* Fleet-node hover (§2.4, §3.4): border-color -> --text at --t-small,
+   plus the accent inset tick every other row/cell hover in this file
+   already carries. */
 .fleet-map-nodes a:hover,
 .fleet-map-nodes a:focus-visible {
+  border-color: var(--text);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
