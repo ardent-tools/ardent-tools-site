@@ -109,6 +109,7 @@ def run_production_fixture(
     root_header_overrides: dict[str, str | None] | None = None,
     speculation_content_type: str = headers_contract.SPECULATION_MEDIA_TYPE,
     logical_alias_overrides: dict[str, tuple[int, bytes]] | None = None,
+    require_logical_alias_tombstones: bool = True,
 ) -> list[str]:
     assets = ASSET_MARKUP
     sitemap_body = (
@@ -316,20 +317,21 @@ def run_production_fixture(
             },
             default_404 if custom_404_body is None else custom_404_body,
         )
-        for item in manifest["resources"]:
-            if item["cache_class"] != "addressed":
-                continue
-            alias_status, alias_body = (logical_alias_overrides or {}).get(
-                item["logical_path"], (404, default_404)
-            )
-            responses[(f"{BASE_URL}/{item['logical_path']}", False)] = (
-                alias_status,
-                {
-                    **direct_headers(),
-                    "content-type": "text/html; charset=utf-8",
-                },
-                alias_body,
-            )
+        if require_logical_alias_tombstones:
+            for item in manifest["resources"]:
+                if item["cache_class"] != "addressed":
+                    continue
+                alias_status, alias_body = (logical_alias_overrides or {}).get(
+                    item["logical_path"], (404, default_404)
+                )
+                responses[(f"{BASE_URL}/{item['logical_path']}", False)] = (
+                    alias_status,
+                    {
+                        **direct_headers(),
+                        "content-type": "text/html; charset=utf-8",
+                    },
+                    alias_body,
+                )
         for tombstone in manifest["tombstones"]:
             responses[(f"{BASE_URL}{tombstone['path']}", False)] = (
                 tombstone_status,
@@ -365,6 +367,9 @@ def run_production_fixture(
                 redirect_rules,
                 html_authority,
                 direct_contract,
+                require_logical_alias_tombstones=(
+                    require_logical_alias_tombstones
+                ),
             )
         test.assertEqual(
             responses, {}, f"required URLs were not requested: {responses!r}"
@@ -432,6 +437,14 @@ class ProductionAssetContractTests(unittest.TestCase):
             ),
             errors,
         )
+
+    def test_custom_origin_does_not_claim_control_of_legacy_edge_objects(self) -> None:
+        errors = run_production_fixture(
+            self,
+            logical_alias_overrides={"js/site.js": (200, JS_BODY)},
+            require_logical_alias_tombstones=False,
+        )
+        self.assertEqual(errors, [])
 
     def test_query_free_runtime_html_authority_drift_fails(self) -> None:
         errors = run_production_fixture(
@@ -2459,6 +2472,12 @@ class DeployWorkflowContractTests(unittest.TestCase):
             verify.index("--base-url https://ardent.tools"),
         )
         self.assertEqual(verify.count("--canonical-origin https://ardent.tools"), 2)
+        self.assertEqual(verify.count("--require-logical-alias-tombstones"), 1)
+        immutable_verify, custom_verify = verify.split(
+            "python3 bin/verify-production.py", 2
+        )[1:]
+        self.assertIn("--require-logical-alias-tombstones", immutable_verify)
+        self.assertNotIn("--require-logical-alias-tombstones", custom_verify)
 
 
 class PagesDeploymentReceiptTests(unittest.TestCase):
