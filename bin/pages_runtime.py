@@ -68,7 +68,9 @@ def validate_route(route: object, label: str) -> list[str]:
     ):
         errors.append(f"{label}: invalid Pages route {route!r}")
     elif len(route) > MAX_ROUTE_LENGTH:
-        errors.append(f"{label}: route exceeds Cloudflare's {MAX_ROUTE_LENGTH}-character limit: {route!r}")
+        errors.append(
+            f"{label}: route exceeds Cloudflare's {MAX_ROUTE_LENGTH}-character limit: {route!r}"
+        )
     return errors
 
 
@@ -83,7 +85,9 @@ def artifact_resource_paths(output: Path) -> tuple[set[str], list[str]]:
             errors.append(f"pages runtime: cannot inspect {path}: {exc}")
             continue
         if stat.S_ISLNK(metadata.st_mode):
-            errors.append(f"pages runtime: retained artifact must not contain a symlink: {path.relative_to(output)}")
+            errors.append(
+                f"pages runtime: retained artifact must not contain a symlink: {path.relative_to(output)}"
+            )
             continue
         if not stat.S_ISREG(metadata.st_mode):
             continue
@@ -106,7 +110,9 @@ def validate_overlapping_rules(routes: list[str], label: str) -> list[str]:
         prefix = splat[:-1]
         for route in routes:
             if route != splat and route.startswith(prefix):
-                errors.append(f"{ROUTES_NAME}: overlapping {label} rules {splat!r} and {route!r}")
+                errors.append(
+                    f"{ROUTES_NAME}: overlapping {label} rules {splat!r} and {route!r}"
+                )
     return errors
 
 
@@ -120,7 +126,9 @@ def authority_paths(output: Path) -> tuple[set[str], list[str]]:
     result: set[str] = set()
     for index, item in enumerate(routes):
         if not isinstance(item, dict) or not isinstance(item.get("request_path"), str):
-            errors.append(f"{AUTHORITY_NAME}: routes[{index}].request_path must be a string")
+            errors.append(
+                f"{AUTHORITY_NAME}: routes[{index}].request_path must be a string"
+            )
             continue
         result.add(item["request_path"])
     return result, errors
@@ -141,7 +149,9 @@ def build_routes(output: Path) -> tuple[dict, list[str]]:
     errors.extend(validate_overlapping_rules(["/*"], "include"))
     errors.extend(validate_overlapping_rules(excludes, "exclude"))
     if "/*" in excludes:
-        errors.append(f"{ROUTES_NAME}: exclude rules must not disable the catch-all Function")
+        errors.append(
+            f"{ROUTES_NAME}: exclude rules must not disable the catch-all Function"
+        )
     if len(excludes) + 1 > MAX_ROUTE_RULES:
         errors.append(
             f"{ROUTES_NAME}: {len(excludes) + 1} include/exclude rules exceed Cloudflare's {MAX_ROUTE_RULES}-rule limit"
@@ -161,7 +171,9 @@ def function_bytes() -> tuple[bytes, list[str]]:
     try:
         metadata = FUNCTION_SOURCE.lstat()
         if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-            return b"", [f"pages runtime: {FUNCTION_RELATIVE_PATH} must be one regular non-symlink file"]
+            return b"", [
+                f"pages runtime: {FUNCTION_RELATIVE_PATH} must be one regular non-symlink file"
+            ]
         return FUNCTION_SOURCE.read_bytes(), []
     except OSError as exc:
         return b"", [f"pages runtime: cannot read {FUNCTION_RELATIVE_PATH}: {exc}"]
@@ -183,7 +195,9 @@ def validate_wrangler_config(source: bytes) -> list[str]:
     try:
         value = tomllib.loads(source.decode("utf-8", errors="strict"))
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
-        return [f"pages runtime: {WRANGLER_RELATIVE_PATH} is not strict UTF-8 TOML: {exc}"]
+        return [
+            f"pages runtime: {WRANGLER_RELATIVE_PATH} is not strict UTF-8 TOML: {exc}"
+        ]
     if value != EXPECTED_WRANGLER_CONFIG:
         return [
             f"pages runtime: {WRANGLER_RELATIVE_PATH} must be the exact production Pages config"
@@ -196,18 +210,32 @@ def function_direct_headers(source: bytes) -> tuple[dict[str, str], list[str]]:
         text = source.decode("utf-8")
     except UnicodeDecodeError as exc:
         return {}, [f"pages runtime: Function source must be UTF-8: {exc}"]
-    if text.count(DIRECT_HEADERS_JSON_START) != 1 or text.count(DIRECT_HEADERS_JSON_END) != 1:
-        return {}, ["pages runtime: Function must contain exactly one delimited direct-header contract"]
-    raw = text.split(DIRECT_HEADERS_JSON_START, 1)[1].split(DIRECT_HEADERS_JSON_END, 1)[0]
+    if (
+        text.count(DIRECT_HEADERS_JSON_START) != 1
+        or text.count(DIRECT_HEADERS_JSON_END) != 1
+    ):
+        return {}, [
+            "pages runtime: Function must contain exactly one delimited direct-header contract"
+        ]
+    raw = text.split(DIRECT_HEADERS_JSON_START, 1)[1].split(DIRECT_HEADERS_JSON_END, 1)[
+        0
+    ]
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
-        return {}, [f"pages runtime: Function direct-header contract is invalid JSON: {exc}"]
+        return {}, [
+            f"pages runtime: Function direct-header contract is invalid JSON: {exc}"
+        ]
     if not isinstance(value, dict) or any(
-        not isinstance(name, str) or name != name.lower() or not isinstance(header_value, str) or not header_value
+        not isinstance(name, str)
+        or name != name.lower()
+        or not isinstance(header_value, str)
+        or not header_value
         for name, header_value in value.items()
     ):
-        return {}, ["pages runtime: Function direct-header contract must be a lowercase string map"]
+        return {}, [
+            "pages runtime: Function direct-header contract must be a lowercase string map"
+        ]
     return value, []
 
 
@@ -225,7 +253,9 @@ def validate_function_headers(output: Path) -> list[str]:
     if static_headers is None:
         errors.append(f"pages runtime: retained _headers lacks {ROOT_PATH!r}")
     elif function_headers != static_headers:
-        errors.append("pages runtime: Function direct headers differ from retained /* contract")
+        errors.append(
+            "pages runtime: Function direct headers differ from retained /* contract"
+        )
     return errors
 
 
@@ -274,7 +304,9 @@ def validate_runtime(output: Path) -> list[str]:
             errors.append(f"pages runtime: cannot read retained {name}: {exc}")
             continue
         if actual != expected:
-            errors.append(f"pages runtime: retained {name} differs from derived authority")
+            errors.append(
+                f"pages runtime: retained {name} differs from derived authority"
+            )
     return errors
 
 
@@ -297,11 +329,12 @@ def main() -> int:
         include_count, exclude_count = write_runtime(output)
     except ValueError as exc:
         for error in str(exc).splitlines():
-            print(f"ERROR: {error}", file=sys.stderr)
+            sys.stderr.write(f"ERROR: {error}\n")
         return 1
-    print(
+    sys.stdout.write(
         "PASS: Pages runtime routes keep "
-        f"{exclude_count} retained/redirect paths static and {include_count} catch-all active"
+        f"{exclude_count} retained/redirect paths static and "
+        f"{include_count} catch-all active\n"
     )
     return 0
 

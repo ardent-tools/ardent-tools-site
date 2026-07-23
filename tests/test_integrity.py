@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import copy
+import datetime as dt
 import hashlib
 import importlib.util
+import io
 import json
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -33,6 +38,8 @@ headers_contract = load_script("ardent_header_contract", "header_contract.py")
 html_contract = load_script("ardent_html_authority", "html_authority.py")
 pages_runtime = load_script("ardent_pages_runtime", "pages_runtime.py")
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
+career = load_script("ardent_career_claims", "validate-career-claims.py")
+site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
 
@@ -49,8 +56,7 @@ CSS_URL = f"{BASE_URL}/css/site.css?h={CSS_HASH}&v={ASSET_EPOCH}"
 JS_URL = f"{BASE_URL}/js/site.js?h={JS_HASH}&v={ASSET_EPOCH}"
 ERROR_JS_URL = f"{BASE_URL}/js/error.js?h={ERROR_JS_HASH}&v={ASSET_EPOCH}"
 ASSET_MARKUP = (
-    f'<link rel="stylesheet" href="{CSS_URL}">'
-    f'<script src="{JS_URL}" defer></script>'
+    f'<link rel="stylesheet" href="{CSS_URL}"><script src="{JS_URL}" defer></script>'
 )
 GOOD_CACHE = "no-store, no-transform"
 GOOD_CSP = (
@@ -117,6 +123,7 @@ def run_production_fixture(
         files = {
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
+            "career-claims.json": b"{}\n",
             "css/site.css": CSS_BODY,
             "js/site.js": JS_BODY,
             "js/error.js": ERROR_JS_BODY,
@@ -149,9 +156,13 @@ def run_production_fixture(
         html_authority_bytes = html_contract.serialize_authority(html_authority)
         (output / html_contract.AUTHORITY_NAME).write_bytes(html_authority_bytes)
         files[html_contract.AUTHORITY_NAME] = html_authority_bytes
-        contract, contract_errors = release.read_contract(ROOT / "release-resources.toml")
+        contract, contract_errors = release.read_contract(
+            ROOT / "release-resources.toml"
+        )
         test.assertEqual(contract_errors, [])
-        manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
+        manifest = release.build_manifest(
+            output, EXPECTED_REVISION, ASSET_EPOCH, contract
+        )
         manifest_bytes = release.serialize_manifest(manifest)
         (output / contract["manifest_name"]).write_bytes(manifest_bytes)
         direct_contract, direct_contract_errors = headers_contract.expected_contract(
@@ -299,7 +310,9 @@ def run_production_fixture(
                 html_authority,
                 direct_contract,
             )
-        test.assertEqual(responses, {}, f"required URLs were not requested: {responses!r}")
+        test.assertEqual(
+            responses, {}, f"required URLs were not requested: {responses!r}"
+        )
         test.assertEqual(len(calls), expected_calls)
         return errors
 
@@ -326,9 +339,14 @@ class ProductionAssetContractTests(unittest.TestCase):
     def test_stale_body_at_exact_authored_url_fails_digest(self) -> None:
         errors = run_production_fixture(self, js_body=b"stale JavaScript body\n")
         self.assertEqual(len(errors), 2, errors)
-        self.assertTrue(any("release resource digest mismatch" in error for error in errors), errors)
         self.assertTrue(
-            any("authored JavaScript asset digest mismatch" in error for error in errors), errors
+            any("release resource digest mismatch" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any(
+                "authored JavaScript asset digest mismatch" in error for error in errors
+            ),
+            errors,
         )
         self.assertTrue(all("/js/site.js?h=" in error for error in errors), errors)
 
@@ -376,7 +394,9 @@ class ProductionAssetContractTests(unittest.TestCase):
         )
         self.assertEqual(assets, [])
         self.assertEqual(len(errors), 3, errors)
-        self.assertTrue(any("exactly one h and one v" in error for error in errors), errors)
+        self.assertTrue(
+            any("exactly one h and one v" in error for error in errors), errors
+        )
         self.assertTrue(any("malformed h" in error for error in errors), errors)
         self.assertTrue(any("external JavaScript" in error for error in errors), errors)
 
@@ -392,7 +412,9 @@ class ProductionAssetContractTests(unittest.TestCase):
         self.assertEqual(assets, [])
         self.assertEqual(len(errors), 2, errors)
         self.assertTrue(any("no authored CSS" in error for error in errors), errors)
-        self.assertTrue(any("no authored JavaScript" in error for error in errors), errors)
+        self.assertTrue(
+            any("no authored JavaScript" in error for error in errors), errors
+        )
 
     def test_conflicting_hashes_for_one_asset_path_fail(self) -> None:
         other_hash = "1" * 20
@@ -471,13 +493,17 @@ class ProductionRouteContractTests(unittest.TestCase):
         self.assertNotEqual(path, production.missing_probe_path("3" * 40))
         self.assertRegex(path, r"^/__ardent-missing-[0-9a-f]{24}/$")
         errors: list[str] = []
-        self.assertTrue(production.missing_probe_is_disjoint(errors, path, ["/", "/about/"]))
+        self.assertTrue(
+            production.missing_probe_is_disjoint(errors, path, ["/", "/about/"])
+        )
         self.assertEqual(errors, [])
 
     def test_custom_404_probe_collision_fails_closed(self) -> None:
         path = production.missing_probe_path(EXPECTED_REVISION)
         errors: list[str] = []
-        self.assertFalse(production.missing_probe_is_disjoint(errors, path, ["/", path]))
+        self.assertFalse(
+            production.missing_probe_is_disjoint(errors, path, ["/", path])
+        )
         self.assertIn("collides with sitemap route", errors[0])
 
     def test_custom_404_wrong_status_and_missing_marker_fail(self) -> None:
@@ -487,7 +513,13 @@ class ProductionRouteContractTests(unittest.TestCase):
             custom_404_body=("Return home " + ASSET_MARKUP).encode(),
         )
         self.assertTrue(any("expected exact 404" in error for error in errors), errors)
-        self.assertTrue(any("lacks custom 404 marker '404: no such path'" in error for error in errors), errors)
+        self.assertTrue(
+            any(
+                "lacks custom 404 marker '404: no such path'" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_custom_404_cache_csp_and_injection_fail(self) -> None:
         errors = run_production_fixture(
@@ -499,12 +531,20 @@ class ProductionRouteContractTests(unittest.TestCase):
                 + ASSET_MARKUP
             ).encode(),
         )
-        self.assertTrue(any("Cache-Control must be exactly" in error for error in errors), errors)
-        self.assertTrue(any("strict zero-cast CSP differs" in error for error in errors), errors)
-        self.assertTrue(any("Cloudflare email-protection" in error for error in errors), errors)
+        self.assertTrue(
+            any("Cache-Control must be exactly" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any("strict zero-cast CSP differs" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any("Cloudflare email-protection" in error for error in errors), errors
+        )
 
     def test_custom_404_wrong_html_media_type_fails(self) -> None:
-        errors = run_production_fixture(self, custom_404_content_type="application/octet-stream")
+        errors = run_production_fixture(
+            self, custom_404_content_type="application/octet-stream"
+        )
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("Content-Type must be HTML", errors[0])
 
@@ -518,26 +558,45 @@ class ProductionRouteContractTests(unittest.TestCase):
         self.assertTrue(any("expected '2'" in error for error in errors), errors)
 
     def test_custom_404_only_asset_stale_bytes_fail_digest(self) -> None:
-        errors = run_production_fixture(self, error_js_body=b"stale custom 404 script\n")
+        errors = run_production_fixture(
+            self, error_js_body=b"stale custom 404 script\n"
+        )
         self.assertTrue(
-            any("release resource digest mismatch" in error and "/js/error.js" in error for error in errors),
+            any(
+                "release resource digest mismatch" in error and "/js/error.js" in error
+                for error in errors
+            ),
             errors,
         )
         self.assertTrue(
-            any("authored JavaScript asset digest mismatch" in error and ERROR_JS_URL in error for error in errors),
+            any(
+                "authored JavaScript asset digest mismatch" in error
+                and ERROR_JS_URL in error
+                for error in errors
+            ),
             errors,
         )
 
     def test_canonical_route_redirect_cannot_hide(self) -> None:
         errors = run_production_fixture(self, about_status=301)
-        self.assertTrue(any("/about/ returned 301, expected direct 200" in error for error in errors), errors)
+        self.assertTrue(
+            any(
+                "/about/ returned 301, expected direct 200" in error for error in errors
+            ),
+            errors,
+        )
 
     def test_canonical_route_rewrite_to_root_body_cannot_hide(self) -> None:
         root_body = (
             f'<link rel="canonical" href="{BASE_URL}/">Root body{ASSET_MARKUP}'
         ).encode()
         errors = run_production_fixture(self, about_body=root_body)
-        self.assertTrue(any("canonical resolves" in error and "/about/" in error for error in errors), errors)
+        self.assertTrue(
+            any(
+                "canonical resolves" in error and "/about/" in error for error in errors
+            ),
+            errors,
+        )
 
 
 class RedirectContractTests(unittest.TestCase):
@@ -575,9 +634,7 @@ class RedirectContractTests(unittest.TestCase):
         self.assertNotEqual(probes["/systems/ergon-tools/*"], alternate)
 
     def test_each_supported_declaration_omission_fails(self) -> None:
-        declarations = [
-            rule.declaration for rule in redirects.SUPPORTED_REDIRECTS
-        ]
+        declarations = [rule.declaration for rule in redirects.SUPPORTED_REDIRECTS]
         for omitted in declarations:
             with self.subTest(omitted=omitted):
                 raw = "\n".join(
@@ -596,16 +653,17 @@ class RedirectContractTests(unittest.TestCase):
                 )
 
     def test_extra_duplicate_malformed_external_ambiguous_and_loop_fail(self) -> None:
-        base = "\n".join(
-            rule.declaration for rule in redirects.SUPPORTED_REDIRECTS
-        )
+        base = "\n".join(rule.declaration for rule in redirects.SUPPORTED_REDIRECTS)
         cases = {
             "extra": (base + "\n/extra /evidence/ 301", "unsupported extra"),
             "duplicate": (
                 base + "\n/demos /evidence/ 301",
                 "duplicate redirect declaration",
             ),
-            "malformed": (base + "\n/broken /evidence/", "malformed redirect declaration"),
+            "malformed": (
+                base + "\n/broken /evidence/",
+                "malformed redirect declaration",
+            ),
             "external": (
                 base.replace(
                     "/demos /evidence/ 301",
@@ -676,23 +734,42 @@ class RedirectContractTests(unittest.TestCase):
 
 class ReleaseManifestContractTests(unittest.TestCase):
     def make_fixture(self, output: Path) -> tuple[dict, dict, bytes]:
-        contract, contract_errors = release.read_contract(ROOT / "release-resources.toml")
+        contract, contract_errors = release.read_contract(
+            ROOT / "release-resources.toml"
+        )
         self.assertEqual(contract_errors, [])
         bodies = {
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
+            "career-claims.json": b"{}\n",
             "llms.txt": b"fixture\n",
             "release-html.json": b"{}\n",
             "robots.txt": b"fixture\n",
             "sitemap.xml": b"<urlset/>\n",
+            "systems.json": b"{}\n",
             "files/report.pdf": b"pdf bytes\n",
         }
         for relative, body in bodies.items():
             path = output / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
-        manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
+        manifest = release.build_manifest(
+            output, EXPECTED_REVISION, ASSET_EPOCH, contract
+        )
         return contract, manifest, release.serialize_manifest(manifest)
+
+    def test_complete_fixture_satisfies_release_manifest_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, _manifest, raw = self.make_fixture(output)
+            _document, errors = release.validate_manifest(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+        self.assertEqual(errors, [])
 
     def test_runtime_html_authority_has_query_free_release_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -725,7 +802,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
             output = Path(directory)
             contract, manifest, _ = self.make_fixture(output)
             manifest["resource_count"] += 1
-            manifest["resources"][1]["request_url"] = manifest["resources"][0]["request_url"]
+            manifest["resources"][1]["request_url"] = manifest["resources"][0][
+                "request_url"
+            ]
             _, errors = release.validate_manifest(
                 release.serialize_manifest(manifest),
                 output=output,
@@ -734,7 +813,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 contract=contract,
             )
         self.assertTrue(any("resource_count" in error for error in errors), errors)
-        self.assertTrue(any("duplicate request_url" in error for error in errors), errors)
+        self.assertTrue(
+            any("duplicate request_url" in error for error in errors), errors
+        )
 
     def test_manifest_stale_digest_and_missing_artifact_fail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -756,9 +837,16 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
-        self.assertTrue(any("sha256 does not match" in error for error in stale_errors), stale_errors)
-        self.assertTrue(any("does not resolve" in error for error in missing_errors), missing_errors)
-        self.assertTrue(any("coverage differs" in error for error in missing_errors), missing_errors)
+        self.assertTrue(
+            any("sha256 does not match" in error for error in stale_errors),
+            stale_errors,
+        )
+        self.assertTrue(
+            any("does not resolve" in error for error in missing_errors), missing_errors
+        )
+        self.assertTrue(
+            any("coverage differs" in error for error in missing_errors), missing_errors
+        )
 
     def test_unversioned_public_artifact_reference_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -783,12 +871,20 @@ class ReleaseManifestContractTests(unittest.TestCase):
             output = Path(directory)
             _contract, manifest, _raw = self.make_fixture(output)
             (output / "css").mkdir()
-            (output / "css/app.css").write_text("body { background: url('/files/report.pdf'); }\n")
-            (output / "site.webmanifest").write_text('{"icons":[{"src":"/files/report.pdf"}]}\n')
-            (output / "_headers").write_text('/*\n  Example-Resource: "/files/report.pdf"\n')
+            (output / "css/app.css").write_text(
+                "body { background: url('/files/report.pdf'); }\n"
+            )
+            (output / "site.webmanifest").write_text(
+                '{"icons":[{"src":"/files/report.pdf"}]}\n'
+            )
+            (output / "_headers").write_text(
+                '/*\n  Example-Resource: "/files/report.pdf"\n'
+            )
             errors = release.validate_public_references(output, manifest)
         self.assertEqual(len(errors), 3, errors)
-        self.assertTrue(all("must use manifest URL" in error for error in errors), errors)
+        self.assertTrue(
+            all("must use manifest URL" in error for error in errors), errors
+        )
 
     def test_webmanifest_color_is_not_a_self_resource_reference(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -823,12 +919,8 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 "root-relative backslash alias": report["request_url"].replace(
                     "/files/", "/files\\"
                 ),
-                "absolute backslash alias": exact.replace(
-                    "/files/", "/files\\"
-                ),
-                "encoded backslash alias": exact.replace(
-                    "/files/", "/files%5c"
-                ),
+                "absolute backslash alias": exact.replace("/files/", "/files\\"),
+                "encoded backslash alias": exact.replace("/files/", "/files%5c"),
                 "trailing browser whitespace": f"{BASE_URL}/files/report.pdf ",
                 "excess authority separators": "///ardent.tools/files/report.pdf",
                 "excess scheme separators": "https:///ardent.tools/files/report.pdf",
@@ -848,7 +940,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 with self.subTest(label=label):
                     (output / "index.html").write_text(
                         '<script type="application/ld+json">'
-                        f'{json.dumps({"image": reference})}'
+                        f"{json.dumps({'image': reference})}"
                         "</script>"
                     )
                     errors = release.validate_public_references(output, manifest)
@@ -856,9 +948,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
                     self.assertIn("must use manifest URL", errors[0])
 
             (output / "index.html").write_text(
-                '<script type="application/ld+json">'
-                f'{{"image":"{exact}"}}'
-                "</script>"
+                f'<script type="application/ld+json">{{"image":"{exact}"}}</script>'
             )
             self.assertEqual(release.validate_public_references(output, manifest), [])
             (output / "index.html").write_text(
@@ -885,7 +975,10 @@ class ReleaseManifestContractTests(unittest.TestCase):
             "url(https://ardent.tools/files/**/../report.pdf)",
         )
         for reference in references:
-            with self.subTest(reference=reference), tempfile.TemporaryDirectory() as directory:
+            with (
+                self.subTest(reference=reference),
+                tempfile.TemporaryDirectory() as directory,
+            ):
                 output = Path(directory)
                 _contract, manifest, _raw = self.make_fixture(output)
                 (output / "app.css").write_text(
@@ -920,7 +1013,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
     def test_embedded_and_ambiguous_html_fail_closed(self) -> None:
         cases = {
             "srcdoc": (
-                '<iframe srcdoc="&lt;img src=\'/files/report.pdf\'&gt;"></iframe>',
+                "<iframe srcdoc=\"&lt;img src='/files/report.pdf'&gt;\"></iframe>",
                 "compound URL attribute 'srcdoc' is forbidden",
             ),
             "attribution registration": (
@@ -988,7 +1081,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 self.assertEqual(len(errors), 1, errors)
                 self.assertIn(expected, errors[0])
 
-    def test_query_only_css_url_cannot_refetch_stylesheet_without_identity(self) -> None:
+    def test_query_only_css_url_cannot_refetch_stylesheet_without_identity(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             contract, _manifest, _raw = self.make_fixture(output)
@@ -1012,12 +1107,12 @@ class ReleaseManifestContractTests(unittest.TestCase):
             ),
             "external style URL": (
                 '<svg xmlns="http://www.w3.org/2000/svg">'
-                '<style>path{fill:url(/files/report.pdf)}</style></svg>',
+                "<style>path{fill:url(/files/report.pdf)}</style></svg>",
                 "SVG styles must not load external resource",
             ),
             "style child tail": (
                 '<svg xmlns="http://www.w3.org/2000/svg">'
-                '<style><g/>path{fill:url(/files/report.pdf)}</style></svg>',
+                "<style><g/>path{fill:url(/files/report.pdf)}</style></svg>",
                 "SVG style elements must not have children",
             ),
             "active content": (
@@ -1056,7 +1151,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
             _contract, manifest, _raw = self.make_fixture(output)
             (output / "image.svg").write_text(
                 '<svg xmlns="http://www.w3.org/2000/svg">'
-                '<style>path{filter:url(#grain)}</style>'
+                "<style>path{filter:url(#grain)}</style>"
                 '<defs><filter id="grain"/></defs><use href="#grain"/></svg>'
             )
             errors = release.validate_public_references(output, manifest)
@@ -1067,7 +1162,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
             output = Path(directory)
             _contract, manifest, _raw = self.make_fixture(output)
             (output / "index.html").write_text('<img src="/files/report.pdf">')
-            with mock.patch.object(release.subprocess, "run", side_effect=OSError("absent")):
+            with mock.patch.object(
+                release.subprocess, "run", side_effect=OSError("absent")
+            ):
                 errors = release.validate_public_references(output, manifest)
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("browser URL resolution failed closed", errors[0])
@@ -1085,8 +1182,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 with self.subTest(label=label):
                     closing = "" if label == "unterminated block" else "</script>"
                     (output / "index.html").write_text(
-                        '<script type="application/ld+json">'
-                        f"{document}{closing}"
+                        f'<script type="application/ld+json">{document}{closing}'
                     )
                     errors = release.validate_public_references(output, manifest)
                     self.assertEqual(len(errors), 1, errors)
@@ -1118,7 +1214,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
             resurrected = output / "tapes/aletheia-memory.tape"
             resurrected.parent.mkdir(parents=True)
             resurrected.write_text("old tape\n")
-            manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
+            manifest = release.build_manifest(
+                output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            )
             _, errors = release.validate_manifest(
                 release.serialize_manifest(manifest),
                 output=output,
@@ -1126,9 +1224,17 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 expected_epoch=ASSET_EPOCH,
                 contract=contract,
             )
-        self.assertTrue(any("tombstone is present" in error for error in errors), errors)
+        self.assertTrue(
+            any("tombstone is present" in error for error in errors), errors
+        )
         live_errors = run_production_fixture(self, tombstone_status=200)
-        self.assertTrue(any("tombstone /tapes/aletheia-memory.tape returned 200" in error for error in live_errors), live_errors)
+        self.assertTrue(
+            any(
+                "tombstone /tapes/aletheia-memory.tape returned 200" in error
+                for error in live_errors
+            ),
+            live_errors,
+        )
 
     def test_live_manifest_and_structured_body_mismatch_fail(self) -> None:
         errors = run_production_fixture(
@@ -1136,8 +1242,19 @@ class ReleaseManifestContractTests(unittest.TestCase):
             live_manifest_body=b"{}\n",
             resource_overrides={"systems.json": (200, GOOD_CACHE, b"stale systems\n")},
         )
-        self.assertTrue(any("live /release-resources.json bytes differ" in error for error in errors), errors)
-        self.assertTrue(any("/systems.json" in error and "digest mismatch" in error for error in errors), errors)
+        self.assertTrue(
+            any(
+                "live /release-resources.json bytes differ" in error for error in errors
+            ),
+            errors,
+        )
+        self.assertTrue(
+            any(
+                "/systems.json" in error and "digest mismatch" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_every_forbidden_cache_directive_and_duplicate_fail(self) -> None:
         policies = (
@@ -1188,8 +1305,7 @@ class HeaderContractTests(unittest.TestCase):
     def test_missing_wrong_duplicate_extra_and_detach_fail_closed(self) -> None:
         raw = (ROOT / "_headers").read_text()
         hsts = (
-            "  Strict-Transport-Security: "
-            "max-age=31536000; includeSubDomains; preload"
+            "  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload"
         )
         cases = {
             "missing": raw.replace(hsts + "\n", ""),
@@ -1227,11 +1343,13 @@ class HeaderContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("Content-Type must be", errors[0])
 
-
     def test_live_retained_html_content_type_is_html(self) -> None:
-        errors = run_production_fixture(self, root_header_overrides={"Content-Type": "text/plain"})
+        errors = run_production_fixture(
+            self, root_header_overrides={"Content-Type": "text/plain"}
+        )
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("Content-Type must be HTML", errors[0])
+
 
 class HtmlAuthorityContractTests(unittest.TestCase):
     def make_fixture(self, output: Path) -> tuple[dict, bytes]:
@@ -1254,9 +1372,7 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             path = output / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
-        authority = html_contract.build_authority(
-            output, EXPECTED_REVISION, BASE_URL
-        )
+        authority = html_contract.build_authority(output, EXPECTED_REVISION, BASE_URL)
         return authority, html_contract.serialize_authority(authority)
 
     def test_authority_covers_sitemap_and_non_sitemap_html(self) -> None:
@@ -1295,10 +1411,14 @@ class HtmlAuthorityContractTests(unittest.TestCase):
                 base_url=BASE_URL,
             )
         self.assertTrue(any("differs" in error for error in stale_errors), stale_errors)
-        self.assertTrue(any("differs" in error for error in missing_errors), missing_errors)
+        self.assertTrue(
+            any("differs" in error for error in missing_errors), missing_errors
+        )
 
     def test_flat_non_index_html_is_outside_the_deployable_authority(self) -> None:
-        with self.assertRaisesRegex(ValueError, r"index\.html or a nested \*/index\.html"):
+        with self.assertRaisesRegex(
+            ValueError, r"index\.html or a nested \*/index\.html"
+        ):
             html_contract.html_request_path("private-proof.html")
 
     def test_custom_404_drift_dot_segments_and_non_strict_json_fail(self) -> None:
@@ -1331,7 +1451,10 @@ class HtmlAuthorityContractTests(unittest.TestCase):
         ).encode()
         about_errors = run_production_fixture(self, about_body=stale_about)
         self.assertTrue(
-            any("/about/ body differs from retained HTML authority" in error for error in about_errors),
+            any(
+                "/about/ body differs from retained HTML authority" in error
+                for error in about_errors
+            ),
             about_errors,
         )
         stale_404 = (
@@ -1357,7 +1480,9 @@ class DeployWorkflowContractTests(unittest.TestCase):
         deploy = workflow.split("- name: Deploy to Cloudflare Pages", 1)[1].split(
             "- name: Verify live authored/runtime boundary", 1
         )[0]
-        validate = deploy.index('python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"')
+        validate = deploy.index(
+            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        )
         upload = deploy.index("wrangler pages deploy --branch=main")
         self.assertLess(install, compile_function)
         self.assertLess(
@@ -1454,7 +1579,9 @@ class PagesRuntimeContractTests(unittest.TestCase):
         self.assertEqual(pages_runtime.validate_wrangler_config(source), [])
         drifted = source.replace(b"2026-07-21", b"2026-07-22")
         errors = pages_runtime.validate_wrangler_config(drifted)
-        self.assertTrue(any("exact production Pages config" in error for error in errors), errors)
+        self.assertTrue(
+            any("exact production Pages config" in error for error in errors), errors
+        )
 
     def test_overlapping_ending_splat_routes_fail_before_upload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1472,7 +1599,10 @@ class PagesRuntimeContractTests(unittest.TestCase):
             authority_path.write_text(json.dumps(authority))
             _routes, _boundary, errors = pages_runtime.expected_runtime(output)
         self.assertTrue(
-            any("overlapping exclude rules '/demos/*' and '/demos/example'" in error for error in errors),
+            any(
+                "overlapping exclude rules '/demos/*' and '/demos/example'" in error
+                for error in errors
+            ),
             errors,
         )
 
@@ -1482,10 +1612,14 @@ class PagesRuntimeContractTests(unittest.TestCase):
             self.make_fixture(output)
             headers_path = output / "_headers"
             headers_path.write_text(
-                headers_path.read_text().replace("X-Frame-Options: DENY", "X-Frame-Options: SAMEORIGIN")
+                headers_path.read_text().replace(
+                    "X-Frame-Options: DENY", "X-Frame-Options: SAMEORIGIN"
+                )
             )
             _routes, _boundary, errors = pages_runtime.expected_runtime(output)
-        self.assertTrue(any("Function direct headers differ" in error for error in errors), errors)
+        self.assertTrue(
+            any("Function direct headers differ" in error for error in errors), errors
+        )
 
     def test_tampered_runtime_authority_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1494,7 +1628,9 @@ class PagesRuntimeContractTests(unittest.TestCase):
             pages_runtime.write_runtime(output)
             (output / pages_runtime.ROUTES_NAME).write_text("{}\n")
             errors = pages_runtime.validate_runtime(output)
-        self.assertTrue(any("_routes.json differs" in error for error in errors), errors)
+        self.assertTrue(
+            any("_routes.json differs" in error for error in errors), errors
+        )
 
     def test_routes_control_file_is_not_a_served_manifest_resource(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1535,7 +1671,9 @@ class CacheContractTests(unittest.TestCase):
             output.joinpath("css/site.css").write_text("body{}")
             errors: list[str] = []
             site.validate_cache_contract(errors, output, headers)
-        self.assertTrue(any("2 effective Cache-Control" in error for error in errors), errors)
+        self.assertTrue(
+            any("2 effective Cache-Control" in error for error in errors), errors
+        )
 
     def test_immutable_stable_asset_is_rejected(self) -> None:
         headers = """/*
@@ -1547,7 +1685,10 @@ class CacheContractTests(unittest.TestCase):
             output.joinpath("img/art.png").write_bytes(b"png")
             errors: list[str] = []
             site.validate_cache_contract(errors, output, headers)
-        self.assertTrue(any("must be exactly no-store, no-transform" in error for error in errors), errors)
+        self.assertTrue(
+            any("must be exactly no-store, no-transform" in error for error in errors),
+            errors,
+        )
 
     def test_revision_sentinel_must_be_no_store(self) -> None:
         headers = """/*
@@ -1556,7 +1697,10 @@ class CacheContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             errors: list[str] = []
             site.validate_cache_contract(errors, Path(directory), headers)
-        self.assertTrue(any("must be exactly no-store, no-transform" in error for error in errors), errors)
+        self.assertTrue(
+            any("must be exactly no-store, no-transform" in error for error in errors),
+            errors,
+        )
 
 
 class RecordingContractTests(unittest.TestCase):
@@ -1573,8 +1717,12 @@ class RecordingContractTests(unittest.TestCase):
             )
             errors: list[str] = []
             site.validate_tape_contract(errors, tape)
-        self.assertTrue(any("forbidden recording behavior" in error for error in errors), errors)
-        self.assertTrue(any("visible in a typed command" in error for error in errors), errors)
+        self.assertTrue(
+            any("forbidden recording behavior" in error for error in errors), errors
+        )
+        self.assertTrue(
+            any("visible in a typed command" in error for error in errors), errors
+        )
 
     def test_positive_cast_requires_complete_rendered_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1610,14 +1758,18 @@ class RecordingContractTests(unittest.TestCase):
             catalog_markup = (
                 '<a href="https://ardent.tools/systems/demo/">WATCH RECORDING</a>'
             )
-            evidence_markup = '<a href="https://ardent.tools/systems/demo/">demo recording</a>'
+            evidence_markup = (
+                '<a href="https://ardent.tools/systems/demo/">demo recording</a>'
+            )
             html = {
                 system_page: system_markup,
                 catalog_page: catalog_markup,
                 evidence_page: evidence_markup,
             }
             errors: list[str] = []
-            site.validate_asset_contract(errors, {system_page: system_markup}, output, ASSET_EPOCH)
+            site.validate_asset_contract(
+                errors, {system_page: system_markup}, output, ASSET_EPOCH
+            )
             site.validate_player_contract(
                 errors,
                 [(Path("content/systems/demo.md"), cast)],
@@ -1649,13 +1801,550 @@ class RecordingContractTests(unittest.TestCase):
                 static,
                 asset_epoch=ASSET_EPOCH,
             )
-            self.assertTrue(any("conditional player CSS/JS" in error for error in errors), errors)
+            self.assertTrue(
+                any("conditional player CSS/JS" in error for error in errors), errors
+            )
 
 
 class CatalogContractTests(unittest.TestCase):
     def test_ambiguous_agpl_identifier_is_rejected(self) -> None:
         with self.assertRaises(SystemExit):
             catalog.exact_license("sphragis", "AGPL-3.0")
+
+    def test_catalog_records_complete_deterministic_provenance(self) -> None:
+        document = catalog.build_catalog(ROOT)
+        provenance = document["provenance"]
+        actual_paths = [item["path"] for item in provenance["sources"]]
+        expected_paths = [
+            path.relative_to(ROOT).as_posix() for path in catalog.source_paths(ROOT)
+        ]
+        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(provenance["generator"], "bin/generate-systems-json.py")
+        self.assertEqual(provenance["generator_version"], 1)
+        self.assertEqual(actual_paths, expected_paths)
+        self.assertIn("data/exact-system-licenses.json", actual_paths)
+        for item in provenance["sources"]:
+            body = (ROOT / item["path"]).read_bytes()
+            self.assertEqual(item["sha256"], hashlib.sha256(body).hexdigest())
+
+    def test_catalog_rows_and_provenance_share_one_immutable_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(ROOT / "content/systems", root / "content/systems")
+            (root / "data").mkdir()
+            shutil.copy2(
+                ROOT / "data/exact-system-licenses.json",
+                root / "data/exact-system-licenses.json",
+            )
+            target = root / "content/systems/aletheia.md"
+            original_body = target.read_bytes()
+            real_read_bytes = Path.read_bytes
+            reads = 0
+
+            def read_then_delete(path: Path) -> bytes:
+                nonlocal reads
+                body = real_read_bytes(path)
+                if path == target:
+                    reads += 1
+                    if reads == 1:
+                        path.unlink()
+                return body
+
+            with mock.patch.object(Path, "read_bytes", read_then_delete):
+                document = catalog.build_catalog(root)
+
+        row = next(item for item in document["systems"] if item["name"] == "aletheia")
+        source = next(
+            item
+            for item in document["provenance"]["sources"]
+            if item["path"] == "content/systems/aletheia.md"
+        )
+        self.assertEqual(row["name"], "aletheia")
+        self.assertEqual(source["sha256"], hashlib.sha256(original_body).hexdigest())
+        self.assertEqual(reads, 1)
+
+    def test_changed_source_fails_via_canonical_entrypoint_with_exact_name(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "bin").mkdir()
+            for filename in (
+                "site.py",
+                "generate-systems-json.py",
+                "validate-career-claims.py",
+                "career_claim_contract.py",
+            ):
+                shutil.copy2(ROOT / "bin" / filename, root / "bin" / filename)
+            shutil.copytree(ROOT / "content/systems", root / "content/systems")
+            shutil.copy2(ROOT / "content/about.md", root / "content/about.md")
+            (root / "data").mkdir()
+            shutil.copy2(
+                ROOT / "data/exact-system-licenses.json",
+                root / "data/exact-system-licenses.json",
+            )
+            shutil.copy2(
+                ROOT / "data/career-claims.json", root / "data/career-claims.json"
+            )
+            (root / "resume").mkdir()
+            shutil.copy2(
+                ROOT / "resume/cody-kickertz-resume.typ",
+                root / "resume/cody-kickertz-resume.typ",
+            )
+            (root / "static/files").mkdir(parents=True)
+            shutil.copy2(
+                ROOT / "static/files/cody-kickertz-resume.pdf",
+                root / "static/files/cody-kickertz-resume.pdf",
+            )
+            entrypoint = root / "bin/site.py"
+            subprocess.run(
+                [sys.executable, str(entrypoint), "sync"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            with (root / "content/systems/_index.md").open("a") as handle:
+                handle.write("\nchanged authority input\n")
+            completed = subprocess.run(
+                [sys.executable, str(entrypoint), "check"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn(
+            "ERROR: stale generated artifact: static/systems.json",
+            completed.stderr,
+        )
+
+
+class CareerClaimContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.document = json.loads((ROOT / "data/career-claims.json").read_text())
+        cls.surfaces, errors = career.load_surfaces(
+            ROOT, ROOT / "static/files/cody-kickertz-resume.pdf"
+        )
+        if errors:
+            raise AssertionError(errors)
+
+    def validate(
+        self, document: dict, surfaces: dict[str, str] | None = None
+    ) -> list[str]:
+        return career.validate_manifest(
+            document,
+            self.surfaces if surfaces is None else surfaces,
+            as_of=dt.date(2026, 7, 22),
+        )
+
+    def test_current_typed_authority_matches_all_three_surfaces(self) -> None:
+        self.assertEqual(self.validate(copy.deepcopy(self.document)), [])
+
+    def test_duplicate_missing_claim_and_missing_value_fail_closed(self) -> None:
+        duplicate = copy.deepcopy(self.document)
+        duplicate["claims"].append(copy.deepcopy(duplicate["claims"][0]))
+        self.assertTrue(
+            any("duplicate claim id" in error for error in self.validate(duplicate))
+        )
+
+        missing = copy.deepcopy(self.document)
+        del missing["claims"][0]["id"]
+        self.assertTrue(
+            any(
+                "unexpected or missing keys" in error
+                for error in self.validate(missing)
+            )
+        )
+
+        missing_claim = copy.deepcopy(self.document)
+        missing_claim["claims"].pop()
+        self.assertTrue(
+            any("claim IDs differ" in error for error in self.validate(missing_claim))
+        )
+
+        missing_value = copy.deepcopy(self.document)
+        missing_value["claims"][0]["values"].pop()
+        self.assertTrue(
+            any("value names differ" in error for error in self.validate(missing_value))
+        )
+
+    def test_value_type_unit_and_display_are_bound(self) -> None:
+        for field, replacement, expected in (
+            ("value", 999, "display must encode exactly typed value"),
+            ("value", "157", "value must be a nonnegative integer"),
+            ("unit", "bananas", "unit must be 'people'"),
+        ):
+            with self.subTest(field=field, replacement=replacement):
+                changed = copy.deepcopy(self.document)
+                changed["claims"][0]["values"][0][field] = replacement
+                errors = self.validate(changed)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+        boolean_schema = copy.deepcopy(self.document)
+        boolean_schema["schema_version"] = True
+        self.assertTrue(
+            any(
+                "schema_version must be integer" in error
+                for error in self.validate(boolean_schema)
+            )
+        )
+
+    def test_nonfinite_value_cannot_validate_or_serialize(self) -> None:
+        changed = copy.deepcopy(self.document)
+        changed["claims"][0]["values"][0]["value"] = float("inf")
+        errors = self.validate(changed)
+        self.assertTrue(any("nonnegative integer" in error for error in errors), errors)
+        receipt = career.build_receipt(changed, b"authority")
+        with self.assertRaises(ValueError):
+            career.serialize_receipt(receipt)
+
+    def test_adversarial_contradictory_wording_fails_outside_renderings(self) -> None:
+        variants = (
+            "The office included 158 active-duty Marines.",
+            "The number of Marines in the office was 158.",
+            "The command had 158 Marines.",
+            "The command had a dozen Marines.",
+            "The office included 13 civilians.",
+            "The office covered one finance function.",
+            "The deployment lasted eight full months.",
+            "The deployment used one naval vessel.",
+            "The deployment used four ships.",
+            "The deployment used a dozen ships.",
+            "The deployment lasted half a year.",
+            "The MEU contained 4,000 people.",
+            "The MEU comprised 3,100 personnel.",
+            "The office served 70,000-plus personnel across the region.",
+            "The cash budget was $450K.",
+            "The deployed cash budget totaled $360,000.",
+            "The deployed fund held four hundred thousand dollars in cash.",
+            "There were 2 cash discrepancies.",
+        )
+        for variant in variants:
+            with self.subTest(variant=variant):
+                surfaces = dict(self.surfaces)
+                surfaces["about"] += f" {variant}"
+                errors = self.validate(copy.deepcopy(self.document), surfaces)
+                self.assertTrue(
+                    any("contains unmanaged" in error for error in errors), errors
+                )
+
+    def test_new_rank_or_nation_count_variant_fails_semantically(self) -> None:
+        variants = (
+            (
+                "It was a third-ranked disbursing office on a deployment across "
+                "18 nations."
+            ),
+            "The deployment crossed 18 countries. It was the No. 2 disbursing office.",
+            (
+                "The deployment crossed a dozen countries. It was the "
+                "second-busiest disbursing office."
+            ),
+        )
+        for variant in variants:
+            with self.subTest(variant=variant):
+                surfaces = dict(self.surfaces)
+                surfaces["about"] += f" {variant}"
+                errors = self.validate(copy.deepcopy(self.document), surfaces)
+                self.assertTrue(
+                    any("excluded disbursing-office rank" in error for error in errors),
+                    errors,
+                )
+                self.assertTrue(
+                    any(
+                        "excluded deployment nation count" in error for error in errors
+                    ),
+                    errors,
+                )
+
+    def test_rendering_numeric_multiset_cannot_hide_extra_assertion(self) -> None:
+        changed = copy.deepcopy(self.document)
+        surfaces = dict(self.surfaces)
+        for rendering in changed["claims"][0]["renderings"]:
+            old = career.normalized(rendering["text"])
+            new = f"{old} alongside 158 Marines"
+            rendering["text"] = new
+            surface = rendering["surface"]
+            surfaces[surface] = surfaces[surface].replace(old, new, 1)
+        errors = self.validate(changed, surfaces)
+        self.assertTrue(
+            any("rendering numeric multiset" in error for error in errors), errors
+        )
+        self.assertTrue(any("unmanaged Marine headcount" in error for error in errors))
+
+    def test_rendering_cannot_hide_fuzzy_quantity_assertion(self) -> None:
+        changed = copy.deepcopy(self.document)
+        surfaces = dict(self.surfaces)
+        for rendering in changed["claims"][0]["renderings"]:
+            old = career.normalized(rendering["text"])
+            new = f"{old} alongside a dozen Marines"
+            rendering["text"] = new
+            surface = rendering["surface"]
+            surfaces[surface] = surfaces[surface].replace(old, new, 1)
+        errors = self.validate(changed, surfaces)
+        self.assertTrue(any("unmanaged Marine headcount" in error for error in errors))
+
+    def test_operator_digest_binds_exact_typed_claim_payload(self) -> None:
+        changed = copy.deepcopy(self.document)
+        changed_value = changed["claims"][0]["values"][0]
+        changed_value["value"] = 999
+        changed_value["display"] = "999 Marines"
+        surfaces = dict(self.surfaces)
+        for rendering in changed["claims"][0]["renderings"]:
+            old = career.normalized(rendering["text"])
+            new = old.replace("157 Marines", "999 Marines")
+            rendering["text"] = new
+            surface = rendering["surface"]
+            surfaces[surface] = surfaces[surface].replace(old, new, 1)
+        errors = self.validate(changed, surfaces)
+        self.assertTrue(any("authority-bound value 157" in error for error in errors))
+        self.assertTrue(
+            any("authority-bound display '157 Marines'" in error for error in errors)
+        )
+
+    def test_operator_digest_binds_exact_role_rendering(self) -> None:
+        changed = copy.deepcopy(self.document)
+        surfaces = dict(self.surfaces)
+        replacements = {
+            "about": ("helping lead", "commanding"),
+            "resume_source": ("Helped lead", "Commanded"),
+            "resume_pdf": ("Helped lead", "Commanded"),
+        }
+        for rendering in changed["claims"][0]["renderings"]:
+            surface = rendering["surface"]
+            before, after = replacements[surface]
+            old = career.normalized(rendering["text"])
+            new = old.replace(before, after)
+            rendering["text"] = new
+            surfaces[surface] = surfaces[surface].replace(old, new, 1)
+        errors = self.validate(changed, surfaces)
+        self.assertTrue(
+            any("text must equal the authority-bound" in error for error in errors),
+            errors,
+        )
+
+    def test_evidence_exclusions_and_public_metadata_are_closed(self) -> None:
+        unknown_evidence = copy.deepcopy(self.document)
+        unknown_evidence["claims"][0]["evidence_ref"] = "operator-held:anything"
+        self.assertTrue(
+            any(
+                "must resolve to the recorded operator authority" in error
+                for error in self.validate(unknown_evidence)
+            )
+        )
+
+        missing_exclusion = copy.deepcopy(self.document)
+        missing_exclusion["excluded_public_claims"].pop()
+        self.assertTrue(
+            any(
+                "excluded public claim contract differs" in error
+                for error in self.validate(missing_exclusion)
+            )
+        )
+
+        mutations = (
+            (
+                lambda item: item["verification_scope"].append("largest office"),
+                "verification_scope",
+            ),
+            (
+                lambda item: item["evidence_boundary"].update({"claim": "18 nations"}),
+                "evidence_boundary",
+            ),
+            (
+                lambda item: item["evidence_authorities"][0].update(
+                    {"custodian": "someone else"}
+                ),
+                "operator-authority contract",
+            ),
+            (
+                lambda item: item["evidence_authorities"][0].update(
+                    {"review_basis": "private records inspected"}
+                ),
+                "operator-authority contract",
+            ),
+            (
+                lambda item: item["evidence_authorities"][0].update(
+                    {"recorded_at": "2020-01-01"}
+                ),
+                "operator-authority contract",
+            ),
+            (
+                lambda item: item["evidence_authorities"][0].update(
+                    {"source_locator": "operator-says-so"}
+                ),
+                "operator-authority contract",
+            ),
+            (
+                lambda item: item["evidence_authorities"][0].update(
+                    {"source_sha256": "0" * 64}
+                ),
+                "operator-authority contract",
+            ),
+            (
+                lambda item: item["evidence_authorities"][0].update(
+                    {"underlying_private_evidence_inspected": True}
+                ),
+                "operator-authority contract",
+            ),
+            (
+                lambda item: item["excluded_public_claims"][0].update(
+                    {"reason": "largest office"}
+                ),
+                "must contain only topic and decision",
+            ),
+            (
+                lambda item: item["claims"][0].update(
+                    {"scope": "largest_disbursing_office"}
+                ),
+                "registered scope code",
+            ),
+            (
+                lambda item: item["claims"][0]["provenance"].update(
+                    {"authority_sha256": "0" * 64}
+                ),
+                "closed authority binding",
+            ),
+        )
+        for mutate, expected in mutations:
+            with self.subTest(expected=expected):
+                changed = copy.deepcopy(self.document)
+                mutate(changed)
+                errors = self.validate(changed)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_expired_verification_window_requires_operator_review(self) -> None:
+        errors = career.validate_manifest(
+            copy.deepcopy(self.document),
+            self.surfaces,
+            as_of=dt.date(2027, 7, 23),
+        )
+        self.assertTrue(
+            any("verification expired" in error for error in errors), errors
+        )
+
+    def test_public_receipt_is_scoped_and_omits_surface_internals(self) -> None:
+        raw = (ROOT / "data/career-claims.json").read_bytes()
+        receipt = career.build_receipt(copy.deepcopy(self.document), raw)
+        self.assertEqual(receipt["authority_sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertFalse(
+            receipt["evidence_boundary"]["underlying_private_evidence_inspected"]
+        )
+        self.assertEqual(
+            receipt["evidence_authorities"][0]["kind"], "operator_authorization"
+        )
+        self.assertEqual(
+            receipt["evidence_authorities"][0]["source_sha256"],
+            career.AUTHORITY_SOURCE_SHA256,
+        )
+        self.assertIn(
+            "did not inspect and does not publish",
+            receipt["evidence_boundary"]["summary"],
+        )
+        self.assertIn("summary", receipt["claims"][0]["scope"])
+        self.assertTrue(all("renderings" not in claim for claim in receipt["claims"]))
+
+
+class SiteEntrypointContractTests(unittest.TestCase):
+    def test_documented_and_automated_build_paths_use_site_entrypoint(self) -> None:
+        readme = (ROOT / "README.md").read_text()
+        agents = (ROOT / "AGENTS.md").read_text()
+        workflow = (ROOT / ".github/workflows/deploy.yml").read_text()
+        kanon = (ROOT / ".kanon-ci.toml").read_text()
+        gate = (ROOT / "bin/check-site.sh").read_text()
+        for command in ("serve", "build", "check", "gate"):
+            self.assertIn(f"python3 bin/site.py {command}", readme)
+        self.assertIn("python3 bin/site.py gate", agents)
+        self.assertIn("run: python3 bin/site.py gate", workflow)
+        self.assertIn('cmd = "python3 bin/site.py gate"', kanon)
+        self.assertIn("python3 bin/site.py check", gate)
+        self.assertGreaterEqual(gate.count("python3 bin/site.py build"), 2)
+        for text in (readme, agents, workflow, kanon, gate):
+            self.assertIsNone(re.search(r"(?m)^zola (?:serve|build|check)\b", text))
+
+    def test_stable_sync_retries_a_concurrent_authority_change(self) -> None:
+        with (
+            mock.patch.object(
+                site_entrypoint,
+                "input_fingerprint",
+                side_effect=("before", "changed", "changed", "changed"),
+            ),
+            mock.patch.object(site_entrypoint, "sync_derivations") as sync,
+        ):
+            observed = site_entrypoint.sync_stable()
+        self.assertEqual(observed, "changed")
+        self.assertEqual(sync.call_count, 2)
+
+    def test_explicit_sync_uses_stable_authority_snapshot(self) -> None:
+        with (
+            mock.patch.object(site_entrypoint.os, "chdir"),
+            mock.patch.object(site_entrypoint.sys, "argv", ["site.py", "sync"]),
+            mock.patch.object(site_entrypoint, "sync_stable") as stable,
+            mock.patch.object(site_entrypoint, "sync_derivations") as unstable,
+        ):
+            result = site_entrypoint.main()
+        self.assertEqual(result, 0)
+        stable.assert_called_once_with()
+        unstable.assert_not_called()
+
+    def test_input_fingerprint_records_file_identity_and_symlink_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target"
+            source = root / "source"
+            target.write_bytes(b"same bytes")
+            source.write_bytes(b"same bytes")
+            with (
+                mock.patch.object(site_entrypoint, "ROOT", root),
+                mock.patch.object(
+                    site_entrypoint, "derivation_inputs", return_value=[source]
+                ),
+            ):
+                regular = site_entrypoint.input_fingerprint()
+                source.unlink()
+                source.symlink_to(target)
+                symlink = site_entrypoint.input_fingerprint()
+        self.assertNotEqual(regular, symlink)
+
+    def test_serve_terminates_and_reaps_child_on_refresh_failure(self) -> None:
+        real_popen = subprocess.Popen
+        for failure, expected in (
+            (subprocess.CalledProcessError(7, ["derive"]), 7),
+            (PermissionError("authority unreadable"), 1),
+        ):
+            with self.subTest(failure=type(failure).__name__):
+                process: subprocess.Popen | None = None
+
+                def start_real_child(
+                    _command: list[str], *, cwd: Path
+                ) -> subprocess.Popen:
+                    nonlocal process
+                    process = real_popen(
+                        [sys.executable, "-c", "import time; time.sleep(30)"],
+                        cwd=cwd,
+                    )
+                    return process
+
+                with (
+                    mock.patch.object(
+                        site_entrypoint,
+                        "sync_stable",
+                        side_effect=("before", failure),
+                    ),
+                    mock.patch.object(
+                        site_entrypoint, "input_fingerprint", return_value="changed"
+                    ),
+                    mock.patch.object(
+                        site_entrypoint.subprocess, "Popen", start_real_child
+                    ),
+                    mock.patch.object(site_entrypoint.time, "sleep"),
+                    mock.patch.object(site_entrypoint.sys, "stderr", io.StringIO()),
+                ):
+                    result = site_entrypoint.serve([])
+
+                self.assertEqual(result, expected)
+                self.assertIsNotNone(process)
+                assert process is not None
+                self.assertIsNotNone(process.poll())
 
 
 class ResumeFontContractTests(unittest.TestCase):
@@ -1677,7 +2366,9 @@ class ResumeFontContractTests(unittest.TestCase):
             "ABCDEF+DejaVuSansMono-Identity-H CID Type 0C Identity-H yes yes yes 1 0\n"
         )
         errors = resume_fonts.validate_pdffonts(report)
-        self.assertTrue(any("embedded font set differs" in error for error in errors), errors)
+        self.assertTrue(
+            any("embedded font set differs" in error for error in errors), errors
+        )
 
 
 if __name__ == "__main__":

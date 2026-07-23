@@ -7,7 +7,9 @@ description = "AI Systems Architect: agent infrastructure, standards-as-code, go
 
 AI Systems Architect. I build the standards gates, guardrails, memory systems, and review loops that let AI agents do real engineering work someone else can verify.
 
-Every number in it carries its own measurement method — the same rule as the rest of this site. It went through an adversarial verification pass against the underlying repos and records before landing here, which reduced several claims and did not increase any.
+The About page and résumé share selected Marine Corps facts with stable claim IDs, typed values and scope, and a [public verification receipt](/career-claims.json) with a one-year review window. The release gate checks that authority against the About copy, Typst source, and the exact shipped PDF's text.
+
+The operator-authorized truth release defines the conservative claim set and excludes office-rank and deployment-nation comparisons. The underlying service record remains private and was not inspected by this repository audit. The receipt proves the public surfaces agree; it does not treat private records as public evidence.
 
 {{ resource_link(path="files/cody-kickertz-resume.pdf", label="Download the resume (PDF)") }}
 

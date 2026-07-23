@@ -26,10 +26,6 @@ def main() -> int:
         "public receipt",
         "clean-room rust implementation",
         "configured llm provider",
-        "157 marines and 12 civilians across seven finance functions",
-        "seven-month deployment aboard three naval vessels",
-        "3,000-person meu",
-        "$350,000 deployed cash budget with zero discrepancies",
         "301,000 icd-10, cpt, hcpcs, and snomed codes",
     )
     forbidden = (
@@ -38,10 +34,7 @@ def main() -> int:
         "built directly from the go source",
         "1.35 million",
         "97.5%",
-        "largest disbursing office",
-        "second-largest",
-        "ten-nation",
-        "15 european and african nations",
+        "60,000+ service members",
     )
     for phrase in required:
         if phrase not in folded:
@@ -54,7 +47,7 @@ def main() -> int:
         for error in errors:
             sys.stderr.write(f"ERROR: {error}\n")
         return 1
-    sys.stdout.write("PASS: resume PDF factual manifest\n")
+    sys.stdout.write("PASS: resume PDF non-career factual guard\n")
     return 0
 
 

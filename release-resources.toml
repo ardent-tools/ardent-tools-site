@@ -9,10 +9,12 @@ manifest_name = "release-resources.json"
 canonical_paths = [
   "atom.xml",
   "build-revision.txt",
+  "career-claims.json",
   "llms.txt",
   "release-html.json",
   "robots.txt",
   "sitemap.xml",
+  "systems.json",
 ]
 
 [[tombstones]]

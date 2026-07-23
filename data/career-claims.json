@@ -1,0 +1,178 @@
+{
+  "schema_version": 2,
+  "verification_scope": [
+    "about",
+    "resume_source",
+    "resume_pdf"
+  ],
+  "evidence_boundary": {
+    "underlying_private_evidence_inspected": false,
+    "underlying_private_evidence_published": false
+  },
+  "evidence_authorities": [
+    {
+      "id": "operator-authorization:ardent-evidence-lab-truth-release",
+      "kind": "operator_authorization",
+      "custodian": "site_operator",
+      "access": "private",
+      "review_basis": "operator_truth_release",
+      "recorded_at": "2026-07-22",
+      "source_locator": "fleet-dispatch:ardent-evidence-lab-truth-release",
+      "source_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c",
+      "underlying_private_evidence_inspected": false
+    }
+  ],
+  "excluded_public_claims": [
+    {
+      "topic": "disbursing-office_rank",
+      "decision": "not_asserted"
+    },
+    {
+      "topic": "deployment_nation_count",
+      "decision": "not_asserted"
+    }
+  ],
+  "claims": [
+    {
+      "id": "usmc.disbursing-office.people-and-functions",
+      "scope": "camp_lejeune_disbursing_office_role",
+      "evidence_ref": "operator-authorization:ardent-evidence-lab-truth-release",
+      "provenance": {
+        "kind": "operator_authorized_public_subset",
+        "recorded_at": "2026-07-22",
+        "authority_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c"
+      },
+      "verified_at": "2026-07-22",
+      "valid_through": "2027-07-22",
+      "values": [
+        {
+          "name": "marines",
+          "value": 157,
+          "unit": "people",
+          "display": "157 Marines"
+        },
+        {
+          "name": "civilians",
+          "value": 12,
+          "unit": "people",
+          "display": "12 civilians"
+        },
+        {
+          "name": "finance_functions",
+          "value": 7,
+          "unit": "functions",
+          "display": "seven finance functions"
+        }
+      ],
+      "renderings": [
+        {
+          "surface": "about",
+          "path": "content/about.md",
+          "text": "helping lead a disbursing office of 157 Marines and 12 civilians across seven finance functions"
+        },
+        {
+          "surface": "resume_source",
+          "path": "resume/cody-kickertz-resume.typ",
+          "text": "Helped lead a disbursing office of 157 Marines and 12 civilians across seven finance functions."
+        },
+        {
+          "surface": "resume_pdf",
+          "path": "static/files/cody-kickertz-resume.pdf",
+          "text": "Helped lead a disbursing office of 157 Marines and 12 civilians across seven finance functions."
+        }
+      ]
+    },
+    {
+      "id": "usmc.meu.deployment",
+      "scope": "twenty_second_meu_deployment",
+      "evidence_ref": "operator-authorization:ardent-evidence-lab-truth-release",
+      "provenance": {
+        "kind": "operator_authorized_public_subset",
+        "recorded_at": "2026-07-22",
+        "authority_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c"
+      },
+      "verified_at": "2026-07-22",
+      "valid_through": "2027-07-22",
+      "values": [
+        {
+          "name": "duration",
+          "value": 7,
+          "unit": "months",
+          "display": "seven-month"
+        },
+        {
+          "name": "naval_vessels",
+          "value": 3,
+          "unit": "vessels",
+          "display": "three naval vessels"
+        },
+        {
+          "name": "meu_population",
+          "value": 3000,
+          "unit": "people",
+          "display": "3,000-person"
+        }
+      ],
+      "renderings": [
+        {
+          "surface": "about",
+          "path": "content/about.md",
+          "text": "seven-month deployment aboard three naval vessels supporting a 3,000-person Marine Expeditionary Unit"
+        },
+        {
+          "surface": "resume_source",
+          "path": "resume/cody-kickertz-resume.typ",
+          "text": "Ran fiscal operations for a 3,000-person MEU through a seven-month deployment aboard three naval vessels."
+        },
+        {
+          "surface": "resume_pdf",
+          "path": "static/files/cody-kickertz-resume.pdf",
+          "text": "Ran fiscal operations for a 3,000-person MEU through a seven-month deployment aboard three naval vessels."
+        }
+      ]
+    },
+    {
+      "id": "usmc.meu.cash-custody",
+      "scope": "twenty_second_meu_deployed_cash_custody",
+      "evidence_ref": "operator-authorization:ardent-evidence-lab-truth-release",
+      "provenance": {
+        "kind": "operator_authorized_public_subset",
+        "recorded_at": "2026-07-22",
+        "authority_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c"
+      },
+      "verified_at": "2026-07-22",
+      "valid_through": "2027-07-22",
+      "values": [
+        {
+          "name": "cash_budget",
+          "value": 350000,
+          "unit": "USD",
+          "display": "$350,000"
+        },
+        {
+          "name": "discrepancies",
+          "value": 0,
+          "unit": "count",
+          "display": "zero discrepancies"
+        }
+      ],
+      "renderings": [
+        {
+          "surface": "about",
+          "path": "content/about.md",
+          "text": "managed a $350,000 cash budget with zero discrepancies"
+        },
+        {
+          "surface": "resume_source",
+          "path": "resume/cody-kickertz-resume.typ",
+          "text": "Managed a \\$350,000 deployed cash budget with zero discrepancies"
+        },
+        {
+          "surface": "resume_pdf",
+          "path": "static/files/cody-kickertz-resume.pdf",
+          "text": "Managed a $350,000 deployed cash budget with zero discrepancies"
+        }
+      ]
+    }
+  ]
+}

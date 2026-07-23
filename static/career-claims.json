@@ -1,0 +1,148 @@
+{
+  "$schema_note": "Generated public receipt; data/career-claims.json is authoritative.",
+  "authority_sha256": "040c5ab955d3e0e1e14d76dd28b1efa3d4d2142b2d14fa31ca545ab3bafd57d1",
+  "claims": [
+    {
+      "evidence_ref": "operator-authorization:ardent-evidence-lab-truth-release",
+      "id": "usmc.disbursing-office.people-and-functions",
+      "provenance": {
+        "authority_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c",
+        "kind": "operator_authorized_public_subset",
+        "recorded_at": "2026-07-22",
+        "summary": "This claim is part of the operator-authorized public subset bound to the recorded truth-release digest."
+      },
+      "scope": {
+        "code": "camp_lejeune_disbursing_office_role",
+        "summary": "Helping-leadership role in one Camp Lejeune disbursing office; no rank among Marine Corps offices is asserted."
+      },
+      "valid_through": "2027-07-22",
+      "values": [
+        {
+          "display": "157 Marines",
+          "name": "marines",
+          "unit": "people",
+          "value": 157
+        },
+        {
+          "display": "12 civilians",
+          "name": "civilians",
+          "unit": "people",
+          "value": 12
+        },
+        {
+          "display": "seven finance functions",
+          "name": "finance_functions",
+          "unit": "functions",
+          "value": 7
+        }
+      ],
+      "verified_at": "2026-07-22"
+    },
+    {
+      "evidence_ref": "operator-authorization:ardent-evidence-lab-truth-release",
+      "id": "usmc.meu.deployment",
+      "provenance": {
+        "authority_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c",
+        "kind": "operator_authorized_public_subset",
+        "recorded_at": "2026-07-22",
+        "summary": "This claim is part of the operator-authorized public subset bound to the recorded truth-release digest."
+      },
+      "scope": {
+        "code": "twenty_second_meu_deployment",
+        "summary": "22d Marine Expeditionary Unit deployment duration, embarked vessels, and supported-unit size; no nation count is asserted."
+      },
+      "valid_through": "2027-07-22",
+      "values": [
+        {
+          "display": "seven-month",
+          "name": "duration",
+          "unit": "months",
+          "value": 7
+        },
+        {
+          "display": "three naval vessels",
+          "name": "naval_vessels",
+          "unit": "vessels",
+          "value": 3
+        },
+        {
+          "display": "3,000-person",
+          "name": "meu_population",
+          "unit": "people",
+          "value": 3000
+        }
+      ],
+      "verified_at": "2026-07-22"
+    },
+    {
+      "evidence_ref": "operator-authorization:ardent-evidence-lab-truth-release",
+      "id": "usmc.meu.cash-custody",
+      "provenance": {
+        "authority_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c",
+        "kind": "operator_authorized_public_subset",
+        "recorded_at": "2026-07-22",
+        "summary": "This claim is part of the operator-authorized public subset bound to the recorded truth-release digest."
+      },
+      "scope": {
+        "code": "twenty_second_meu_deployed_cash_custody",
+        "summary": "Deployed cash custody for the same MEU assignment: budget size and reconciliation outcome, not total unit spending."
+      },
+      "valid_through": "2027-07-22",
+      "values": [
+        {
+          "display": "$350,000",
+          "name": "cash_budget",
+          "unit": "USD",
+          "value": 350000
+        },
+        {
+          "display": "zero discrepancies",
+          "name": "discrepancies",
+          "unit": "count",
+          "value": 0
+        }
+      ],
+      "verified_at": "2026-07-22"
+    }
+  ],
+  "evidence_authorities": [
+    {
+      "access": "private",
+      "custodian": "site_operator",
+      "id": "operator-authorization:ardent-evidence-lab-truth-release",
+      "kind": "operator_authorization",
+      "recorded_at": "2026-07-22",
+      "review_basis": "operator_truth_release",
+      "review_summary": "Operator authorization preserves the common facts and removes the disputed office-rank and nation-count assertions.",
+      "source_locator": "fleet-dispatch:ardent-evidence-lab-truth-release",
+      "source_sha256": "3f67adad273d478993571b1fc2a71fc67fad7b197844db5f36ad2bcf6947304c",
+      "underlying_private_evidence_inspected": false
+    }
+  ],
+  "evidence_boundary": {
+    "summary": "The operator-authorized truth release identifies the public subset. The audit did not inspect and does not publish the underlying private service record.",
+    "underlying_private_evidence_inspected": false,
+    "underlying_private_evidence_published": false
+  },
+  "excluded_public_claims": [
+    {
+      "decision": "not_asserted",
+      "reason": "No public comparator scope is encoded for any office rank.",
+      "topic": "disbursing-office_rank"
+    },
+    {
+      "decision": "not_asserted",
+      "reason": "No public counting rule is encoded for deployment nation totals.",
+      "topic": "deployment_nation_count"
+    }
+  ],
+  "schema_version": 2,
+  "verification_scope": {
+    "summary": "The release gate requires the typed claims to agree across the About page, Typst resume source, and text from the exact shipped PDF.",
+    "surfaces": [
+      "about",
+      "resume_source",
+      "resume_pdf"
+    ]
+  }
+}

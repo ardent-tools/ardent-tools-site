@@ -1,5 +1,49 @@
 {
-  "$schema_note": "Generated from content/systems/*.md — do not hand-edit.",
+  "$schema_note": "Derived catalog. Edit the provenance sources, then run `python3 bin/site.py sync`.",
+  "schema_version": 1,
+  "provenance": {
+    "generator": "bin/generate-systems-json.py",
+    "generator_version": 1,
+    "input_sha256": "428a40e767054243f077c5a6fea4b55d9288f47230cef16efe1a30d0030bf1c5",
+    "sources": [
+      {
+        "path": "content/systems/_index.md",
+        "sha256": "9c32532ce4c05cdd351f85e78df2b4df682fdfcc863b86901510a0790bba97d5"
+      },
+      {
+        "path": "content/systems/akroasis.md",
+        "sha256": "84ec917084273c5ad6b57f4ecda1be1806686a2aa8cc4652d25b733b0a3ef42a"
+      },
+      {
+        "path": "content/systems/aletheia.md",
+        "sha256": "6d10f55b2a6e0c3b86684e1506798c64237abd1ba1ec6258713610fe3951828b"
+      },
+      {
+        "path": "content/systems/hamma.md",
+        "sha256": "b52adb5a07d7050678774368af9d038f42b89866fb1a525185baa1c1407812d6"
+      },
+      {
+        "path": "content/systems/harmonia.md",
+        "sha256": "4eb359f0ea891391bffb252443ae1670d979393ee104f69e3221657aa5ef747f"
+      },
+      {
+        "path": "content/systems/kanon.md",
+        "sha256": "d7bd2a5cdbec07d9ef2b316b9528ed36369391f6695acd6416ef1ef59f66aca7"
+      },
+      {
+        "path": "content/systems/logismos.md",
+        "sha256": "07be8dc71cc42afe751fc81a9d1412cdd63c3b5a57aa734e26490b309f36c99d"
+      },
+      {
+        "path": "content/systems/thumos.md",
+        "sha256": "1fadc2ce50128cfc2f16acab43f36ce851d2bbeb318f2fe0103ad2d1b816bc81"
+      },
+      {
+        "path": "data/exact-system-licenses.json",
+        "sha256": "7396f532d2d7949de7f93221a7983c1bdd0c43b196c4f41599ef2b88cdab6469"
+      }
+    ]
+  },
   "site": "https://ardent.tools",
   "catalog_url": "https://ardent.tools/systems/",
   "systems": [

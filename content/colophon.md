@@ -17,6 +17,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | Substrate | [typikon](https://github.com/forkwright/typikon), a shared Zola theme this site consumes as a git submodule and layers its own tokens and templates over |
 | Fonts | Spectral and IBM Plex Mono, both self-hosted as WOFF2 under `/fonts/`, both OFL-licensed. No Google Fonts, no font CDN — the CSP's `font-src 'self'` blocks one even if referenced by mistake |
 | Résumé fonts | Nimbus Sans Regular and Bold are pinned with their hashes and AGPL-with-font-exception notices under `resume/fonts/`; Typst compiles with system and embedded fonts disabled, twice, and the gate byte-compares both PDFs |
+| Career claims | A closed typed authority gives selected repeated Marine Corps facts required IDs and value/unit/display bindings, records the operator-authorized truth-release basis, and sets a one-year review window. The receipt says the underlying service record was not inspected by this audit; the gate checks exact About, Typst, and shipped-PDF renderings and rejects residual claim-domain values outside them |
 | Recording contract | [asciinema-player](https://github.com/asciinema/asciinema-player) v3.17.0 is vendored for future casts, but no player CSS or JavaScript is requested unless a system has a real `cast` artifact |
 | Deploy | Cloudflare Pages, via GitHub Actions on green pushes to `main` |
 | Delivery boundary | Authored output makes no remote third-party runtime/application requests. Cloudflare Pages provides edge delivery and may add platform reporting or protection unless the operator disables it |
@@ -33,13 +34,13 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 Pushes to `main` and pull requests targeting `main` run the same sequence before anything deploys:
 
 1. `typikon-validate` — frontmatter against JSON Schema
-2. `zola check` — internal links and asset references
-3. `zola build` — must complete successfully
-4. `csp-enforce.sh` — the pinned Typikon syntactic preflight for inline script/style and disallowed remote asset forms
-5. `lychee` — external link integrity
-6. `pa11y-ci` — WCAG 2.1 AA
-7. Strict XML/content audit — feed completeness, sitemap resolution, structured-data URLs, artifact revision, retained HTML and resource authorities, tombstones, exact digest/epoch, complete header policy, conditional player assets, recording-plan safety, and claim contracts
-8. pa11y and Playwright — every sitemap-derived canonical HTML route at the required browser widths; the production verifier checks every retained HTML route and separately exercises the custom 404 at a revision-specific missing path
+2. `bin/site.py check` — reject derivation drift, then run Zola's internal-link and asset check
+3. Python and Node regressions — release, runtime, cache, evidence, and error-boundary contracts
+4. Résumé authority — compile twice from pinned fonts, byte-compare the PDFs, inspect embedded fonts, validate extracted text, and check the career manifest
+5. `bin/site.py build` — build the production tree; derive its HTML, runtime, and resource authorities; run the pinned CSP preflight and strict XML/content/header/claim audit
+6. `lychee` — external link integrity against that production tree
+7. Local-origin build and browser gate — serve a second build, then run all-route WCAG 2.1 AA and Playwright checks at every configured width
+8. Cleanliness check — prove the gate did not alter tracked or untracked worktree state; production subsequently verifies every retained route, the custom 404, and every manifest resource at the live boundary
 
 ## What this site does not do
 

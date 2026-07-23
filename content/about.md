@@ -5,9 +5,9 @@ description = "USMC finance leadership, an MBA, a pivot into data and AI enginee
 
 # About
 
-I spent five years in the Marine Corps at Camp Lejeune, North Carolina, helping lead a disbursing office of 157 Marines and 12 civilians across seven finance functions, serving 60,000-plus personnel across the eastern United States and Europe. On a seven-month deployment aboard three naval vessels supporting a 3,000-person Marine Expeditionary Unit, I managed a $350,000 cash budget with zero discrepancies.
+I spent five years in the Marine Corps at Camp Lejeune, North Carolina, helping lead a disbursing office of 157 Marines and 12 civilians across seven finance functions, serving personnel across the eastern United States and Europe. On a seven-month deployment aboard three naval vessels supporting a 3,000-person Marine Expeditionary Unit, I managed a $350,000 cash budget with zero discrepancies.
 
-After the Marine Corps I went back for an MBA at the University of Texas at Austin's McCombs School of Business, finishing in 2026. The operations discipline from the disbursing office carried over almost unchanged: audit trails, zero-discrepancy budgets, and process that holds up when someone else checks the work. The domain didn't carry over at all — I moved toward data and AI engineering on purpose, betting that the same discipline applied to software would be more useful there than it is in finance.
+After the Marine Corps I went back for an MBA at the University of Texas at Austin's McCombs School of Business, finishing in 2026. The operations discipline from the disbursing office carried over almost unchanged: audit trails, reconciled budgets, and process that holds up when someone else checks the work. The domain didn't carry over at all — I moved toward data and AI engineering on purpose, betting that the same discipline applied to software would be more useful there than it is in finance.
 
 Two systems built in employment are worth their own section below; the rest is a personal stack — the [full catalog](/systems/) is on this site — built the same way: compiled, tested, and CI-verified before I call anything done.
 

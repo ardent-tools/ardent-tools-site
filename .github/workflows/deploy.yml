@@ -103,7 +103,7 @@ jobs:
           # local runs remain temporary and leave the worktree unchanged.
           ARDENT_RETAIN_VALIDATED_PUBLIC: '1'
           ARDENT_BUILD_REVISION: ${{ github.sha }}
-        run: bin/check-site.sh
+        run: python3 bin/site.py gate
 
       - name: Compile the Pages error boundary
         run: |
