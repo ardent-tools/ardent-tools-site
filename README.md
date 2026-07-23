@@ -27,6 +27,7 @@ python3 bin/site.py serve   # live reload; re-derives when authority inputs chan
 python3 bin/site.py build   # verify derivations, then build to public/
 python3 bin/site.py check   # verify derivations, then check links and assets
 python3 bin/site.py sync    # atomically refresh committed derived JSON
+python3 bin/site.py retain-assets # explicitly append a changed asset snapshot
 ```
 
 `build` and `check` derive the catalog and career receipt in memory and reject
@@ -41,7 +42,7 @@ Frontmatter validation and the full local gate:
 
 ```bash
 themes/typikon/bin/typikon-validate .   # frontmatter against JSON Schema
-python3 bin/site.py gate                # isolated CI-equivalent strict gate;
+python3 bin/site.py gate                # repository-owned isolated strict gate;
                                         # fails closed if required tools are absent
 ```
 
@@ -71,18 +72,37 @@ regular resources in that exact tree, excluding the three Cloudflare Pages
 control files and the resource manifest itself. The HTML authority and
 `runtime-boundary.json` are resources: the latter binds the Pages Function
 source, generated `_routes.json`, and production `wrangler.toml` to exact
-SHA-256 digests. Non-canonical
-resource URLs have one content digest and the single release asset epoch from
-`config.toml`. The HTML authority remains query-free because the Function reads
-that exact runtime URL; its manifest digest and live fetch prove the consumed
-bytes directly.
+SHA-256 digests. Non-canonical resources—including the web manifest and
+speculation rules—are finalized under `/a/<full-sha256>.<extension>`. CSS,
+element-specific HTML fields, owned JSON-LD URL properties, and Web App
+Manifest URL fields are rewritten by their actual grammars; literal text and
+non-URL schema fields are left untouched. Canonical XML rejects addressed
+dependencies, including escaped Atom HTML and document types. The addressed
+JavaScript set is closed to three enumerated paths whose complete bytes must
+match reviewed full SHA-256 authorities. The digest therefore names the final
+served bytes, not merely the source file, and no logical `/css`, `/img`,
+`/fonts`, or similar alias survives in the deployed tree. Stable protocol and
+authority endpoints remain query-free and `no-store`.
+
+`asset-retention.json` is the bounded, hash-chained snapshot authority for that
+physical namespace; `retained-assets/` holds every byte it names. The gate
+requires its latest snapshot to equal the current finalized map and deploys the
+union of every recorded physical identity. CI independently selects the trusted
+base or pre-push revision and requires its entire ledger to remain an exact
+prefix, so history cannot be silently rebased or truncated. A resource change
+therefore fails until `python3 bin/site.py retain-assets` explicitly appends the
+new snapshot. Older hashes retain both their bytes and any special media-type
+rule, including `application/speculationrules+json`. The authority caps history
+at 128 snapshots, 960 retained resources, and 256 MiB, leaving headroom under
+the 1,024-member release manifest, and rejects missing, extra, renamed,
+symlinked, or digest-mismatched members.
 
 The post-deploy verifier refuses a different live sentinel or manifest, fetches
 every retained HTML route, probes the custom 404, and requests every exact
-resource URL without redirects. It compares full response-body digests and the
-complete configured direct-response header boundary, including the derived
-`Speculation-Rules` URL and the speculation-rules media type. Before upload,
-the deploy job
+resource URL without redirects, and proves each removed logical asset URL now
+returns the retained 404 authority. It compares full response-body digests and
+the complete configured direct-response header boundary, including the derived
+physical `Speculation-Rules` URL and its media type. Before upload, the deploy job
 revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
 Repository-owned Wrangler config makes the project name, validated output
@@ -105,11 +125,13 @@ At `ardent.tools`, Cloudflare replaced the global cache policy with `no-store`
 when its static asset server synthesized a 404. The root catch-all in
 `functions/[[path]].js` serves the deployment-local `/404/` authority and
 explicitly applies the complete direct-response header contract to 404/410
-responses. If the asset server unexpectedly returns success for an unretained
-path, the Function replaces those stale bytes with the same authority and status
-404. `bin/pages_runtime.py` derives `_routes.json` from the retained HTML
-authority, every regular non-HTML resource, and the redirect contract. Paths in
-that exact retained route/resource/redirect set remain on static serving.
+responses. Outside the physical namespace, an unexpected asset-server success
+is replaced with that authority and status 404. `bin/pages_runtime.py` derives
+`_routes.json` from the retained HTML authority, the redirect contract, exact
+canonical control resources, and one `/a/*` exclusion. That wildcard is the
+explicit trust boundary for full-digest physical identities: known members are
+proved byte-for-byte by the manifest, while an unknown `/a/*` miss keeps native
+Pages behavior rather than crossing the Function.
 
 Physical `index.html` aliases and other requests selected by the catch-all cross
 the Function. Pages treats a trailing slash as optional while matching static
@@ -120,21 +142,23 @@ success, generated 404s, and unowned or stale redirects receive the authoritativ
 404; a retained 410 keeps its status and body with the explicit headers, while
 other operational errors remain visible. CI unit-tests and compiles that
 Function before any production upload; the live verifier proves aliases,
-custom-404 behavior, and tombstones at the custom domain.
+custom-404 behavior, and tombstones at the immutable deployment and custom
+domain.
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision, release-resource and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages, then verifies that tree's sentinel, manifest, canonical pages, custom 404, tombstones, and resources at the live boundary. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision, release-resource and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages. Wrangler is given the full commit SHA; its bounded strict JSONL receipt must identify one matching production deployment and immutable `*.ardent-tools.pages.dev` origin. The verifier then proves the sentinel, manifest, canonical pages, custom 404, tombstones, physical resources, removed logical aliases, direct headers, and Cloudflare colo receipt first at that immutable origin and then at `ardent.tools`. See `.github/workflows/deploy.yml`.
 
-Cloudflare documents that a Pages deployment can leave an earlier asset in a
-data center for up to one week and recommends a zone cache purge when stale
-assets appear. The existing workflow secrets establish Pages deployment access,
-not a zone ID and cache-purge permission, so this repository does not invent a
-purge call. For the `v=2` transition release, the operator must purge the
-`ardent.tools` zone after deployment and before accepting the live verifier.
-Already-held browser cache entries cannot be revoked; the new epoch makes every
-current non-canonical reference use a different key, while the release tombstone
-keeps `/tapes/aletheia-memory.tape` absent through 2026-08-21. See
+Cloudflare documents that a custom-domain cache can preserve an earlier static
+asset even after a Pages deployment. The release therefore never relies on a
+query string or purge to distinguish changed bytes: every current asset uses a
+new physical full-digest path, including dependencies inside CSS and the Web
+App Manifest and list-source URLs in speculation rules. URLPattern fields remain
+route patterns. Already-held responses at legacy logical paths
+cannot be revoked by repository code, so current HTML never references those
+paths; the guarded Function converts a stale logical success into the
+deployment-local 404. The release
+tombstone keeps `/tapes/aletheia-memory.tape` absent through 2026-08-21. See
 [Cloudflare Pages serving behavior](https://developers.cloudflare.com/pages/configuration/serving-pages/).
 
 ## License

@@ -1,0 +1,150 @@
+/* Consumer shadow of typikon's static/css/fonts.css (theme.toml's Zola
+ * static-shadow rule: a same-path file in the consumer's own static/
+ * wins). Delta from the theme copy: two metric-matched fallback
+ * @font-face declarations (DESIGN-v1.3 §2.3) appended at the end — the
+ * four families above are unchanged, re-diff them against
+ * themes/typikon/static/css/fonts.css on every typikon-refresh.
+ *
+ * Self-hosted webfonts (OFL-1.1). All families subsetted to:
+ *   - Latin (U+0000-00FF)
+ *   - Greek (U+0370-03FF) and Greek Extended (U+1F00-1FFF) for serif families
+ *
+ * Strict CSP `font-src 'self'` ensures no external font CDN is reachable
+ * even if a stray @font-face URL is added by mistake.
+ */
+
+/* Cormorant Garamond — display */
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('/a/9a842d62d34ddfa36c1a6aefd9ba482150d3d8408c244256a4c2a6d511cc3c22.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('/a/b0606158f37f6e2a243c6ac5a810ac632cf119b66383e07ab2dbcb623f1ecbd4.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('/a/cbc6f0618c997aece5478ce4f38eb8fddb3e7db0499ddb37bca82b84d6a785cc.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('/a/6bb8b0f40ab6cbef1bfa0e8afe43ee1904352d047a128d0823a019e42c12d172.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+
+/* Spectral — body */
+@font-face {
+  font-family: 'Spectral';
+  src: url('/a/0d7b708c4b21eba1ec7d4d72cf529ad0cf9e7f1b70462647cf56e86ea1f2e0e1.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+@font-face {
+  font-family: 'Spectral';
+  src: url('/a/945ad1f27bd3022121b5d148abc56f00aa391228dd350b066c922c59978928da.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+@font-face {
+  font-family: 'Spectral';
+  src: url('/a/e8d6035ec5f41658bc84d5c2b7b0a0df90fb95203e055c1389c6810f8f960de3.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+@font-face {
+  font-family: 'Spectral';
+  src: url('/a/ee7b7e196484668b2c425cb342ca0e26c612eeffc7e4dc7d80c0fa03841e611f.woff2') format('woff2');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0370-03FF, U+1F00-1FFF;
+}
+
+/* IBM Plex Mono — specs */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/a/8130faf9255d5d7de9932785ff46faf163a80cd8a1488fa457757304aea58e0b.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/a/2e4f14e6ba4631a2b35152f7bfad3a550d5c73c917721472d6eb94fe74fa9488.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF;
+}
+
+/* === Metric-matched fallback faces (§2.3, DESIGN-v1.3) ===
+ *
+ * font-display: swap (above) shows a system font until Spectral/Plex
+ * Mono load, then reflows — worst at the v1.2 display sizes (39.8px
+ * home h1). These two faces close that gap: local() system fonts
+ * carrying the SAME size-adjust/ascent-override/descent-override/
+ * line-gap-override as the real webfont, so the swap becomes
+ * geometrically invisible instead of just delayed. local() sources are
+ * not a network fetch — font-src is untouched regardless of the CSP's
+ * stance on it.
+ *
+ * Values measured 2026-07-21 against the actual vendored woff2 files
+ * (spectral-400.woff2, ibm-plex-mono-400.woff2) and the real local
+ * fallback fonts (Georgia, Courier New) via fontTools reading each
+ * font's head/hhea/OS-2 tables, using the size-adjust + metric-override
+ * formula from the fontaine/capsize reference implementation
+ * (github.com/unjs/fontaine packages/fontaine/src/css.ts
+ * generateFontFace, credited there to seek-oss/capsize):
+ *
+ *   sizeAdjust    = (target.xAvgCharWidth / target.unitsPerEm)
+ *                   / (fallback.xAvgCharWidth / fallback.unitsPerEm)
+ *   adjustedEm    = target.unitsPerEm * sizeAdjust
+ *   ascentOverride  = target.hhea.ascent / adjustedEm
+ *   descentOverride = abs(target.hhea.descent) / adjustedEm
+ *   lineGapOverride = target.hhea.lineGap / adjustedEm
+ *
+ * Reproducible: fontTools (`pip install fonttools` / `uv tool install
+ * fonttools`) against spectral-400.woff2 + ibm-plex-mono-400.woff2 (both
+ * vendored under themes/typikon/static/fonts/) and Georgia/Courier New
+ * (any real copy of either font — metrics are identical across sources,
+ * both are stable, unchanged-for-decades system fonts).
+ */
+@font-face {
+  font-family: 'Spectral Fallback';
+  src: local('Georgia');
+  size-adjust: 106.77%;
+  ascent-override: 99.18%;
+  descent-override: 43.36%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Plex Mono Fallback';
+  src: local('Courier New');
+  size-adjust: 99.98%;
+  ascent-override: 102.52%;
+  descent-override: 27.5%;
+  line-gap-override: 0%;
+}

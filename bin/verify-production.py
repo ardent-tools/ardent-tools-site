@@ -8,13 +8,12 @@ import hashlib
 import re
 import sys
 import time
-import tomllib
 import xml.etree.ElementTree as ET
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qsl, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from header_contract import (
@@ -23,29 +22,29 @@ from header_contract import (
     validate_live_direct_headers,
     validate_speculation_content_type,
 )
-from html_authority import AUTHORITY_NAME, validate_authority
+from html_authority import AUTHORITY_NAME, validate_authority, validate_base_url
 from pages_runtime import BOUNDARY_NAME, validate_runtime
-from release_manifest import read_contract, validate_manifest
+from release_manifest import BASE_URL, read_contract, validate_manifest
 from redirect_contract import RedirectRule, load_redirects, redirect_probe_path
 
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
-ASSET_HASH_RE = re.compile(r"^[0-9a-f]{20}$")
-ASSET_EPOCH_RE = re.compile(r"^[1-9][0-9]*$")
+ADDRESSED_ASSET_RE = re.compile(r"^/a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
+CF_RAY_RE = re.compile(r"^[0-9a-f]{16}-([A-Z]{3})$")
+CANONICAL_ORIGIN = BASE_URL.rstrip("/")
 SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 MAX_SITEMAP_HTML_ROUTES = 256
-REQUIRED_RELEASE_PATHS = (
-    "/atom.xml",
-    "/build-revision.txt",
-    "/career-claims.json",
-    "/llms.txt",
-    f"/{AUTHORITY_NAME}",
-    f"/{BOUNDARY_NAME}",
-    "/release-resources.json",
-    "/robots.txt",
-    "/sitemap.xml",
-    "/systems.json",
-    "/site.webmanifest",
-    "/speculation-rules.json",
+REQUIRED_RELEASE_LOGICAL_PATHS = (
+    "atom.xml",
+    "build-revision.txt",
+    "career-claims.json",
+    "llms.txt",
+    AUTHORITY_NAME,
+    BOUNDARY_NAME,
+    "robots.txt",
+    "sitemap.xml",
+    "systems.json",
+    "site.webmanifest",
+    "speculation-rules.json",
 )
 CUSTOM_404_MARKERS = ("404: no such path", "Return home")
 STRICT_ZERO_CAST_CSP = {
@@ -277,19 +276,19 @@ def html_alias_redirects(html_authority: dict) -> list[tuple[str, str]]:
     return sorted(set(aliases))
 
 
-def asset_identity(url: str) -> tuple[str, str, str, tuple[tuple[str, str], ...]]:
+def asset_identity(url: str) -> tuple[str, str, str]:
     parsed = urlparse(url)
-    other_query = tuple(
-        (name, value)
-        for name, value in parse_qsl(parsed.query, keep_blank_values=True)
-        if name not in {"h", "v"}
-    )
-    return parsed.scheme.lower(), parsed.netloc.lower(), parsed.path, other_query
+    return parsed.scheme.lower(), parsed.netloc.lower(), parsed.path
 
 
 def collect_hashed_assets(
-    errors: list[str], base_url: str, page_url: str, body: str, asset_epoch: str
+    errors: list[str],
+    serving_root: str,
+    page_url: str,
+    body: str,
+    canonical_root: str | None = None,
 ) -> list[tuple[str, str, str]]:
+    canonical_root = canonical_root or serving_root
     parser = AssetParser()
     parser.feed(body)
     assets: list[tuple[str, str, str]] = []
@@ -305,34 +304,39 @@ def collect_hashed_assets(
         except ValueError:
             errors.append(f"{page_url}: malformed {kind} asset URL: {reference!r}")
             continue
-        if not same_origin(base_url, resolved):
+        if not (
+            same_origin(serving_root, resolved) or same_origin(canonical_root, resolved)
+        ):
             errors.append(
                 f"{page_url}: external {kind} asset is not allowed: {reference!r}"
             )
             continue
         parsed = urlparse(resolved)
-        pairs = parse_qsl(parsed.query, keep_blank_values=True)
-        names = [name for name, _ in pairs]
-        if len(pairs) != 2 or Counter(names) != Counter({"h": 1, "v": 1}):
+        if parsed.query or parsed.fragment:
             errors.append(
-                f"{page_url}: {kind} asset must carry exactly one h and one v query and "
-                f"no others: {reference!r}"
+                f"{page_url}: {kind} asset must be query- and fragment-free: {reference!r}"
             )
             continue
-        values = dict(pairs)
-        if not ASSET_HASH_RE.fullmatch(values["h"]):
+        match = ADDRESSED_ASSET_RE.fullmatch(parsed.path)
+        if match is None:
             errors.append(
-                f"{page_url}: {kind} asset has malformed h query value {values['h']!r}: "
+                f"{page_url}: {kind} asset must use /a/<full-sha256>.<extension>: "
                 f"{reference!r}"
             )
             continue
-        if values["v"] != asset_epoch:
+        expected_extension = ".css" if kind == "CSS" else ".js"
+        if match.group(2).lower() != expected_extension:
             errors.append(
-                f"{page_url}: {kind} asset has v={values['v']!r}, expected "
-                f"{asset_epoch!r}: {reference!r}"
+                f"{page_url}: {kind} asset has wrong extension {match.group(2)!r}: "
+                f"{reference!r}"
             )
             continue
-        assets.append((resolved, values["h"], kind))
+        # Authored absolute URLs intentionally name the canonical origin. Fetch
+        # the identical physical path from the deployment origin under test so
+        # an immutable Pages deployment and the custom domain are proved
+        # independently from the same retained artifact.
+        served_url = urljoin(serving_root.rstrip("/") + "/", parsed.path.lstrip("/"))
+        assets.append((served_url, match.group(1), kind))
     return assets
 
 
@@ -381,9 +385,7 @@ def distinct_assets(
     errors: list[str], references: list[tuple[str, str, str]]
 ) -> dict[str, tuple[str, str]]:
     assets: dict[str, tuple[str, str]] = {}
-    identities: dict[
-        tuple[str, str, str, tuple[tuple[str, str], ...]], tuple[str, str]
-    ] = {}
+    identities: dict[tuple[str, str, str], tuple[str, str]] = {}
     for asset_url, authored_hash, kind in references:
         identity = asset_identity(asset_url)
         prior = identities.get(identity)
@@ -408,32 +410,40 @@ def verify(
     base_url: str,
     timeout: float,
     expected_revision: str,
-    asset_epoch: str,
     release_manifest: dict,
     local_manifest_bytes: bytes,
     manifest_name: str,
     redirect_rules: list[RedirectRule],
     html_authority: dict,
     header_contract: HeaderContract,
+    canonical_origin: str = CANONICAL_ORIGIN,
+    require_cf_ray: bool = False,
+    observed_colos: set[str] | None = None,
 ) -> list[str]:
     errors: list[str] = []
     site_root = base_url.rstrip("/") + "/"
+    canonical_root = canonical_origin.rstrip("/") + "/"
     responses: dict[str, tuple[int, dict[str, str], bytes]] = {}
 
     def fetch_exact(url: str) -> tuple[int, dict[str, str], bytes]:
         if url not in responses:
             responses[url] = request(url, timeout, follow=False)
+            if require_cf_ray:
+                ray = header(responses[url][1], "CF-Ray")
+                match = CF_RAY_RE.fullmatch(ray)
+                if match is None:
+                    errors.append(f"{url}: missing or malformed exact CF-Ray: {ray!r}")
+                elif observed_colos is not None:
+                    observed_colos.add(match.group(1))
         return responses[url]
 
-    resources_by_path = {
-        f"/{item['output_path']}": item
+    resources_by_logical_path = {
+        item["logical_path"]: item
         for item in release_manifest.get("resources", [])
-        if isinstance(item, dict) and isinstance(item.get("output_path"), str)
+        if isinstance(item, dict) and isinstance(item.get("logical_path"), str)
     }
-    for required in REQUIRED_RELEASE_PATHS:
-        if required == f"/{manifest_name}":
-            continue
-        if required not in resources_by_path:
+    for required in REQUIRED_RELEASE_LOGICAL_PATHS:
+        if required not in resources_by_logical_path:
             errors.append(f"local release manifest lacks required resource {required}")
 
     revision_url = urljoin(site_root, "build-revision.txt")
@@ -488,7 +498,7 @@ def verify(
         header_contract,
         exclude=frozenset({"cache-control"}),
     )
-    html_paths = sitemap_html_paths(errors, site_root, sitemap_body)
+    html_paths = sitemap_html_paths(errors, canonical_root, sitemap_body)
     authority_by_path = {
         item["request_path"]: item
         for item in html_authority.get("routes", [])
@@ -536,7 +546,10 @@ def verify(
             header_contract,
             exclude=frozenset({"cache-control"}),
         )
-        if item["output_path"] == "speculation-rules.json":
+        if (
+            release_manifest.get("media_types", {}).get(relative_url)
+            == header_contract.speculation_content_type
+        ):
             validate_speculation_content_type(
                 errors,
                 f"release resource {relative_url!r}",
@@ -562,7 +575,8 @@ def verify(
             errors.append(f"{path} returned {status}, expected direct 200")
         validate_html_boundary(errors, path, headers, body, header_contract)
         validate_html_content_type(errors, path, headers)
-        validate_canonical(errors, page_url, page_url, body)
+        canonical_url = urljoin(canonical_root, path.lstrip("/"))
+        validate_canonical(errors, page_url, canonical_url, body)
         authority = authority_by_path.get(path)
         if authority is not None:
             digest = hashlib.sha256(body_bytes).hexdigest()
@@ -572,7 +586,7 @@ def verify(
                     f"expected {authority['sha256']}, SHA-256={digest}"
                 )
         asset_references.extend(
-            collect_hashed_assets(errors, site_root, page_url, body, asset_epoch)
+            collect_hashed_assets(errors, site_root, page_url, body, canonical_root)
         )
         pages[path] = body
 
@@ -626,9 +640,32 @@ def verify(
                 errors.append(f"{missing_path} lacks custom 404 marker {marker!r}")
         asset_references.extend(
             collect_hashed_assets(
-                errors, site_root, missing_url, missing_body, asset_epoch
+                errors, site_root, missing_url, missing_body, canonical_root
             )
         )
+
+    custom_authority = html_authority.get("custom_404", {})
+    custom_digest = custom_authority.get("sha256")
+    for item in release_manifest.get("resources", []):
+        if item.get("cache_class") != "addressed":
+            continue
+        logical_path = item["logical_path"]
+        alias_url = urljoin(site_root, logical_path)
+        alias_status, alias_headers, alias_bytes = fetch_exact(alias_url)
+        alias_body = alias_bytes.decode("utf-8", errors="replace")
+        label = f"logical asset alias /{logical_path}"
+        if alias_status != 404:
+            errors.append(f"{label} returned {alias_status}, expected exact 404")
+        validate_html_boundary(
+            errors, label, alias_headers, alias_body, header_contract
+        )
+        validate_html_content_type(errors, label, alias_headers)
+        alias_digest = hashlib.sha256(alias_bytes).hexdigest()
+        if alias_digest != custom_digest:
+            errors.append(
+                f"{label} body differs from retained custom-404 authority: "
+                f"expected {custom_digest!r}, SHA-256={alias_digest}"
+            )
 
     evidence_body = pages.get("/evidence/", "")
     for marker in (
@@ -662,10 +699,10 @@ def verify(
                 errors, f"authored {kind} asset {asset_url!r}", asset_headers
             )
         digest = hashlib.sha256(asset_body).hexdigest()
-        if not digest.startswith(authored_hash):
+        if digest != authored_hash:
             errors.append(
                 f"authored {kind} asset digest mismatch for {asset_url!r}: "
-                f"h={authored_hash}, SHA-256={digest}"
+                f"path SHA-256={authored_hash}, body SHA-256={digest}"
             )
 
     for tombstone in release_manifest.get("tombstones", []):
@@ -722,9 +759,19 @@ def verify(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="https://ardent.tools")
+    parser.add_argument(
+        "--canonical-origin",
+        default=CANONICAL_ORIGIN,
+        help="canonical public HTTPS origin authored into retained documents",
+    )
     parser.add_argument("--attempts", type=int, default=8)
     parser.add_argument("--delay", type=float, default=5.0)
     parser.add_argument("--timeout", type=float, default=15.0)
+    parser.add_argument(
+        "--require-cf-ray",
+        action="store_true",
+        help="require every response to carry one exact Cloudflare colo receipt",
+    )
     parser.add_argument("--expected-revision", required=True)
     parser.add_argument(
         "--artifact-root",
@@ -740,12 +787,10 @@ def main() -> int:
             "--expected-revision must be exactly one lowercase 40-hex revision"
         )
     try:
-        config = tomllib.loads(Path("config.toml").read_text())
-    except (OSError, tomllib.TOMLDecodeError) as exc:
-        parser.error(f"cannot read asset epoch from config.toml: {exc}")
-    asset_epoch = config.get("extra", {}).get("asset_epoch")
-    if not isinstance(asset_epoch, str) or not ASSET_EPOCH_RE.fullmatch(asset_epoch):
-        parser.error("config.toml extra.asset_epoch must be a nonzero decimal string")
+        validate_base_url(args.base_url)
+        validate_base_url(args.canonical_origin)
+    except ValueError as exc:
+        parser.error(str(exc))
     contract, contract_errors = read_contract()
     if contract_errors:
         parser.error("; ".join(contract_errors))
@@ -759,7 +804,6 @@ def main() -> int:
         local_manifest_bytes,
         output=artifact_root,
         expected_revision=args.expected_revision,
-        expected_epoch=asset_epoch,
         contract=contract,
     )
     if manifest_errors:
@@ -778,7 +822,7 @@ def main() -> int:
         authority_bytes,
         output=artifact_root,
         expected_revision=args.expected_revision,
-        base_url=args.base_url,
+        base_url=args.canonical_origin,
     )
     if authority_errors:
         parser.error("invalid retained HTML authority: " + "; ".join(authority_errors))
@@ -794,25 +838,35 @@ def main() -> int:
         )
 
     last_errors: list[str] = []
+    successful_colos: set[str] = set()
     for attempt in range(1, args.attempts + 1):
+        attempt_colos: set[str] = set()
         try:
             last_errors = verify(
                 args.base_url,
                 args.timeout,
                 args.expected_revision,
-                asset_epoch,
                 release_manifest,
                 local_manifest_bytes,
                 contract["manifest_name"],
                 redirect_rules,
                 html_authority,
                 header_contract,
+                args.canonical_origin,
+                args.require_cf_ray,
+                attempt_colos,
             )
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]
         if not last_errors:
+            successful_colos = attempt_colos
+            colo_receipt = (
+                f"; Cloudflare colos={','.join(sorted(successful_colos))}"
+                if successful_colos
+                else ""
+            )
             sys.stdout.write(
-                f"PASS: production boundary verified on attempt {attempt}\n"
+                f"PASS: production boundary verified on attempt {attempt}{colo_receipt}\n"
             )
             return 0
         if attempt < args.attempts:

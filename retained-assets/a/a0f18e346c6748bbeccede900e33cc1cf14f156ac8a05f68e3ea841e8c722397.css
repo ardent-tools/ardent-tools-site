@@ -1,0 +1,66 @@
+/*
+ * Code listings (§3.5) — static code is a printed listing, ink on paper;
+ * a running session is a screen (see .term-* in site.css). Every dark
+ * rectangle on the site means exactly one thing: this ran.
+ *
+ * Class names are Zola/Giallo's real output (verified against the
+ * installed zola 0.22.1 binary + a throwaway rust/bash/toml fixture —
+ * `config.toml [markdown.highlighting] style = "class"` emits
+ * `<span class="z-keyword">`, not the `z-code`-prefixed scheme some
+ * older docs describe). Giallo's own docs ask for the `.giallo-l` rule
+ * below regardless of theme; kept verbatim.
+ */
+
+.giallo-l {
+  display: inline-block;
+  min-height: 1lh;
+  width: 100%;
+}
+
+pre.giallo {
+  margin: var(--space-m) 0;
+  padding: var(--space-s);
+  background: var(--bg-accent);
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+pre.giallo code {
+  font-family: inherit;
+}
+
+/* Three-ink pass — muted, not a full theme recolor. */
+.z-keyword,
+.z-storage {
+  color: var(--accent-aged);
+}
+
+.z-string,
+.z-constant {
+  /* --warn is darkened at the token (site.css) specifically to clear
+     this pairing: 5.38:1 on pre.giallo's --bg-accent panel, above the
+     WCAG AA 4.5:1 floor (was 4.39:1, failing). */
+  color: var(--warn);
+}
+
+.z-comment {
+  /* text-mid, not text-light: on the pre.giallo `--bg-accent` panel,
+     text-mid clears the light-only surface comfortably and keeps comments
+     visually subordinate without approaching the AA contrast floor. */
+  color: var(--text-mid);
+  font-style: italic;
+}
+
+
+
+/* Inline code (single backticks, not fenced) */
+code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-accent);
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--rule);
+}

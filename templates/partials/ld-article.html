@@ -1,9 +1,8 @@
 {# Consumer shadow of typikon's templates/partials/ld-article.html.
    Sole delta: a page's og_image is a non-canonical public resource, so
-   the Article image field must carry its exact manifest identity —
-   content digest plus the release asset epoch — via
-   asset_url::hashed_raw (literal &v=; JSON-LD script bodies are raw
-   text and are never entity-decoded). Everything else is unchanged;
+   the Article image field must carry its exact full-digest physical manifest
+   identity via asset_url::hashed_raw; JSON-LD script bodies are raw text and
+   the post-build finalizer rewrites that logical URL. Everything else is unchanged;
    re-diff against the theme partial on every typikon-refresh.
 
    Original theme documentation follows.

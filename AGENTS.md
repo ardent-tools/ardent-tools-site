@@ -39,11 +39,11 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/partials/nav.html` | Shadow | Current-page indicator (DESIGN-v1.1 §1.6 — `aria-current="page"` on the nav item whose URL prefixes `current_path`, home exact-match only) — typikon's stock partial has no path-comparison logic at all (filed upstream, typikon#25-adjacent, §9). |
 | `templates/partials/footer.html` | Shadow | Typikon's stock footer is one brand line + one flat link list; this site's footer needs three mono clusters + a sibling-brand line (DESIGN §3.7), which the flat list can't produce. |
 | `templates/partials/ld-person.html` | New | Person JSON-LD, same pattern as typikon's six `ld-*.html` partials. |
-| `templates/partials/ld-organization.html` | Shadow | Preserves typikon's Organization JSON-LD while giving its logo the exact digest-plus-epoch resource identity required in raw JSON text. |
+| `templates/partials/ld-organization.html` | Shadow | Preserves typikon's Organization JSON-LD while giving its logo the exact full-digest physical resource identity required in raw JSON text. |
 | `templates/partials/ld-article.html` | Shadow | Preserves typikon's Article JSON-LD while giving an optional image the exact raw-JSON resource identity. |
 | `templates/partials/ld-product.html` | Shadow | Preserves typikon's Product JSON-LD while giving an optional image the exact raw-JSON resource identity. |
 | `templates/partials/term-panel.html` | New | Terminal-player macro guarded by a real `demo.cast`; absent casts render nothing. |
-| `templates/partials/asset-url.html` | New | Single non-canonical public-resource URL constructor: one Zola content digest plus the release-scoped `extra.asset_epoch`, with separate HTML-attribute and raw-JSON encodings. |
+| `templates/partials/asset-url.html` | New | Single logical public-resource URL constructor; `bin/content_address.py` rewrites its output to a full-SHA-256 physical path after dependencies are finalized. Separate HTML-attribute and raw-JSON call sites remain explicit. |
 | `templates/partials/catalog-row.html` | New | The Tier-1 flagship ledger-row macro `systems.html` and `index.html`'s selected-work block both call. |
 | `templates/partials/catalog-ledger.html` | New | Tier-2 (`grid()`, Libraries/Web) and Tier-3 (`register()`, In-design) ledger-row macros, both data-driven from `content/systems/_index.md`'s `[[extra.ledger]]` array — no hand-authored per-repo HTML. |
 | `templates/atom.xml` | Shadow | Makes `/atom.xml` the canonical writing feed by deriving entries from the writing section. |
@@ -69,8 +69,8 @@ Re-diff every shadowed template (see table above) against the new commit before 
 python3 bin/site.py gate
 ```
 
-Runs the CI-equivalent gate against isolated production and local-base-url
-outputs and fails closed when required tools are missing. It preserves tracked
+Runs the repository-owned strict gate against isolated production and
+local-base-url outputs and fails closed when required tools are missing. It preserves tracked
 consumer configuration, including `playwright.config.ts`; the pinned Typikon
 runner does not, and its owning defect is tracked upstream as typikon#39.
 Normal runs remove their exact `mktemp` output and preserve worktree state. CI
@@ -90,12 +90,25 @@ bodies. `release-resources.json` covers served non-HTML regular resources except
 `_headers`, `_redirects`, `_routes.json`, and the resource manifest itself; the
 HTML authority and `runtime-boundary.json` are included as resources, with the
 latter binding the Function source, derived route table, and production
-`wrangler.toml`. Non-canonical
-resource references carry a content digest plus the central `extra.asset_epoch`.
+`wrangler.toml`. Non-canonical resources are emitted only at
+`/a/<full-sha256>.<extension>` paths whose digest matches the final served bytes;
+logical source aliases and query cache-busters are forbidden. Rewriting is
+schema-aware for HTML, CSS, JSON-LD, Web App Manifest, and speculation-rule
+list-source fields, and covers supported inline and reference-style Markdown
+destinations. Addressed JavaScript is limited to enumerated paths and reviewed
+full-body digests, while dependency-capable addressed XML fails closed.
+`asset-retention.json` plus `retained-assets/` preserve prior physical
+bytes and special media types. A changed current map must be recorded with
+`python3 bin/site.py retain-assets`. Pull-request and push CI select the event's
+base/before revision; recovery dispatch validates `HEAD^`. Its ledger must remain
+an exact prefix.
 The verifier fetches every retained
 HTML route, separately requests a revision-specific missing route, checks every
 manifest resource, and requires the complete configured direct-response header
-map plus the special speculation-rules media type. `_redirects` responses are
+map plus every current or historical speculation-rules media type. The Pages
+route table intentionally leaves `/a/*` on native static serving; the manifest
+proves every known member, while unknown physical-namespace misses retain native
+Pages behavior. `_redirects` responses are
 checked only for status and location because Cloudflare Pages resolves redirects
 before `_headers`; the complete six-rule file is validated locally, and
 production probes a safe representative for every declaration without following
@@ -113,6 +126,6 @@ must report only embedded/subsetted Nimbus Sans Regular and Bold.
 ## Open items from the build pass
 
 - No casts are published. The evidence register shows recording targets as backlog prose; no player request, panel, WATCH link, or WebAssembly CSP exception exists until a real cast lands and the contract gate is updated.
-- The resume PDF is live: `content/resume.md` links `/files/cody-kickertz-resume.pdf`, the file is present under `static/files/`, and it builds through.
+- The résumé PDF source is `static/files/cody-kickertz-resume.pdf`; `content/resume.md` names that logical source and finalization emits a physical full-digest URL with the stable download filename `cody-kickertz-resume.pdf`.
 - `about.md` carries no `## Influences` section (removed in v1.1 phase A pending the operator's actual 5-8 entries; add it back only with real content).
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared. No build-pass report exists in this repo; check `kanon planning` for each repo's current gate status.

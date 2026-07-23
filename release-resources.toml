@@ -1,11 +1,10 @@
-schema_version = 1
+schema_version = 4
 manifest_name = "release-resources.json"
 
-# These protocol, discovery, or runtime-authority endpoints must remain
-# query-free. Every other served non-HTML member of release-resources.json
-# receives the central content digest plus asset epoch; _headers, _redirects,
-# _routes.json, and the manifest itself are control or bootstrap files outside
-# that member set.
+# These protocol, discovery, or runtime-authority endpoints remain stable and
+# no-store. Every other served non-HTML member is emitted under a full-SHA-256
+# physical path. Control files and the manifest itself remain outside the
+# resource member set.
 canonical_paths = [
   "atom.xml",
   "build-revision.txt",
@@ -13,6 +12,7 @@ canonical_paths = [
   "llms.txt",
   "release-html.json",
   "robots.txt",
+  "runtime-boundary.json",
   "sitemap.xml",
   "systems.json",
 ]

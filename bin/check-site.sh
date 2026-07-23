@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repository-owned, CI-equivalent site gate. By default all build and test
+# Repository-owned strict site gate. By default all build and test
 # artifacts live outside the worktree. CI may set ARDENT_RETAIN_VALIDATED_PUBLIC=1
 # to move the already validated production artifact to an absent public/ path.
 set -euo pipefail
@@ -28,12 +28,6 @@ for tool in git python3 zola node npm npx pa11y-ci lychee curl sha256sum cmp typ
     exit 1
   }
 done
-ASSET_EPOCH=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("config.toml").read_text())["extra"]["asset_epoch"])')
-[[ "$ASSET_EPOCH" =~ ^[1-9][0-9]*$ ]] || {
-  echo "ERROR: config.toml extra.asset_epoch must be a nonzero decimal string" >&2
-  exit 1
-}
-readonly ASSET_EPOCH
 SITE_BASE_URL=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("config.toml").read_text())["base_url"])')
 [[ "$SITE_BASE_URL" =~ ^https://[^/]+$ ]] || {
   echo "ERROR: config.toml base_url must be one canonical HTTPS origin without a trailing slash" >&2
@@ -42,6 +36,10 @@ SITE_BASE_URL=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib
 readonly SITE_BASE_URL
 [[ "$(typst --version)" == typst\ 0.14.2* ]] || {
   echo "ERROR: Typst 0.14.2 is required for the tracked résumé" >&2
+  exit 1
+}
+[[ "$(node --version)" == v22.* ]] || {
+  echo "ERROR: Node.js 22 is required for the WHATWG URL release authority" >&2
   exit 1
 }
 
@@ -64,6 +62,8 @@ CHECK_ROOT=$(mktemp -d -t ardent-site-check.XXXXXX)
 readonly CHECK_ROOT
 PROD_OUTPUT="$CHECK_ROOT/public"
 LOCAL_OUTPUT="$CHECK_ROOT/public-local"
+PROD_ASSET_MAP="$CHECK_ROOT/production-asset-map.json"
+LOCAL_ASSET_MAP="$CHECK_ROOT/local-asset-map.json"
 SERVER_PID=""
 LOCAL_PORT=$((18000 + $$ % 20000))
 LOCAL_BASE_URL="http://127.0.0.1:${LOCAL_PORT}"
@@ -96,6 +96,14 @@ PLAYWRIGHT_CONFIG_BEFORE=$(sha256sum playwright.config.ts)
 
 echo "==> frontmatter"
 themes/typikon/bin/typikon-validate .
+
+if [[ -n "${ARDENT_RETENTION_BASE_LEDGER:-}" ]]; then
+  echo "==> append-only asset-retention history"
+  python3 bin/asset_retention.py \
+    --ledger asset-retention.json \
+    --assets retained-assets \
+    --prior-ledger "$ARDENT_RETENTION_BASE_LEDGER"
+fi
 
 echo "==> canonical derivations and zola check"
 python3 bin/site.py check
@@ -137,6 +145,8 @@ for placeholder in \
   fi
 done
 printf '%s\n' "$BUILD_REVISION" > "$PROD_OUTPUT/build-revision.txt"
+python3 bin/content_address.py "$PROD_OUTPUT" \
+  --map "$PROD_ASSET_MAP" --base-url "$SITE_BASE_URL"
 if [[ -f "$PROD_OUTPUT/404/index.html" ]]; then
   cp "$PROD_OUTPUT/404/index.html" "$PROD_OUTPUT/404.html"
 fi
@@ -144,7 +154,7 @@ python3 bin/html_authority.py "$PROD_OUTPUT" \
   --revision "$BUILD_REVISION" --base-url "$SITE_BASE_URL"
 python3 bin/pages_runtime.py "$PROD_OUTPUT"
 python3 bin/release_manifest.py "$PROD_OUTPUT" \
-  --revision "$BUILD_REVISION" --asset-epoch "$ASSET_EPOCH"
+  --revision "$BUILD_REVISION" --asset-map "$PROD_ASSET_MAP"
 themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
 python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 
@@ -162,6 +172,16 @@ lychee --config themes/typikon/ci/lychee.toml \
 
 echo "==> local browser build"
 python3 bin/site.py build --base-url "$LOCAL_BASE_URL" --output-dir "$LOCAL_OUTPUT"
+for placeholder in \
+  "$LOCAL_OUTPUT/casts/.gitkeep" \
+  "$LOCAL_OUTPUT/css/.gitkeep" \
+  "$LOCAL_OUTPUT/js/.gitkeep"; do
+  if [[ -f "$placeholder" && ! -L "$placeholder" ]]; then
+    rm -- "$placeholder"
+  fi
+done
+python3 bin/content_address.py "$LOCAL_OUTPUT" \
+  --map "$LOCAL_ASSET_MAP" --base-url "$LOCAL_BASE_URL"
 if [[ -f "$LOCAL_OUTPUT/404/index.html" ]]; then
   cp "$LOCAL_OUTPUT/404/index.html" "$LOCAL_OUTPUT/404.html"
 fi

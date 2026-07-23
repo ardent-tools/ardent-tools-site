@@ -1,9 +1,8 @@
 {# Consumer shadow of typikon's templates/partials/ld-organization.html.
    Sole delta: the Organization logo is a non-canonical public resource,
-   so it must carry its exact manifest identity — content digest plus the
-   release asset epoch — via asset_url::hashed_raw. JSON-LD script bodies
-   are raw text (never entity-decoded), so the query separator is a
-   literal &v=, not the attribute-context &amp;v=. Everything else is
+   so it must carry its exact full-digest physical manifest identity via
+   asset_url::hashed_raw. JSON-LD script bodies are raw text, and the
+   post-build finalizer rewrites the logical URL in that context. Everything else is
    unchanged; re-diff against the theme partial on every typikon-refresh.
 
    Original theme documentation follows.
@@ -16,7 +15,7 @@
      config.description       — brand tagline
      config.base_url          — canonical site root
      config.extra.logo_path   — relative to /; resolves to the exact
-                                digest-plus-epoch resource URL
+                                full-digest physical resource URL
      config.extra.author.name — primary maker / founder
      config.extra.brand_greek — optional motto (used in alternateName)
      config.extra.founding_date — optional ISO 8601 year (e.g. "2024")
