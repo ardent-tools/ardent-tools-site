@@ -61,7 +61,7 @@ font_preload = [
 
 # Top-nav structure. Consulting is marked as the primary action by URL in
 # partials/nav.html; its treatment never depends on list position. The
-# resume lives on /consulting/ (its PDF is career-claims-bound); /resume/
+# resume lives on /hire/ (its PDF is career-claims-bound); /resume/
 # 301s there via _redirects + bin/redirect_contract.py.
 nav_items = [
   { url = "/systems/",    label = "Systems" },
