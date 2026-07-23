@@ -597,7 +597,6 @@ def verify(
                 f"expected {item['sha256']}, SHA-256={digest}"
             )
 
-    pages: dict[str, str] = {}
     asset_references: list[tuple[str, str, str]] = []
     for path in sorted(authority_by_path):
         page_url = urljoin(site_root, path.lstrip("/"))
@@ -620,7 +619,6 @@ def verify(
         asset_references.extend(
             collect_hashed_assets(errors, site_root, page_url, body, canonical_root)
         )
-        pages[path] = body
 
     for alias_path, target_path in html_alias_redirects(html_authority):
         alias_url = urljoin(site_root, alias_path.lstrip("/"))
@@ -700,14 +698,13 @@ def verify(
                     f"expected {custom_digest!r}, SHA-256={alias_digest}"
                 )
 
-    evidence_body = pages.get("/evidence/", "")
-    for marker in (
-        'href="https://ardent.tools/evidence/"',
-        "Would show:",
-        "0 published casts.",
-    ):
-        if marker not in evidence_body:
-            errors.append(f"/evidence/ lacks deployment marker {marker!r}")
+    # /evidence/'s CONTENT correctness (not just deployment currency) is
+    # checked at gate time against the built tree, before merge —
+    # bin/validate-site.py's EVIDENCE_PAGE_DEPLOYMENT_MARKERS. Here, the
+    # build-revision.txt self-report plus the byte-for-byte digest match
+    # against release-html.json above already prove the live page is
+    # identical to what that exact commit built; a further live substring
+    # scan would only re-check bytes this loop already hashed in full.
 
     assets = distinct_assets(errors, asset_references)
     manifest_urls = {

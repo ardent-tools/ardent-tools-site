@@ -3577,6 +3577,54 @@ class CacheContractTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+class EvidencePageMarkerGateContractTests(unittest.TestCase):
+    """A content regression that drops an /evidence/ marker must fail the
+    gate against the BUILT tree, before merge — not only the post-deploy
+    live verifier, which can only prove byte-identity to whatever the
+    build already produced (see bin/verify-production.py's rationale
+    comment where the equivalent live check used to live)."""
+
+    def write_evidence_page(self, output: Path, body: str) -> None:
+        page = output / "evidence/index.html"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(body)
+
+    def test_complete_evidence_page_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.write_evidence_page(
+                output,
+                '<link rel="canonical" href="https://ardent.tools/evidence/">'
+                "Would show: 0 published casts.",
+            )
+            errors: list[str] = []
+            site.validate_evidence_page_markers(errors, output)
+        self.assertEqual(errors, [])
+
+    def test_each_missing_marker_fails_closed(self) -> None:
+        complete = (
+            '<link rel="canonical" href="https://ardent.tools/evidence/">'
+            "Would show: 0 published casts."
+        )
+        for marker in site.EVIDENCE_PAGE_DEPLOYMENT_MARKERS:
+            with self.subTest(marker=marker):
+                with tempfile.TemporaryDirectory() as directory:
+                    output = Path(directory)
+                    self.write_evidence_page(output, complete.replace(marker, ""))
+                    errors: list[str] = []
+                    site.validate_evidence_page_markers(errors, output)
+                self.assertTrue(
+                    any(marker in error for error in errors), (marker, errors)
+                )
+
+    def test_unreadable_evidence_page_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            errors: list[str] = []
+            site.validate_evidence_page_markers(errors, output)
+        self.assertTrue(errors)
+
+
 class RecordingContractTests(unittest.TestCase):
     def test_unsafe_tape_and_typed_success_token_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
