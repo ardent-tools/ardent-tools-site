@@ -3,14 +3,10 @@
    composition. No recording surface renders without a published cast. #}
 {% extends "base.html" %}
 {% import "partials/catalog-row.html" as catalog_row %}
+{% import "partials/asset-url.html" as asset_url %}
 
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
-
-{% block ld_json %}
-  {%- include "partials/ld-organization.html" -%}
-  {%- include "partials/ld-person.html" -%}
-{% endblock ld_json %}
 
 {% block content %}
 {%- set systems = get_section(path="systems/_index.md") %}
@@ -23,7 +19,7 @@
   <p class="home-lede">{{ section.extra.lede }}</p>
   <div class="home-ctas" aria-label="Ways to work together">
     <a href="/consulting/" class="button">Discuss a consulting engagement</a>
-    <a href="/resume/" class="text-action">Hiring for a role? Read the resume&nbsp;&rarr;</a>
+    <a href="{{ asset_url::hashed(path="files/cody-kickertz-resume.pdf") | safe }}" download="cody-kickertz-resume.pdf" class="text-action">Hiring for a role? Read the resume&nbsp;&rarr;</a>
   </div>
 </header>
 

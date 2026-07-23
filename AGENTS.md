@@ -29,7 +29,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 |---|---|---|
 | `templates/base.html` | Shadow | Adds `site.css`, `syntax.css`, conditional player blocks, and `site.js` after typikon's own stylesheet/scripts. Also resolves titles once, layers Person JSON-LD onto Organization, and adds the flame favicon set plus a light-only `theme-color`. |
 | `templates/index.html` | Shadow | Evidence-lab home: consulting/role paths, a source-linked proof surface, selected systems, a derived fleet map, recent writing, and a consulting close. |
-| `templates/page.html` | Shadow | Wraps `page.content` (+ product-gallery/video) in `.prose` (DESIGN-v1.1 §1.2) — the reading-measure cap for generic content pages (about, colophon, contact, resume, 404). Templates that override `{% block content %}` themselves (`system.html`, `faq.html`, `consulting.html`) do their own `.prose` wrap instead; this file's content block only renders for pages using `page.html` as-is. |
+| `templates/page.html` | Shadow | Wraps `page.content` (+ product-gallery/video) in `.prose` (DESIGN-v1.1 §1.2) — the reading-measure cap for generic content pages (about, colophon, contact, 404). Templates that override `{% block content %}` themselves (`system.html`, `faq.html`, `consulting.html`) do their own `.prose` wrap instead; this file's content block only renders for pages using `page.html` as-is. |
 | `templates/faq.html` | Shadow | `.faq-page` article carries `.prose` too (DESIGN-v1.1 §1.2 — faq answers are an explicit prose context). Otherwise identical to typikon's own `faq.html`. |
 | `templates/systems.html` | New | Data-driven full-fleet catalog: Systems loops `section.pages`; Libraries/Web/In-design loop the section ledger. Group counts are computed in-template. |
 | `templates/system.html` | New | Fact-row header plus optional real-cast/diagram slot; player assets and panel require `extra.demo.cast`. Body prose narrows while evidence furniture stays at shell width. |
@@ -110,7 +110,7 @@ route table intentionally leaves `/a/*` on native static serving; the manifest
 proves every known member, while unknown physical-namespace misses retain native
 Pages behavior. `_redirects` responses are
 checked only for status and location because Cloudflare Pages resolves redirects
-before `_headers`; the complete six-rule file is validated locally, and
+before `_headers`; the complete rule file (SUPPORTED_REDIRECTS in `bin/redirect_contract.py`) is validated locally, and
 production probes a safe representative for every declaration without following
 it. The two system wildcard probes are revision-specific; the exact `/demos`
 rule and its catch-all use fixed non-destructive paths, and `/404` plus
@@ -126,6 +126,6 @@ must report only embedded/subsetted Nimbus Sans Regular and Bold.
 ## Open items from the build pass
 
 - No casts are published. The evidence register shows recording targets as backlog prose; no player request, panel, WATCH link, or WebAssembly CSP exception exists until a real cast lands and the contract gate is updated.
-- The résumé PDF source is `static/files/cody-kickertz-resume.pdf`; `content/resume.md` names that logical source and finalization emits a physical full-digest URL with the stable download filename `cody-kickertz-resume.pdf`.
+- The résumé PDF source is `static/files/cody-kickertz-resume.pdf`, linked from `/consulting/` (its home page — `/resume/` 301s there), `/about/`, `/contact/`, and the home hero; finalization emits a physical full-digest URL with the stable download filename `cody-kickertz-resume.pdf`.
 - `about.md` carries no `## Influences` section (removed in v1.1 phase A pending the operator's actual 5-8 entries; add it back only with real content).
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared. No build-pass report exists in this repo; check `kanon planning` for each repo's current gate status.
