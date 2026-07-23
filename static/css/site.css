@@ -97,7 +97,7 @@
    English headlines). */
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('/fonts/plex-mono-600-latin.woff2') format('woff2');
+  src: url('/fonts/plex-mono-600-latin.woff2?h=bcc2e809c6adce034b1d&v=2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -163,7 +163,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: url('/img/grain.svg');
+  background: url('/img/grain.svg?h=ce8b1b44003fee7e991f&v=2');
   background-size: 240px 240px;
   opacity: var(--grain-opacity);
 }
@@ -622,8 +622,8 @@ a:hover {
   margin-left: 0.05em;
   order: 2;
   background-color: var(--accent);
-  -webkit-mask-image: url('/img/logo-flame.svg');
-  mask-image: url('/img/logo-flame.svg');
+  -webkit-mask-image: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2');
+  mask-image: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
@@ -1097,8 +1097,8 @@ a:active {
   margin-right: 0.4em;
   vertical-align: -0.08em;
   background-color: var(--accent);
-  -webkit-mask: url('/img/logo-flame.svg') no-repeat center / contain;
-  mask: url('/img/logo-flame.svg') no-repeat center / contain;
+  -webkit-mask: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2') no-repeat center / contain;
+  mask: url('/img/logo-flame.svg?h=0ff3e294ee862b133980&v=2') no-repeat center / contain;
 }
 
 footer {

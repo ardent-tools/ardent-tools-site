@@ -9,6 +9,6 @@ AI Systems Architect. I build the standards gates, guardrails, memory systems, a
 
 Every number in it carries its own measurement method — the same rule as the rest of this site. It went through an adversarial verification pass against the underlying repos and records before landing here, which reduced several claims and did not increase any.
 
-[Download the resume (PDF)](/files/cody-kickertz-resume.pdf)
+{{ resource_link(path="files/cody-kickertz-resume.pdf", label="Download the resume (PDF)") }}
 
 Questions about anything in it: [email cody@ardent.tools](mailto:cody@ardent.tools?subject=Resume).

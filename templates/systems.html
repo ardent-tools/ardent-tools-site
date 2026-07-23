@@ -13,6 +13,7 @@
    (§8 phase A item 2's whole bug class).
 #}
 {% extends "base.html" %}
+{% import "partials/asset-url.html" as asset_url %}
 {% import "partials/catalog-row.html" as catalog_row %}
 {% import "partials/catalog-ledger.html" as ledger %}
 
@@ -22,7 +23,7 @@
 {# Autodiscovery for the machine-readable catalog (DESIGN-v1.3 §4 item 5)
    — same pattern as base.html's atom-feed <link>. #}
 {% block head_extra %}
-<link rel="alternate" type="application/json" href="/systems.json" title="Systems catalog (JSON)">
+<link rel="alternate" type="application/json" href="{{ asset_url::hashed(path='systems.json') | safe }}" title="Systems catalog (JSON)">
 {% endblock head_extra %}
 
 {% block content %}

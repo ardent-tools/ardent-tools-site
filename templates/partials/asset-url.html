@@ -1,6 +1,7 @@
-{# A single authored asset identity: Zola's 20-hex content digest plus the
-   release-scoped epoch from config.toml. Keep this macro as the only URL
-   constructor used for CSS and JavaScript. #}
+{# A single authored resource identity: Zola's 20-hex content digest plus the
+   release-scoped epoch from config.toml. Keep this macro as the only template
+   URL constructor for non-canonical public files. #}
 {% macro hashed(path) -%}
-{{ get_url(path=path, cachebust=true) | safe }}&amp;v={{ config.extra.asset_epoch }}
+{%- set normalized = path | trim_start_matches(pat="/") -%}
+{{ get_url(path=normalized, cachebust=true) | safe }}&amp;v={{ config.extra.asset_epoch }}
 {%- endmacro hashed %}

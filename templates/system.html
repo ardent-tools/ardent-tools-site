@@ -58,7 +58,7 @@
     <span>{{ page.title }} &middot; architecture</span>
   </div>
   <div class="term-mat diagram-plate">
-    <img class="diagram-img" src="/{{ page.extra.svg_diagram | safe }}" alt="{{ page.extra.svg_diagram_alt | default(value=page.title ~ ' architecture diagram') }}" width="960" height="540">
+    <img class="diagram-img" src="{{ asset_url::hashed(path=page.extra.svg_diagram) | safe }}" alt="{{ page.extra.svg_diagram_alt | default(value=page.title ~ ' architecture diagram') }}" width="960" height="540">
   </div>
   <figcaption class="term-caption">{{ page.extra.svg_diagram_caption | default(value="No demo. This system is employer property; the patterns are the transferable part.") }}</figcaption>
 </figure>

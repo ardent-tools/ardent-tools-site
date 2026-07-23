@@ -16,6 +16,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qsl, urljoin, urlparse
 
+from release_manifest import (
+    read_contract,
+    validate_manifest,
+    validate_public_references,
+)
+
 BASE_URL = "https://ardent.tools"
 ATOM = "{http://www.w3.org/2005/Atom}"
 SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
@@ -369,6 +375,7 @@ def validate_player_contract(
     headers: str,
     output: Path,
     static_root: Path = Path("static"),
+    asset_epoch: str = "INVALID",
 ) -> None:
     asset_pattern = re.compile(
         r"(?:href|src)=[\"'][^\"']*/vendor/asciinema/asciinema-player", re.I
@@ -394,9 +401,12 @@ def validate_player_contract(
         cast_file = static_root / cast.lstrip("/")
         if not cast_file.is_file():
             fail(errors, f"{source}: cast points to missing {cast_file}")
+            continue
         page_path = output / "systems" / source.stem / "index.html"
         page_html = html.get(page_path, "")
-        marker = f'data-cast="{cast}"'
+        cast_hash = hashlib.sha256(cast_file.read_bytes()).hexdigest()[:20]
+        cast_url = f"{BASE_URL}{cast}?h={cast_hash}&amp;v={asset_epoch}"
+        marker = f'data-cast="{cast_url}"'
         corpus_count = sum(text.count(marker) for text in html.values())
         if corpus_count != 1:
             fail(errors, f"{source}: expected exactly one rendered data-cast, found {corpus_count}")
@@ -434,6 +444,32 @@ def main() -> int:
 
     validate_revision(errors, output, args.expected_revision)
     validate_cache_contract(errors, output, headers)
+
+    contract, contract_errors = read_contract()
+    errors.extend(contract_errors)
+    sentinel = output / "build-revision.txt"
+    release_revision = args.expected_revision
+    if release_revision is None and sentinel.is_file():
+        candidate = sentinel.read_text(errors="replace").removesuffix("\n")
+        if REVISION_RE.fullmatch(candidate):
+            release_revision = candidate
+    release_manifest: dict = {}
+    if contract and release_revision is not None:
+        manifest_path = output / contract["manifest_name"]
+        if not manifest_path.is_file():
+            fail(errors, f"missing {contract['manifest_name']}")
+        else:
+            release_manifest, manifest_errors = validate_manifest(
+                manifest_path.read_bytes(),
+                output=output,
+                expected_revision=release_revision,
+                expected_epoch=asset_epoch,
+                contract=contract,
+            )
+            errors.extend(manifest_errors)
+            errors.extend(validate_public_references(output, release_manifest))
+    elif release_revision is None:
+        fail(errors, "cannot validate release manifest without a valid build revision")
 
     sitemap_path = output / "sitemap.xml"
     atom_path = output / "atom.xml"
@@ -534,7 +570,7 @@ def main() -> int:
     html_files = sorted(output.rglob("*.html"))
     html = {path: path.read_text() for path in html_files}
     validate_asset_contract(errors, html, output, asset_epoch)
-    validate_player_contract(errors, casts, html, headers, output)
+    validate_player_contract(errors, casts, html, headers, output, asset_epoch=asset_epoch)
 
     evidence_path = output / "evidence/index.html"
     demos_path = output / "demos/index.html"
@@ -681,6 +717,7 @@ def main() -> int:
         "third-party application dependencies",
         "No third-party application requests",
         "Every push runs",
+        "Every response is authored `no-store, no-transform`",
     ):
         if stale_claim in source_corpus:
             fail(errors, f"stale dependency or trigger claim remains: {stale_claim!r}")

@@ -28,6 +28,12 @@ for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum c
     exit 1
   }
 done
+ASSET_EPOCH=$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("config.toml").read_text())["extra"]["asset_epoch"])')
+[[ "$ASSET_EPOCH" =~ ^[1-9][0-9]*$ ]] || {
+  echo "ERROR: config.toml extra.asset_epoch must be a nonzero decimal string" >&2
+  exit 1
+}
+readonly ASSET_EPOCH
 [[ "$(typst --version)" == typst\ 0.14.2* ]] || {
   echo "ERROR: Typst 0.14.2 is required for the tracked résumé" >&2
   exit 1
@@ -113,10 +119,23 @@ echo "==> production build, CSP, and strict contracts"
 zola build --output-dir "$PROD_OUTPUT"
 cp _headers "$PROD_OUTPUT/_headers"
 cp _redirects "$PROD_OUTPUT/_redirects"
+# Zola copies three theme directory placeholders. They are repository
+# scaffolding, not deployable public artifacts; remove only these exact paths
+# before the retained-tree manifest defines the production artifact set.
+for placeholder in \
+  "$PROD_OUTPUT/casts/.gitkeep" \
+  "$PROD_OUTPUT/css/.gitkeep" \
+  "$PROD_OUTPUT/js/.gitkeep"; do
+  if [[ -f "$placeholder" && ! -L "$placeholder" ]]; then
+    rm -- "$placeholder"
+  fi
+done
 printf '%s\n' "$BUILD_REVISION" > "$PROD_OUTPUT/build-revision.txt"
 if [[ -f "$PROD_OUTPUT/404/index.html" ]]; then
   cp "$PROD_OUTPUT/404/index.html" "$PROD_OUTPUT/404.html"
 fi
+python3 bin/release_manifest.py "$PROD_OUTPUT" \
+  --revision "$BUILD_REVISION" --asset-epoch "$ASSET_EPOCH"
 themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
 python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 

@@ -19,7 +19,7 @@ corpus is not, absent written consent.
 - [Systems catalog](https://ardent.tools/systems/): seven systems, the
   libraries underneath them, and what's on the drawing board — seventeen
   public repositories and one private tool with a public track record.
-- [Systems catalog, machine-readable](https://ardent.tools/systems.json):
+- [Systems catalog, machine-readable](https://ardent.tools/systems.json?h=3cb30005500e75a30ce7&v=2):
   the same catalog as structured JSON.
 
 ## Practice

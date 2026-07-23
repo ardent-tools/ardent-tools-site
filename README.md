@@ -39,16 +39,32 @@ removes that exact directory on exit or signal, and verifies that the worktree
 and `playwright.config.ts` are unchanged. CI alone sets
 `ARDENT_RETAIN_VALIDATED_PUBLIC=1`; that mode refuses to replace an existing
 `public/` and moves the already validated production tree there for Wrangler.
+
 The validated tree carries `build-revision.txt`; CI supplies the exact GitHub
-revision. Every authored CSS/JavaScript URL has one Zola content digest and the
-single release asset epoch from `config.toml`. The post-deploy verifier refuses
-a different live sentinel, derives the finite HTML route set from the sitemap,
-fetches every exact authored asset URL, and checks its body digest plus the
-effective `no-store, no-transform` policy at the CDN boundary.
+revision. It also carries a deterministic `release-resources.json` generated
+from every non-HTML regular file in that exact tree. Non-canonical resource URLs
+have one content digest and the single release asset epoch from `config.toml`.
+The post-deploy verifier refuses a different live sentinel, loads its authority
+from the retained local manifest, derives canonical HTML routes from the
+sitemap, and separately probes the custom 404. It fetches every exact resource
+URL without redirects and checks full response-body digests plus the effective
+`no-store, no-transform` policy. Compatibility redirects remain status/location
+checks because Cloudflare Pages applies `_redirects` before `_headers`.
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages, then verifies the revision sentinel and authored hashed assets at the live boundary. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision, release-resource and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages, then verifies that tree's sentinel, manifest, canonical pages, custom 404, tombstones, and resources at the live boundary. See `.github/workflows/deploy.yml`.
+
+Cloudflare documents that a Pages deployment can leave an earlier asset in a
+data center for up to one week and recommends a zone cache purge when stale
+assets appear. The existing workflow secrets establish Pages deployment access,
+not a zone ID and cache-purge permission, so this repository does not invent a
+purge call. For the `v=2` transition release, the operator must purge the
+`ardent.tools` zone after deployment and before accepting the live verifier.
+Already-held browser cache entries cannot be revoked; the new epoch makes every
+current non-canonical reference use a different key, while the release tombstone
+keeps `/tapes/aletheia-memory.tape` absent through 2026-08-21. See
+[Cloudflare Pages serving behavior](https://developers.cloudflare.com/pages/configuration/serving-pages/).
 
 ## License
 

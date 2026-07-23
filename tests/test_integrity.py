@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "bin"))
 
 
 def load_script(name: str, filename: str):
@@ -27,18 +29,31 @@ site = load_script("ardent_validate_site", "validate-site.py")
 production = load_script("ardent_verify_production", "verify-production.py")
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
+release = load_script("ardent_release_manifest", "release_manifest.py")
 
 BASE_URL = "https://ardent.tools"
 EXPECTED_REVISION = "2" * 40
 ASSET_EPOCH = "2"
 CSS_BODY = b"body { color: #231f20; }\n"
 JS_BODY = b"document.documentElement.dataset.ready = 'true';\n"
+ERROR_JS_BODY = b"document.documentElement.dataset.errorPage = 'true';\n"
 CSS_HASH = hashlib.sha256(CSS_BODY).hexdigest()[:20]
 JS_HASH = hashlib.sha256(JS_BODY).hexdigest()[:20]
+ERROR_JS_HASH = hashlib.sha256(ERROR_JS_BODY).hexdigest()[:20]
 CSS_URL = f"{BASE_URL}/css/site.css?h={CSS_HASH}&v={ASSET_EPOCH}"
 JS_URL = f"{BASE_URL}/js/site.js?h={JS_HASH}&v={ASSET_EPOCH}"
+ERROR_JS_URL = f"{BASE_URL}/js/error.js?h={ERROR_JS_HASH}&v={ASSET_EPOCH}"
+ASSET_MARKUP = (
+    f'<link rel="stylesheet" href="{CSS_URL}">'
+    f'<script src="{JS_URL}" defer></script>'
+)
 GOOD_CACHE = "no-store, no-transform"
-GOOD_CSP = "default-src 'self'; script-src 'self'"
+GOOD_CSP = (
+    "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
+    "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
+    "frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; "
+    "worker-src 'none'; upgrade-insecure-requests"
+)
 
 
 def run_production_fixture(
@@ -51,67 +66,149 @@ def run_production_fixture(
     js_body: bytes = JS_BODY,
     js_cache: str = GOOD_CACHE,
     js_status: int = 200,
+    error_js_body: bytes = ERROR_JS_BODY,
+    about_status: int = 200,
+    about_body: bytes | None = None,
+    custom_404_status: int = 404,
+    custom_404_body: bytes | None = None,
+    custom_404_cache: str = GOOD_CACHE,
+    custom_404_csp: str = GOOD_CSP,
+    tombstone_status: int = 404,
+    tombstone_cache: str = GOOD_CACHE,
+    live_manifest_body: bytes | None = None,
+    resource_overrides: dict[str, tuple[int, str, bytes]] | None = None,
 ) -> list[str]:
-    assets = (
-        f'<link rel="stylesheet" href="{CSS_URL}">'
-        f'<script src="{JS_URL}" defer></script>'
-    )
-    responses = {
-        (f"{BASE_URL}/build-revision.txt", True): (
-            200,
-            {"Cache-Control": revision_cache},
-            f"{revision}\n".encode(),
-        ),
-        (f"{BASE_URL}/sitemap.xml", True): (
+    assets = ASSET_MARKUP
+    sitemap_body = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f"<url><loc>{BASE_URL}/</loc></url>"
+        f"<url><loc>{BASE_URL}/about/</loc></url>"
+        f"<url><loc>{BASE_URL}/evidence/</loc></url>"
+        "</urlset>"
+    ).encode()
+    with tempfile.TemporaryDirectory() as directory:
+        output = Path(directory)
+        files = {
+            "atom.xml": b"<feed/>\n",
+            "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
+            "css/site.css": CSS_BODY,
+            "js/site.js": JS_BODY,
+            "js/error.js": ERROR_JS_BODY,
+            "llms.txt": b"release fixture\n",
+            "robots.txt": b"User-agent: *\n",
+            "site.webmanifest": b"{}\n",
+            "sitemap.xml": sitemap_body,
+            "speculation-rules.json": b"{}\n",
+            "systems.json": b"[]\n",
+        }
+        for relative, body in files.items():
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+        contract, contract_errors = release.read_contract(ROOT / "release-resources.toml")
+        test.assertEqual(contract_errors, [])
+        manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
+        manifest_bytes = release.serialize_manifest(manifest)
+        (output / contract["manifest_name"]).write_bytes(manifest_bytes)
+
+        responses: dict[tuple[str, bool], tuple[int, dict[str, str], bytes]] = {}
+        for item in manifest["resources"]:
+            body = files[item["output_path"]]
+            status = 200
+            cache = GOOD_CACHE
+            if item["output_path"] == "build-revision.txt":
+                body = f"{revision}\n".encode()
+                cache = revision_cache
+            elif item["output_path"] == "css/site.css":
+                body = css_body
+                cache = css_cache
+            elif item["output_path"] == "js/site.js":
+                body = js_body
+                cache = js_cache
+                status = js_status
+            elif item["output_path"] == "js/error.js":
+                body = error_js_body
+            if resource_overrides and item["output_path"] in resource_overrides:
+                status, cache, body = resource_overrides[item["output_path"]]
+            url = f"{BASE_URL}{item['request_url']}"
+            responses[(url, False)] = (status, {"Cache-Control": cache}, body)
+
+        responses[(f"{BASE_URL}/{contract['manifest_name']}", False)] = (
             200,
             {"Cache-Control": GOOD_CACHE},
-            (
-                '<?xml version="1.0" encoding="UTF-8"?>'
-                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-                f"<url><loc>{BASE_URL}/</loc></url>"
-                f"<url><loc>{BASE_URL}/evidence/</loc></url>"
-                "</urlset>"
-            ).encode(),
-        ),
-        **{
-            (f"{BASE_URL}{path}", False): (
-                200,
-                {"Cache-Control": GOOD_CACHE},
-                b"structured resource\n",
-            )
-            for path in production.STRUCTURED_RESOURCE_PATHS
-        },
-        (f"{BASE_URL}/", True): (
+            manifest_bytes if live_manifest_body is None else live_manifest_body,
+        )
+        page_headers = {"Cache-Control": GOOD_CACHE, "Content-Security-Policy": GOOD_CSP}
+        responses[(f"{BASE_URL}/", False)] = (
             200,
-            {"Cache-Control": GOOD_CACHE, "Content-Security-Policy": GOOD_CSP},
-            assets.encode(),
-        ),
-        (f"{BASE_URL}/evidence/", True): (
+            page_headers,
+            (f'<link rel="canonical" href="{BASE_URL}/">{assets}').encode(),
+        )
+        default_about = (
+            f'<link rel="canonical" href="{BASE_URL}/about/">About{assets}'
+        ).encode()
+        responses[(f"{BASE_URL}/about/", False)] = (
+            about_status,
+            page_headers,
+            default_about if about_body is None else about_body,
+        )
+        responses[(f"{BASE_URL}/evidence/", False)] = (
             200,
             {"cache-control": GOOD_CACHE, "content-security-policy": GOOD_CSP},
             (
-                '<link rel="canonical" href="https://ardent.tools/evidence/">'
+                f'<link rel="canonical" href="{BASE_URL}/evidence/">'
                 "Evidence register 0 published casts."
                 f"{assets}"
             ).encode(),
-        ),
-        (CSS_URL, False): (200, {"CACHE-CONTROL": css_cache}, css_body),
-        (JS_URL, False): (js_status, {"Cache-Control": js_cache}, js_body),
-        (f"{BASE_URL}/demos/", False): (301, {"Location": "/evidence/"}, b""),
-    }
-    calls: list[tuple[str, bool]] = []
+        )
+        missing_path = production.missing_probe_path(EXPECTED_REVISION)
+        default_404 = (
+            "404: no such path Return home "
+            f'<link rel="stylesheet" href="{CSS_URL}">'
+            f'<script src="{ERROR_JS_URL}" defer></script>'
+        ).encode()
+        responses[(f"{BASE_URL}{missing_path}", False)] = (
+            custom_404_status,
+            {
+                "Cache-Control": custom_404_cache,
+                "Content-Security-Policy": custom_404_csp,
+            },
+            default_404 if custom_404_body is None else custom_404_body,
+        )
+        for tombstone in manifest["tombstones"]:
+            responses[(f"{BASE_URL}{tombstone['path']}", False)] = (
+                tombstone_status,
+                {"Cache-Control": tombstone_cache},
+                b"not found\n",
+            )
+        responses[(f"{BASE_URL}/demos/", False)] = (
+            301,
+            {"Location": "/evidence/"},
+            b"",
+        )
+        calls: list[tuple[str, bool]] = []
+        expected_calls = len(responses)
 
-    def response(url: str, _timeout: float, follow: bool = True):
-        key = (url, follow)
-        calls.append(key)
-        test.assertIn(key, responses, f"unexpected or duplicate request: {key!r}")
-        return responses.pop(key)
+        def response(url: str, _timeout: float, follow: bool = True):
+            key = (url, follow)
+            calls.append(key)
+            test.assertIn(key, responses, f"unexpected or duplicate request: {key!r}")
+            return responses.pop(key)
 
-    with mock.patch.object(production, "request", side_effect=response):
-        errors = production.verify(BASE_URL, 1.0, EXPECTED_REVISION, ASSET_EPOCH)
-    test.assertEqual(responses, {}, f"required URLs were not requested: {responses!r}")
-    test.assertEqual(len(calls), 7 + len(production.STRUCTURED_RESOURCE_PATHS))
-    return errors
+        with mock.patch.object(production, "request", side_effect=response):
+            errors = production.verify(
+                BASE_URL,
+                1.0,
+                EXPECTED_REVISION,
+                ASSET_EPOCH,
+                manifest,
+                manifest_bytes,
+                contract["manifest_name"],
+            )
+        test.assertEqual(responses, {}, f"required URLs were not requested: {responses!r}")
+        test.assertEqual(len(calls), expected_calls)
+        return errors
 
 
 class RevisionContractTests(unittest.TestCase):
@@ -135,9 +232,12 @@ class ProductionAssetContractTests(unittest.TestCase):
 
     def test_stale_body_at_exact_authored_url_fails_digest(self) -> None:
         errors = run_production_fixture(self, js_body=b"stale JavaScript body\n")
-        self.assertEqual(len(errors), 1, errors)
-        self.assertIn("authored JavaScript asset digest mismatch", errors[0])
-        self.assertIn(JS_URL, errors[0])
+        self.assertEqual(len(errors), 2, errors)
+        self.assertTrue(any("release resource digest mismatch" in error for error in errors), errors)
+        self.assertTrue(
+            any("authored JavaScript asset digest mismatch" in error for error in errors), errors
+        )
+        self.assertTrue(all("/js/site.js?h=" in error for error in errors), errors)
 
     def test_immutable_asset_cache_policy_fails(self) -> None:
         errors = run_production_fixture(
@@ -150,7 +250,8 @@ class ProductionAssetContractTests(unittest.TestCase):
     def test_non_200_authored_asset_fails(self) -> None:
         errors = run_production_fixture(self, js_status=404, js_body=b"not found")
         self.assertEqual(len(errors), 1, errors)
-        self.assertIn(f"{JS_URL!r} returned 404, expected 200", errors[0])
+        self.assertIn("returned 404, expected direct 200", errors[0])
+        self.assertIn("/js/site.js", errors[0])
 
     def test_revision_cache_policy_rejects_immutable(self) -> None:
         errors = run_production_fixture(
@@ -240,6 +341,204 @@ class ProductionAssetContractTests(unittest.TestCase):
                     ASSET_EPOCH,
                 )
                 self.assertEqual(len(errors), 1, errors)
+
+
+class ProductionRouteContractTests(unittest.TestCase):
+    def test_custom_404_probe_is_revision_specific_and_disjoint(self) -> None:
+        path = production.missing_probe_path(EXPECTED_REVISION)
+        self.assertEqual(path, production.missing_probe_path(EXPECTED_REVISION))
+        self.assertNotEqual(path, production.missing_probe_path("3" * 40))
+        self.assertRegex(path, r"^/__ardent-missing-[0-9a-f]{24}/$")
+        errors: list[str] = []
+        self.assertTrue(production.missing_probe_is_disjoint(errors, path, ["/", "/about/"]))
+        self.assertEqual(errors, [])
+
+    def test_custom_404_probe_collision_fails_closed(self) -> None:
+        path = production.missing_probe_path(EXPECTED_REVISION)
+        errors: list[str] = []
+        self.assertFalse(production.missing_probe_is_disjoint(errors, path, ["/", path]))
+        self.assertIn("collides with sitemap route", errors[0])
+
+    def test_custom_404_wrong_status_and_missing_marker_fail(self) -> None:
+        errors = run_production_fixture(
+            self,
+            custom_404_status=200,
+            custom_404_body=("Return home " + ASSET_MARKUP).encode(),
+        )
+        self.assertTrue(any("expected exact 404" in error for error in errors), errors)
+        self.assertTrue(any("lacks custom 404 marker '404: no such path'" in error for error in errors), errors)
+
+    def test_custom_404_cache_csp_and_injection_fail(self) -> None:
+        errors = run_production_fixture(
+            self,
+            custom_404_cache="public, max-age=0, must-revalidate",
+            custom_404_csp="default-src *; script-src 'unsafe-inline'",
+            custom_404_body=(
+                "404: no such path Return home <span data-cfemail>hidden</span> "
+                + ASSET_MARKUP
+            ).encode(),
+        )
+        self.assertTrue(any("Cache-Control must be exactly" in error for error in errors), errors)
+        self.assertTrue(any("strict zero-cast CSP differs" in error for error in errors), errors)
+        self.assertTrue(any("Cloudflare email-protection" in error for error in errors), errors)
+
+    def test_custom_404_malformed_asset_epoch_fails(self) -> None:
+        malformed = (
+            "404: no such path Return home "
+            f'<link rel="stylesheet" href="{CSS_URL}">'
+            f'<script src="/js/site.js?h={JS_HASH}&v=1"></script>'
+        ).encode()
+        errors = run_production_fixture(self, custom_404_body=malformed)
+        self.assertTrue(any("expected '2'" in error for error in errors), errors)
+
+    def test_custom_404_only_asset_stale_bytes_fail_digest(self) -> None:
+        errors = run_production_fixture(self, error_js_body=b"stale custom 404 script\n")
+        self.assertTrue(
+            any("release resource digest mismatch" in error and "/js/error.js" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("authored JavaScript asset digest mismatch" in error and ERROR_JS_URL in error for error in errors),
+            errors,
+        )
+
+    def test_canonical_route_redirect_cannot_hide(self) -> None:
+        errors = run_production_fixture(self, about_status=301)
+        self.assertTrue(any("/about/ returned 301, expected direct 200" in error for error in errors), errors)
+
+    def test_canonical_route_rewrite_to_root_body_cannot_hide(self) -> None:
+        root_body = (
+            f'<link rel="canonical" href="{BASE_URL}/">Root body{ASSET_MARKUP}'
+        ).encode()
+        errors = run_production_fixture(self, about_body=root_body)
+        self.assertTrue(any("canonical resolves" in error and "/about/" in error for error in errors), errors)
+
+
+class ReleaseManifestContractTests(unittest.TestCase):
+    def make_fixture(self, output: Path) -> tuple[dict, dict, bytes]:
+        contract, contract_errors = release.read_contract(ROOT / "release-resources.toml")
+        self.assertEqual(contract_errors, [])
+        bodies = {
+            "atom.xml": b"<feed/>\n",
+            "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
+            "llms.txt": b"fixture\n",
+            "robots.txt": b"fixture\n",
+            "sitemap.xml": b"<urlset/>\n",
+            "files/report.pdf": b"pdf bytes\n",
+        }
+        for relative, body in bodies.items():
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+        manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
+        return contract, manifest, release.serialize_manifest(manifest)
+
+    def test_manifest_schema_path_and_query_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, manifest, _ = self.make_fixture(output)
+            manifest["resources"][-1]["output_path"] = "../escape"
+            manifest["resources"][-1]["request_url"] = "https://example.com/report.pdf"
+            _, errors = release.validate_manifest(
+                release.serialize_manifest(manifest),
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+        self.assertTrue(any("invalid output_path" in error for error in errors), errors)
+        self.assertTrue(any("coverage differs" in error for error in errors), errors)
+
+    def test_manifest_count_and_duplicate_url_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, manifest, _ = self.make_fixture(output)
+            manifest["resource_count"] += 1
+            manifest["resources"][1]["request_url"] = manifest["resources"][0]["request_url"]
+            _, errors = release.validate_manifest(
+                release.serialize_manifest(manifest),
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+        self.assertTrue(any("resource_count" in error for error in errors), errors)
+        self.assertTrue(any("duplicate request_url" in error for error in errors), errors)
+
+    def test_manifest_stale_digest_and_missing_artifact_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, _manifest, raw = self.make_fixture(output)
+            (output / "files/report.pdf").write_bytes(b"changed\n")
+            _, stale_errors = release.validate_manifest(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+            (output / "files/report.pdf").unlink()
+            _, missing_errors = release.validate_manifest(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+        self.assertTrue(any("sha256 does not match" in error for error in stale_errors), stale_errors)
+        self.assertTrue(any("does not resolve" in error for error in missing_errors), missing_errors)
+        self.assertTrue(any("coverage differs" in error for error in missing_errors), missing_errors)
+
+    def test_unversioned_public_artifact_reference_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "index.html").write_text(
+                '<a href="/files/report.pdf">Download report</a>'
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("must use manifest URL", errors[0])
+
+    def test_unversioned_css_manifest_and_header_references_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "css").mkdir()
+            (output / "css/app.css").write_text("body { background: url('/files/report.pdf'); }\n")
+            (output / "site.webmanifest").write_text('{"icons":[{"src":"/files/report.pdf"}]}\n')
+            (output / "_headers").write_text('/*\n  Example-Resource: "/files/report.pdf"\n')
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 3, errors)
+        self.assertTrue(all("must use manifest URL" in error for error in errors), errors)
+
+    def test_tombstone_resurrection_fails_local_and_live(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, _manifest, _raw = self.make_fixture(output)
+            resurrected = output / "tapes/aletheia-memory.tape"
+            resurrected.parent.mkdir(parents=True)
+            resurrected.write_text("old tape\n")
+            manifest = release.build_manifest(output, EXPECTED_REVISION, ASSET_EPOCH, contract)
+            _, errors = release.validate_manifest(
+                release.serialize_manifest(manifest),
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                expected_epoch=ASSET_EPOCH,
+                contract=contract,
+            )
+        self.assertTrue(any("tombstone is present" in error for error in errors), errors)
+        live_errors = run_production_fixture(self, tombstone_status=200)
+        self.assertTrue(any("tombstone /tapes/aletheia-memory.tape returned 200" in error for error in live_errors), live_errors)
+
+    def test_live_manifest_and_structured_body_mismatch_fail(self) -> None:
+        errors = run_production_fixture(
+            self,
+            live_manifest_body=b"{}\n",
+            resource_overrides={"systems.json": (200, GOOD_CACHE, b"stale systems\n")},
+        )
+        self.assertTrue(any("live /release-resources.json bytes differ" in error for error in errors), errors)
+        self.assertTrue(any("/systems.json" in error and "digest mismatch" in error for error in errors), errors)
 
     def test_every_forbidden_cache_directive_and_duplicate_fail(self) -> None:
         policies = (
@@ -351,8 +650,10 @@ class RecordingContractTests(unittest.TestCase):
             player_css.write_bytes(CSS_BODY)
             player_js.write_bytes(JS_BODY)
             cast = "/casts/demo.cast"
+            cast_hash = hashlib.sha256(b"{}\n").hexdigest()[:20]
+            cast_url = f"{BASE_URL}{cast}?h={cast_hash}&amp;v={ASSET_EPOCH}"
             system_markup = (
-                f'<div data-cast="{cast}"></div>'
+                f'<div data-cast="{cast_url}"></div>'
                 f'<link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css?h={CSS_HASH}&amp;v=2">'
                 f'<script src="/vendor/asciinema/asciinema-player.min.js?h={JS_HASH}&amp;v=2"></script>'
             )
@@ -374,6 +675,7 @@ class RecordingContractTests(unittest.TestCase):
                 "script-src 'self' 'wasm-unsafe-eval'",
                 output,
                 static,
+                asset_epoch=ASSET_EPOCH,
             )
             self.assertEqual(errors, [])
 
@@ -395,6 +697,7 @@ class RecordingContractTests(unittest.TestCase):
                 "script-src 'self' 'wasm-unsafe-eval'",
                 output,
                 static,
+                asset_epoch=ASSET_EPOCH,
             )
             self.assertTrue(any("conditional player CSS/JS" in error for error in errors), errors)
 

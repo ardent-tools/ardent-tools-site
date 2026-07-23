@@ -17,17 +17,40 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from release_manifest import read_contract, validate_manifest
+
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 ASSET_HASH_RE = re.compile(r"^[0-9a-f]{20}$")
 ASSET_EPOCH_RE = re.compile(r"^[1-9][0-9]*$")
 SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 MAX_SITEMAP_HTML_ROUTES = 256
-STRUCTURED_RESOURCE_PATHS = (
+REQUIRED_RELEASE_PATHS = (
     "/atom.xml",
+    "/build-revision.txt",
+    "/llms.txt",
+    "/release-resources.json",
+    "/robots.txt",
+    "/sitemap.xml",
     "/systems.json",
     "/site.webmanifest",
     "/speculation-rules.json",
 )
+CUSTOM_404_MARKERS = ("404: no such path", "Return home")
+STRICT_ZERO_CAST_CSP = {
+    "default-src": ("'self'",),
+    "img-src": ("'self'",),
+    "style-src": ("'self'",),
+    "script-src": ("'self'",),
+    "font-src": ("'self'",),
+    "connect-src": ("'self'",),
+    "form-action": ("'self'",),
+    "base-uri": ("'self'",),
+    "frame-ancestors": ("'none'",),
+    "object-src": ("'none'",),
+    "manifest-src": ("'self'",),
+    "worker-src": ("'none'",),
+    "upgrade-insecure-requests": (),
+}
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -39,6 +62,7 @@ class AssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.references: list[tuple[str, str]] = []
+        self.canonicals: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
@@ -46,6 +70,8 @@ class AssetParser(HTMLParser):
             self.references.append(("JavaScript", attributes.get("src") or ""))
         if tag == "link" and "stylesheet" in (attributes.get("rel") or "").lower().split():
             self.references.append(("CSS", attributes.get("href") or ""))
+        if tag == "link" and "canonical" in (attributes.get("rel") or "").lower().split():
+            self.canonicals.append(attributes.get("href") or "")
 
 
 def merge_headers(items: list[tuple[str, str]]) -> dict[str, str]:
@@ -100,6 +126,70 @@ def validate_no_store_cache(
             f"{label} Cache-Control must be exactly no-store, no-transform; "
             f"found {cache_control!r}"
         )
+
+
+def validate_strict_csp(errors: list[str], label: str, headers: dict[str, str]) -> None:
+    raw = header(headers, "Content-Security-Policy")
+    parsed: dict[str, tuple[str, ...]] = {}
+    duplicates: list[str] = []
+    for segment in raw.split(";"):
+        tokens = segment.strip().split()
+        if not tokens:
+            continue
+        name = tokens[0].lower()
+        if name in parsed:
+            duplicates.append(name)
+        parsed[name] = tuple(tokens[1:])
+    if duplicates or parsed != STRICT_ZERO_CAST_CSP:
+        errors.append(f"{label} strict zero-cast CSP differs: {raw!r}")
+
+
+def validate_html_boundary(
+    errors: list[str], label: str, headers: dict[str, str], body: str
+) -> None:
+    validate_no_store_cache(errors, label, headers)
+    validate_strict_csp(errors, label, headers)
+    if "/cdn-cgi/" in body or "__cf_email__" in body or "data-cfemail" in body:
+        errors.append(f"{label} has Cloudflare email-protection markup/script injected")
+
+
+def validate_canonical(
+    errors: list[str], page_url: str, expected_url: str, body: str
+) -> None:
+    parser = AssetParser()
+    parser.feed(body)
+    if len(parser.canonicals) != 1:
+        errors.append(
+            f"{page_url}: expected exactly one canonical link, found {len(parser.canonicals)}"
+        )
+        return
+    try:
+        canonical = urljoin(page_url, parser.canonicals[0])
+    except ValueError:
+        errors.append(f"{page_url}: malformed canonical link {parser.canonicals[0]!r}")
+        return
+    if canonical != expected_url:
+        errors.append(
+            f"{page_url}: canonical resolves to {canonical!r}, expected {expected_url!r}"
+        )
+
+
+def missing_probe_path(expected_revision: str) -> str:
+    material = f"ardent-tools custom 404 probe\0{expected_revision}".encode("ascii")
+    token = hashlib.sha256(material).hexdigest()[:24]
+    return f"/__ardent-missing-{token}/"
+
+
+def missing_probe_is_disjoint(
+    errors: list[str], path: str, sitemap_paths: list[str]
+) -> bool:
+    if not sitemap_paths:
+        errors.append("cannot prove custom 404 probe is absent without sitemap routes")
+        return False
+    if path in set(sitemap_paths):
+        errors.append(f"custom 404 probe path collides with sitemap route: {path}")
+        return False
+    return True
 
 
 def same_origin(left: str, right: str) -> bool:
@@ -236,14 +326,38 @@ def distinct_assets(
 
 
 def verify(
-    base_url: str, timeout: float, expected_revision: str, asset_epoch: str
+    base_url: str,
+    timeout: float,
+    expected_revision: str,
+    asset_epoch: str,
+    release_manifest: dict,
+    local_manifest_bytes: bytes,
+    manifest_name: str,
 ) -> list[str]:
     errors: list[str] = []
     site_root = base_url.rstrip("/") + "/"
+    responses: dict[str, tuple[int, dict[str, str], bytes]] = {}
+
+    def fetch_exact(url: str) -> tuple[int, dict[str, str], bytes]:
+        if url not in responses:
+            responses[url] = request(url, timeout, follow=False)
+        return responses[url]
+
+    resources_by_path = {
+        f"/{item['output_path']}": item
+        for item in release_manifest.get("resources", [])
+        if isinstance(item, dict) and isinstance(item.get("output_path"), str)
+    }
+    for required in REQUIRED_RELEASE_PATHS:
+        if required == f"/{manifest_name}":
+            continue
+        if required not in resources_by_path:
+            errors.append(f"local release manifest lacks required resource {required}")
+
     revision_url = urljoin(site_root, "build-revision.txt")
-    revision_status, revision_headers, revision_body = request(revision_url, timeout)
+    revision_status, revision_headers, revision_body = fetch_exact(revision_url)
     if revision_status != 200:
-        errors.append(f"/build-revision.txt returned {revision_status}, expected 200")
+        errors.append(f"/build-revision.txt returned {revision_status}, expected direct 200")
     expected_body = f"{expected_revision}\n".encode()
     if revision_body != expected_body:
         errors.append(
@@ -252,40 +366,72 @@ def verify(
         )
     validate_no_store_cache(errors, "/build-revision.txt", revision_headers)
 
+    manifest_url = urljoin(site_root, manifest_name)
+    manifest_status, manifest_headers, manifest_body = fetch_exact(manifest_url)
+    if manifest_status != 200:
+        errors.append(f"/{manifest_name} returned {manifest_status}, expected direct 200")
+    validate_no_store_cache(errors, f"/{manifest_name}", manifest_headers)
+    if manifest_body != local_manifest_bytes:
+        errors.append(f"live /{manifest_name} bytes differ from retained local artifact")
+
     sitemap_url = urljoin(site_root, "sitemap.xml")
-    sitemap_status, sitemap_headers, sitemap_body = request(sitemap_url, timeout)
+    sitemap_status, sitemap_headers, sitemap_body = fetch_exact(sitemap_url)
     if sitemap_status != 200:
-        errors.append(f"/sitemap.xml returned {sitemap_status}, expected 200")
+        errors.append(f"/sitemap.xml returned {sitemap_status}, expected direct 200")
     validate_no_store_cache(errors, "/sitemap.xml", sitemap_headers)
     html_paths = sitemap_html_paths(errors, site_root, sitemap_body)
 
-    for path in STRUCTURED_RESOURCE_PATHS:
-        resource_url = urljoin(site_root, path.lstrip("/"))
-        status, resource_headers, _ = request(resource_url, timeout, follow=False)
-        if status != 200:
-            errors.append(f"{path} returned {status}, expected 200")
-        validate_no_store_cache(errors, path, resource_headers)
+    for item in release_manifest.get("resources", []):
+        relative_url = item["request_url"]
+        resource_url = urljoin(site_root, relative_url.lstrip("/"))
+        if not same_origin(site_root, resource_url):
+            errors.append(f"release manifest resource is not same-origin: {relative_url!r}")
+            continue
+        status, resource_headers, body = fetch_exact(resource_url)
+        directly_validated = item["output_path"] in {"build-revision.txt", "sitemap.xml"}
+        if status != 200 and not directly_validated:
+            errors.append(f"release resource {relative_url!r} returned {status}, expected direct 200")
+            continue
+        if not directly_validated:
+            validate_no_store_cache(errors, f"release resource {relative_url!r}", resource_headers)
+        if item["output_path"] == "build-revision.txt":
+            continue
+        digest = hashlib.sha256(body).hexdigest()
+        if digest != item["sha256"]:
+            errors.append(
+                f"release resource digest mismatch for {relative_url!r}: "
+                f"expected {item['sha256']}, SHA-256={digest}"
+            )
 
     pages: dict[str, str] = {}
     asset_references: list[tuple[str, str, str]] = []
     for path in html_paths:
         page_url = urljoin(site_root, path.lstrip("/"))
-        status, headers, body_bytes = request(page_url, timeout)
+        status, headers, body_bytes = fetch_exact(page_url)
         body = body_bytes.decode("utf-8", errors="replace")
         if status != 200:
-            errors.append(f"{path} returned {status}, expected 200")
-        validate_no_store_cache(errors, path, headers)
-
-        csp = header(headers, "Content-Security-Policy")
-        if "script-src 'self'" not in csp or "'unsafe-inline'" in csp or "wasm-unsafe-eval" in csp:
-            errors.append(f"{path} strict zero-cast CSP is absent: {csp!r}")
-        if "/cdn-cgi/" in body or "__cf_email__" in body or "data-cfemail" in body:
-            errors.append(f"{path} has Cloudflare email-protection markup/script injected")
-
+            errors.append(f"{path} returned {status}, expected direct 200")
+        validate_html_boundary(errors, path, headers, body)
+        validate_canonical(errors, page_url, page_url, body)
         asset_references.extend(
             collect_hashed_assets(errors, site_root, page_url, body, asset_epoch)
         )
         pages[path] = body
+
+    missing_path = missing_probe_path(expected_revision)
+    if missing_probe_is_disjoint(errors, missing_path, html_paths):
+        missing_url = urljoin(site_root, missing_path.lstrip("/"))
+        missing_status, missing_headers, missing_bytes = fetch_exact(missing_url)
+        missing_body = missing_bytes.decode("utf-8", errors="replace")
+        if missing_status != 404:
+            errors.append(f"{missing_path} returned {missing_status}, expected exact 404")
+        validate_html_boundary(errors, missing_path, missing_headers, missing_body)
+        for marker in CUSTOM_404_MARKERS:
+            if marker not in missing_body:
+                errors.append(f"{missing_path} lacks custom 404 marker {marker!r}")
+        asset_references.extend(
+            collect_hashed_assets(errors, site_root, missing_url, missing_body, asset_epoch)
+        )
 
     evidence_url = urljoin(site_root, "evidence/")
     evidence_body = pages.get("/evidence/", "")
@@ -298,15 +444,23 @@ def verify(
             errors.append(f"/evidence/ lacks deployment marker {marker!r}")
 
     assets = distinct_assets(errors, asset_references)
-
+    manifest_urls = {
+        urljoin(site_root, item["request_url"].lstrip("/"))
+        for item in release_manifest.get("resources", [])
+    }
     for asset_url, (authored_hash, kind) in assets.items():
-        asset_status, asset_headers, asset_body = request(asset_url, timeout, follow=False)
+        in_manifest = asset_url in manifest_urls
+        if not in_manifest:
+            errors.append(f"authored {kind} asset is absent from local release manifest: {asset_url!r}")
+        asset_status, asset_headers, asset_body = fetch_exact(asset_url)
         if asset_status != 200:
-            errors.append(f"authored {kind} asset {asset_url!r} returned {asset_status}, expected 200")
+            if not in_manifest:
+                errors.append(f"authored {kind} asset {asset_url!r} returned {asset_status}, expected direct 200")
             continue
-        validate_no_store_cache(
-            errors, f"authored {kind} asset {asset_url!r}", asset_headers
-        )
+        if not in_manifest:
+            validate_no_store_cache(
+                errors, f"authored {kind} asset {asset_url!r}", asset_headers
+            )
         digest = hashlib.sha256(asset_body).hexdigest()
         if not digest.startswith(authored_hash):
             errors.append(
@@ -314,8 +468,16 @@ def verify(
                 f"h={authored_hash}, SHA-256={digest}"
             )
 
+    for tombstone in release_manifest.get("tombstones", []):
+        path = tombstone["path"]
+        tombstone_url = urljoin(site_root, path.lstrip("/"))
+        status, tombstone_headers, _ = fetch_exact(tombstone_url)
+        if status not in (404, 410):
+            errors.append(f"tombstone {path} returned {status}, expected direct 404 or 410")
+        validate_no_store_cache(errors, f"tombstone {path}", tombstone_headers)
+
     demos_url = urljoin(site_root, "demos/")
-    redirect_status, redirect_headers, _ = request(demos_url, timeout, follow=False)
+    redirect_status, redirect_headers, _ = fetch_exact(demos_url)
     location = header(redirect_headers, "Location")
     if redirect_status not in (301, 308):
         errors.append(f"/demos/ returned {redirect_status}, expected permanent redirect")
@@ -332,6 +494,12 @@ def main() -> int:
     parser.add_argument("--delay", type=float, default=5.0)
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--expected-revision", required=True)
+    parser.add_argument(
+        "--artifact-root",
+        type=Path,
+        required=True,
+        help="exact retained public tree deployed by Wrangler",
+    )
     args = parser.parse_args()
     if args.attempts < 1:
         parser.error("--attempts must be at least 1")
@@ -344,12 +512,36 @@ def main() -> int:
     asset_epoch = config.get("extra", {}).get("asset_epoch")
     if not isinstance(asset_epoch, str) or not ASSET_EPOCH_RE.fullmatch(asset_epoch):
         parser.error("config.toml extra.asset_epoch must be a nonzero decimal string")
+    contract, contract_errors = read_contract()
+    if contract_errors:
+        parser.error("; ".join(contract_errors))
+    artifact_root = args.artifact_root.resolve()
+    manifest_path = artifact_root / contract["manifest_name"]
+    try:
+        local_manifest_bytes = manifest_path.read_bytes()
+    except OSError as exc:
+        parser.error(f"cannot read retained release manifest {manifest_path}: {exc}")
+    release_manifest, manifest_errors = validate_manifest(
+        local_manifest_bytes,
+        output=artifact_root,
+        expected_revision=args.expected_revision,
+        expected_epoch=asset_epoch,
+        contract=contract,
+    )
+    if manifest_errors:
+        parser.error("invalid retained release manifest: " + "; ".join(manifest_errors))
 
     last_errors: list[str] = []
     for attempt in range(1, args.attempts + 1):
         try:
             last_errors = verify(
-                args.base_url, args.timeout, args.expected_revision, asset_epoch
+                args.base_url,
+                args.timeout,
+                args.expected_revision,
+                asset_epoch,
+                release_manifest,
+                local_manifest_bytes,
+                contract["manifest_name"],
             )
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]

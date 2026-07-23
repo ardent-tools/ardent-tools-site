@@ -20,7 +20,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | Recording contract | [asciinema-player](https://github.com/asciinema/asciinema-player) v3.17.0 is vendored for future casts, but no player CSS or JavaScript is requested unless a system has a real `cast` artifact |
 | Deploy | Cloudflare Pages, via GitHub Actions on green pushes to `main` |
 | Delivery boundary | Authored output makes no remote third-party runtime/application requests. Cloudflare Pages provides edge delivery and may add platform reporting or protection unless the operator disables it |
-| Cache identity | Every response is authored `no-store, no-transform`; CSS and JavaScript URLs carry one content digest and the single release asset epoch from `config.toml`, both checked against exact live responses after deploy |
+| Cache identity | Non-redirect static site responses are configured and verified `no-store, no-transform`. Cloudflare Pages evaluates `_redirects` before `_headers`; redirect checks cover status and location without claiming those cache headers. Non-canonical public resource URLs carry one content digest and the release asset epoch, and a retained-tree manifest checks every non-HTML artifact against its exact live bytes |
 | CSP — script-src | `'self'` only. With zero published casts, no player is requested and no `wasm-unsafe-eval` exception remains |
 | CSP — style-src | `'self'` only, no inline `style="..."` anywhere — code listings use Zola's class-based syntax highlighting instead of inline colors |
 | CSP — form-action | `'self'` only. No third-party form destination, because the site carries no form at all |
@@ -38,8 +38,8 @@ Pushes to `main` and pull requests targeting `main` run the same sequence before
 4. `csp-enforce.sh` — the pinned Typikon syntactic preflight for inline script/style and disallowed remote asset forms
 5. `lychee` — external link integrity
 6. `pa11y-ci` — WCAG 2.1 AA
-7. Strict XML/content audit — feed completeness, sitemap resolution, structured-data URLs, artifact revision, exact asset digest/epoch, no-store cache policy, conditional player assets, recording-plan safety, and claim contracts
-8. pa11y and Playwright — every generated public HTML route at the required browser widths
+7. Strict XML/content audit — feed completeness, sitemap resolution, structured-data URLs, artifact revision, retained resource manifest, tombstones, exact digest/epoch, non-redirect no-store cache policy, conditional player assets, recording-plan safety, and claim contracts
+8. pa11y and Playwright — every sitemap-derived canonical HTML route at the required browser widths; the production verifier separately exercises the custom 404 at a revision-specific missing path
 
 ## What this site does not do
 

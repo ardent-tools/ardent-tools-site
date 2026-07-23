@@ -2,6 +2,7 @@
    source for both current receipts and future recording targets. A planned
    target is prose, never a player-shaped placeholder. #}
 {% extends "page.html" %}
+{% import "partials/asset-url.html" as asset_url %}
 
 {% block content %}
 {%- set systems = get_section(path="systems/_index.md") %}
@@ -22,7 +23,7 @@
   <p>Source repositories, implementation boundaries, reproduction methods, dated measurements, and four essays are published now.</p>
   <ul class="evidence-index">
     <li><a href="/systems/"><strong>{{ systems.pages | length }} system dossiers</strong><span>Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</span></a></li>
-    <li><a href="/systems.json"><strong>Machine-readable catalog</strong><span>Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span></a></li>
+    <li><a href="{{ asset_url::hashed(path='systems.json') | safe }}"><strong>Machine-readable catalog</strong><span>Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span></a></li>
     <li><a href="/writing/"><strong>{{ writing.pages | length }} dated essays</strong><span>Methods and operating judgments behind the systems, also published in the Atom feed.</span></a></li>
   </ul>
 </section>
@@ -49,7 +50,7 @@
       <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} — {{ system.extra.demo.target }}{% endif %}</p>
       <p><strong>Would establish:</strong> {{ system.extra.demo.shows }}</p>
       <p><strong>Would not establish:</strong> {{ system.extra.demo.not_shows }}</p>
-      {%- if system.extra.demo.tape %}<p><a href="{{ system.extra.demo.tape | safe }}">Inspect the planned recording script&nbsp;&rarr;</a></p>{% endif %}
+      {%- if system.extra.demo.tape %}<p><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}">Inspect the planned recording script&nbsp;&rarr;</a></p>{% endif %}
     </li>
       {%- endif %}
     {%- endfor %}

@@ -119,4 +119,4 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GITHUB_SHA: ${{ github.sha }}
-        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 13 --delay 10 --expected-revision "$GITHUB_SHA"
+        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 13 --delay 10 --expected-revision "$GITHUB_SHA" --artifact-root public

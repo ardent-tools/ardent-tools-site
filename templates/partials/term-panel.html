@@ -1,3 +1,4 @@
+{% import "partials/asset-url.html" as asset_url %}
 {# Terminal panel (DESIGN §3.1), rendered only for a published `demo.cast`.
    The fallback <pre> excerpt sits inside `.term-screen[data-cast]`; site.js
    swaps it for a live asciinema-player instance when the conditional player
@@ -15,11 +16,11 @@
 <figure class="term-panel">
   <div class="term-meta">
     <span>{{ demo.system }} &middot; {{ demo.action }}{% if demo.target %} &middot; {{ demo.target }}{% endif %}{% if demo.commit %} &middot; {{ demo.commit }}{% endif %}</span>
-    <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ demo.cast | safe }}">.cast</a>{% endif %}{% if demo.tape %} &middot; <a href="{{ demo.tape | safe }}">.tape</a>{% endif %}</span>
+    <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ asset_url::hashed(path=demo.cast) | safe }}">.cast</a>{% endif %}{% if demo.tape %} &middot; <a href="{{ asset_url::hashed(path=demo.tape) | safe }}">.tape</a>{% endif %}</span>
   </div>
   <div class="term-mat">
     <div class="term-screen"
-         data-cast="{{ demo.cast | safe }}"
+         data-cast="{{ asset_url::hashed(path=demo.cast) | safe }}"
          data-cols="{{ demo.cols | default(value=80) }}"
          data-rows="{{ demo.rows | default(value=24) }}"
          {%- if demo.poster %} data-poster="{{ demo.poster }}"{% endif %}

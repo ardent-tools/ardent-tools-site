@@ -15,6 +15,7 @@
    content-block override of their own.
 #}
 {% extends "base.html" %}
+{% import "partials/asset-url.html" as asset_url %}
 
 {% block description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock description %}
 {% block og_description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock og_description %}
@@ -24,7 +25,7 @@
 {% block og_image %}
 {%- set og_image = page.extra.og_image | default(value=config.extra.og_image | default(value="")) -%}
 {%- if og_image %}
-  <meta property="og:image" content="{{ get_url(path=og_image, trailing_slash=false) }}">
+  <meta property="og:image" content="{{ asset_url::hashed(path=og_image) | safe }}">
 {%- endif %}
 {% endblock og_image %}
 
