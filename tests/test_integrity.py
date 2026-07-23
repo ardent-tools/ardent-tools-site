@@ -2552,59 +2552,254 @@ class HtmlAuthorityContractTests(unittest.TestCase):
         )
 
 
+def _workflow_line_indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def _workflow_strip_inline_comment(text: str) -> str:
+    in_single = in_double = False
+    for index, character in enumerate(text):
+        if character == "'" and not in_double:
+            in_single = not in_single
+        elif character == '"' and not in_single:
+            in_double = not in_double
+        elif character == "#" and not in_single and not in_double:
+            if index == 0 or text[index - 1] == " ":
+                return text[:index].rstrip()
+    return text.rstrip()
+
+
+def _workflow_unquote(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+class _WorkflowYamlParser:
+    """Structural extraction for exactly the GitHub Actions YAML subset this
+    repository's deploy.yml uses: 2-space-indented block mappings, "- "
+    sequences, and literal "|" block scalars. This is deliberately not a
+    general YAML parser (no flow collections, anchors, folded ">" scalars,
+    or multi-document streams) — PyYAML availability on the CI runner's
+    system python3 is unconfirmed, so structured assertions here are worth
+    more than a raw-text index()/split() chain without adding a dependency.
+    """
+
+    def __init__(self, lines: list[str]) -> None:
+        self._lines = lines
+        self._index = 0
+
+    def _peek(self) -> tuple[int, str] | None:
+        while self._index < len(self._lines):
+            line = self._lines[self._index]
+            if line.strip() == "" or line.lstrip(" ").startswith("#"):
+                self._index += 1
+                continue
+            return _workflow_line_indent(line), line
+        return None
+
+    def parse_block(self, indent: int):
+        peeked = self._peek()
+        if peeked is None or peeked[0] < indent:
+            return None
+        _, content = peeked
+        if content.lstrip(" ").startswith("- "):
+            return self.parse_sequence(indent)
+        return self.parse_mapping(indent)
+
+    def parse_sequence(self, indent: int) -> list:
+        items = []
+        while True:
+            peeked = self._peek()
+            if peeked is None or peeked[0] != indent:
+                break
+            _, line = peeked
+            stripped = line.lstrip(" ")
+            if not stripped.startswith("- "):
+                break
+            self._index += 1
+            remainder = stripped[2:]
+            item_indent = indent + 2
+            if remainder.strip() == "":
+                items.append(self.parse_block(item_indent))
+                continue
+            self._lines.insert(self._index, " " * item_indent + remainder)
+            items.append(self.parse_mapping(item_indent))
+        return items
+
+    def parse_mapping(self, indent: int) -> dict:
+        result: dict = {}
+        while True:
+            peeked = self._peek()
+            if peeked is None or peeked[0] != indent:
+                break
+            _, line = peeked
+            stripped = line.lstrip(" ")
+            if stripped.startswith("- "):
+                break
+            self._index += 1
+            clean = _workflow_strip_inline_comment(stripped)
+            if ":" not in clean:
+                continue
+            key, _, value = clean.partition(":")
+            key = _workflow_unquote(key)
+            value = value.strip()
+            if value == "|":
+                result[key] = self._parse_block_scalar(indent)
+            elif value == "":
+                nested = self._peek()
+                result[key] = (
+                    self.parse_block(indent + 2)
+                    if nested is not None and nested[0] > indent
+                    else None
+                )
+            else:
+                result[key] = _workflow_unquote(value)
+        return result
+
+    def _parse_block_scalar(self, key_indent: int) -> str:
+        body: list[str] = []
+        body_indent: int | None = None
+        while self._index < len(self._lines):
+            line = self._lines[self._index]
+            if line.strip() == "":
+                body.append("")
+                self._index += 1
+                continue
+            current_indent = _workflow_line_indent(line)
+            if current_indent <= key_indent:
+                break
+            if body_indent is None:
+                body_indent = current_indent
+            body.append(line[body_indent:])
+            self._index += 1
+        while body and body[-1] == "":
+            body.pop()
+        return "\n".join(body)
+
+
+def parse_workflow_yaml(text: str) -> dict:
+    parser = _WorkflowYamlParser(text.split("\n"))
+    return parser.parse_mapping(0)
+
+
+def workflow_step(steps: list[dict], name: str) -> dict:
+    matches = [step for step in steps if step.get("name") == name]
+    if len(matches) != 1:
+        raise AssertionError(f"expected exactly one step named {name!r}, found {len(matches)}")
+    return matches[0]
+
+
 class DeployWorkflowContractTests(unittest.TestCase):
     def test_predeploy_revalidation_follows_wrangler_compile_and_precedes_upload(
         self,
     ) -> None:
-        workflow = (ROOT / ".github/workflows/deploy.yml").read_text()
-        install = workflow.index("npm install -g wrangler@4.112.0")
-        compile_function = workflow.index("wrangler pages functions build functions")
-        deploy = workflow.split("- name: Deploy to Cloudflare Pages", 1)[1].split(
-            "- name: Verify live authored/runtime boundary", 1
-        )[0]
-        validate = deploy.index(
-            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        workflow_text = (ROOT / ".github/workflows/deploy.yml").read_text()
+        workflow = parse_workflow_yaml(workflow_text)
+        steps = workflow["jobs"]["gate-and-deploy"]["steps"]
+        step_names = [step.get("name") for step in steps]
+
+        checkout_step = steps[0]
+        self.assertIsNone(checkout_step.get("name"))
+        self.assertEqual(checkout_step.get("uses", "").split("@")[0], "actions/checkout")
+        self.assertEqual(checkout_step["with"]["fetch-depth"], "0")
+
+        compile_step = workflow_step(steps, "Compile the Pages error boundary")
+        install = compile_step["run"].index("npm install -g wrangler@4.112.0")
+        compile_function = compile_step["run"].index(
+            "wrangler pages functions build functions"
         )
-        upload = deploy.index("wrangler pages deploy --branch=main")
         self.assertLess(install, compile_function)
         self.assertLess(
-            compile_function,
-            workflow.index("- name: Deploy to Cloudflare Pages"),
+            step_names.index("Compile the Pages error boundary"),
+            step_names.index("Deploy to Cloudflare Pages"),
         )
-        self.assertNotIn("--compatibility-date", workflow)
-        self.assertNotIn("wrangler pages deploy public", deploy)
+        self.assertNotIn("--compatibility-date", workflow_text)
+
+        deploy_step = workflow_step(steps, "Deploy to Cloudflare Pages")
+        deploy_run = deploy_step["run"]
+        self.assertNotIn("wrangler pages deploy public", deploy_run)
+        validate = deploy_run.index(
+            'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
+        )
+        upload = deploy_run.index("wrangler pages deploy --branch=main")
         self.assertLess(validate, upload)
-        self.assertIn("GITHUB_SHA: ${{ github.sha }}", deploy)
-        self.assertIn('--commit-hash "$GITHUB_SHA"', deploy)
-        self.assertIn("WRANGLER_OUTPUT_FILE_PATH:", deploy)
-        self.assertIn("bin/pages_deployment_receipt.py", deploy)
-        self.assertIn("ARDENT_IMMUTABLE_URL", workflow)
-        self.assertIn("fetch-depth: 0", workflow)
-        self.assertIn("github.event.pull_request.base.sha", workflow)
-        self.assertIn("github.event.before", workflow)
-        self.assertIn("retention bootstrap is forbidden", workflow)
-        self.assertIn("HEAD is the repository root commit", workflow)
-        self.assertNotIn("No prior revision exists", workflow)
-        self.assertIn('git show "${base_revision}:asset-retention.json"', workflow)
-        self.assertIn("ARDENT_RETENTION_BASE_LEDGER", workflow)
+        self.assertEqual(deploy_step["env"]["GITHUB_SHA"], "${{ github.sha }}")
+        self.assertIn('--commit-hash "$GITHUB_SHA"', deploy_run)
+        self.assertIn("WRANGLER_OUTPUT_FILE_PATH", deploy_step["env"])
+        self.assertIn("bin/pages_deployment_receipt.py", deploy_run)
+        self.assertIn("ARDENT_IMMUTABLE_URL", deploy_run)
+
+        retention_step = workflow_step(steps, "Select prior asset-retention authority")
+        retention_run = retention_step["run"]
+        self.assertIn(
+            "github.event.pull_request.base.sha", retention_step["env"]["PR_BASE_SHA"]
+        )
+        self.assertIn(
+            "github.event.before", retention_step["env"]["PUSH_BEFORE_SHA"]
+        )
+        self.assertIn("retention bootstrap is forbidden", retention_run)
+        self.assertIn("HEAD is the repository root commit", retention_run)
+        self.assertNotIn("No prior revision exists", workflow_text)
+        self.assertIn(
+            'git show "${base_revision}:asset-retention.json"', retention_run
+        )
+        self.assertIn("ARDENT_RETENTION_BASE_LEDGER", retention_run)
         self.assertIn(
             "python3 bin/asset_retention.py", (ROOT / "bin/check-site.sh").read_text()
         )
-        verify = workflow.split("- name: Verify live authored/runtime boundary", 1)[1]
-        self.assertEqual(verify.count("python3 bin/verify-production.py"), 2)
+
+        verify_step = workflow_step(steps, "Verify live authored/runtime boundary")
+        verify_run = verify_step["run"]
+        self.assertIn("ARDENT_IMMUTABLE_URL", verify_run)
+        self.assertEqual(verify_run.count("python3 bin/verify-production.py"), 2)
         self.assertLess(
-            verify.index('--base-url "$ARDENT_IMMUTABLE_URL"'),
-            verify.index("--base-url https://ardent.tools"),
+            verify_run.index('--base-url "$ARDENT_IMMUTABLE_URL"'),
+            verify_run.index("--base-url https://ardent.tools"),
         )
-        self.assertEqual(verify.count("--canonical-origin https://ardent.tools"), 2)
-        self.assertEqual(verify.count("--require-logical-alias-tombstones"), 1)
-        immutable_verify, custom_verify = verify.split(
+        self.assertEqual(
+            verify_run.count("--canonical-origin https://ardent.tools"), 2
+        )
+        self.assertEqual(verify_run.count("--require-logical-alias-tombstones"), 1)
+        immutable_verify, custom_verify = verify_run.split(
             "python3 bin/verify-production.py", 2
         )[1:]
         self.assertIn("--require-logical-alias-tombstones", immutable_verify)
         self.assertNotIn("--require-logical-alias-tombstones", custom_verify)
         self.assertIn("--attempts 37 --delay 10", immutable_verify)
         self.assertIn("--attempts 13 --delay 10", custom_verify)
+
+    def test_workflow_yaml_parser_handles_flow_scalars_and_detach_edges(
+        self,
+    ) -> None:
+        sample = (
+            "on:\n"
+            "  push:\n"
+            "    branches: [main]\n"
+            "  workflow_dispatch:\n"
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - uses: actions/checkout@abc123 # v4\n"
+            "        with:\n"
+            "          fetch-depth: 0\n"
+            "      - name: Say hi\n"
+            "        run: |\n"
+            "          echo hi  # not a YAML comment inside a block scalar\n"
+            "\n"
+            "          echo bye\n"
+        )
+        parsed = parse_workflow_yaml(sample)
+        self.assertEqual(parsed["on"]["push"]["branches"], "[main]")
+        self.assertIsNone(parsed["on"]["workflow_dispatch"])
+        steps = parsed["jobs"]["build"]["steps"]
+        self.assertEqual(steps[0]["uses"], "actions/checkout@abc123")
+        self.assertEqual(steps[0]["with"]["fetch-depth"], "0")
+        self.assertEqual(
+            steps[1]["run"],
+            "echo hi  # not a YAML comment inside a block scalar\n\necho bye",
+        )
 
 
 class PagesDeploymentReceiptTests(unittest.TestCase):
