@@ -1,6 +1,10 @@
 {# Evidence and recording register. System frontmatter is the canonical
    source for both current receipts and future recording targets. A planned
-   target is prose, never a player-shaped placeholder. #}
+   target is prose, never a player-shaped placeholder. The two registers
+   below (current evidence, published casts) are real <table> markup - the
+   content is tabular (index, entry, receipt, status), so the table
+   element carries that structure for assistive tech instead of an
+   aria-hidden header row over a list of unlabeled cells. #}
 {% extends "page.html" %}
 {% import "partials/asset-url.html" as asset_url %}
 
@@ -27,18 +31,39 @@
 
 <section class="evidence-section" aria-labelledby="available-evidence">
   <h2 id="available-evidence">Inspectable now</h2>
-  {#- Index regrid (§4.3) — row index, name, receipt summary, status, one
-     shared row anatomy reused by both lists in this file (see
-     .published-casts below). No reveals anywhere on this page: an
-     evidence register that animates undermines itself. #}
-  <div class="evidence-index-head" aria-hidden="true">
-    <span>#</span><span>Entry</span><span>Receipt</span><span>Status</span>
+  <div class="evidence-table-wrap">
+  <table class="evidence-table">
+    <caption class="sr-only">Evidence available for inspection now: entry, what it carries, and status</caption>
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Entry</th>
+        <th scope="col">Receipt</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="evidence-index-n">01</td>
+        <td><a href="/systems/"><strong>{{ systems.pages | length }} system dossiers</strong></a></td>
+        <td class="evidence-index-summary">Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</td>
+        <td class="evidence-index-status">Current</td>
+      </tr>
+      <tr>
+        <td class="evidence-index-n">02</td>
+        <td><a href="/systems.json"><strong>Machine-readable catalog</strong></a></td>
+        <td class="evidence-index-summary">Generated from the same system frontmatter as the human catalog and checked for a clean diff.</td>
+        <td class="evidence-index-status">Current</td>
+      </tr>
+      <tr>
+        <td class="evidence-index-n">03</td>
+        <td><a href="/writing/"><strong>{{ writing.pages | length }} dated essays</strong></a></td>
+        <td class="evidence-index-summary">Methods and operating judgments behind the systems, also published in the Atom feed.</td>
+        <td class="evidence-index-status">Current</td>
+      </tr>
+    </tbody>
+  </table>
   </div>
-  <ul class="evidence-index">
-    <li><a href="/systems/"><span class="evidence-index-n">01</span><strong>{{ systems.pages | length }} system dossiers</strong><span class="evidence-index-summary">Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</span><span class="evidence-index-status">Current</span></a></li>
-    <li><a href="/systems.json"><span class="evidence-index-n">02</span><strong>Machine-readable catalog</strong><span class="evidence-index-summary">Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span><span class="evidence-index-status">Current</span></a></li>
-    <li><a href="/writing/"><span class="evidence-index-n">03</span><strong>{{ writing.pages | length }} dated essays</strong><span class="evidence-index-summary">Methods and operating judgments behind the systems, also published in the Atom feed.</span><span class="evidence-index-status">Current</span></a></li>
-  </ul>
   {#- Closing rule (§4.3) — a ledger that visibly closes reads as
      maintained, not generated. The count is the 3 entries listed above,
      hand-counted here rather than computed because the list itself is
@@ -48,32 +73,49 @@
 
 <section class="evidence-section" aria-labelledby="recording-register">
   <h2 id="recording-register">Recording register</h2>
-  <p class="recording-status"><strong>{{ cast_count }} published casts so far.</strong> A recording plan stays backlog until a real <code>.cast</code> artifact exists, and the entries below are plans, not players - they don't claim a session ran that didn't happen.</p>
+  <p class="recording-status">{{ cast_count }} published casts so far. Every planned entry below already names an inspectable script - they don't claim a session ran that didn't happen.</p>
 
   {%- if cast_count > 0 %}
-  <div class="evidence-index-head" aria-hidden="true">
-    <span>#</span><span>Entry</span><span>Receipt</span><span>Status</span>
-  </div>
-  <ul class="evidence-index published-casts">
+  <div class="evidence-table-wrap">
+  <table class="evidence-table published-casts">
+    <caption class="sr-only">Published recordings: entry, what it shows, and status</caption>
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Entry</th>
+        <th scope="col">Receipt</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
     {%- set_global cast_i = 0 %}
     {%- for system in systems.pages %}
       {%- if system.extra.demo and system.extra.demo.cast %}
         {%- set_global cast_i = cast_i + 1 %}
-    <li><a href="{{ system.permalink | safe }}"><span class="evidence-index-n">{% if cast_i < 10 %}0{% endif %}{{ cast_i }}</span><strong>{{ system.title }} recording</strong><span class="evidence-index-summary">{{ system.extra.demo.shows }}</span><span class="evidence-index-status">Published</span></a></li>
+      <tr>
+        <td class="evidence-index-n">{% if cast_i < 10 %}0{% endif %}{{ cast_i }}</td>
+        <td><a href="{{ system.permalink | safe }}"><strong>{{ system.title }} recording</strong></a></td>
+        <td class="evidence-index-summary">{{ system.extra.demo.shows }}</td>
+        <td class="evidence-index-status">Published</td>
+      </tr>
       {%- endif %}
     {%- endfor %}
-  </ul>
+    </tbody>
+  </table>
+  </div>
   {%- endif %}
 
   <ol class="recording-plan-list">
     {%- for system in systems.pages %}
       {%- if system.extra.demo and not system.extra.demo.cast %}
     <li>
-      <div><span class="plan-state">Planned</span><h3><a href="{{ system.permalink | safe }}">{{ system.title }}</a></h3></div>
-      <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} — {{ system.extra.demo.target }}{% endif %}</p>
+      <div><span class="plan-state">Planned</span>{% if system.extra.demo.tape %}<span class="plan-state plan-state-script">Script published</span>{% endif %}<h3><a href="{{ system.permalink | safe }}">{{ system.title }}</a></h3></div>
+      {%- if system.extra.demo.tape %}
+      <p class="recording-plan-primary"><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}" class="text-action">Read the planned recording script&nbsp;<span class="arrow">&rarr;</span></a></p>
+      {%- endif %}
+      <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} - {{ system.extra.demo.target }}{% endif %}</p>
       <p><strong>Would show:</strong> {{ system.extra.demo.shows }}</p>
       <p><strong>Would not show:</strong> {{ system.extra.demo.not_shows }}</p>
-      {%- if system.extra.demo.tape %}<p><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}">Inspect the planned recording script&nbsp;<span class="arrow">&rarr;</span></a></p>{% endif %}
     </li>
       {%- endif %}
     {%- endfor %}
