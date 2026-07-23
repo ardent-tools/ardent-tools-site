@@ -39,7 +39,7 @@
   {%- endif %}
   <div class="fact-row">
     {%- if page.extra.badge %}
-    <a href="/faq/#labeling" class="badge">{{ page.extra.badge }}</a>
+    <a href="/faq/#labeling" class="badge" aria-label="{{ page.extra.badge }} &middot; what this label means">{{ page.extra.badge }}</a>
     {%- endif %}
     {%- if page.extra.repo %}
     <a href="{{ page.extra.repo | safe }}">Repo <span class="arrow">&rarr;</span></a>
