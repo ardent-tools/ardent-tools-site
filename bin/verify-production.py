@@ -10,8 +10,10 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from collections import Counter
+from collections.abc import Callable
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import TextIO
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -33,6 +35,8 @@ CF_RAY_RE = re.compile(r"^[0-9a-f]{16}-([A-Z]{3})$")
 CANONICAL_ORIGIN = BASE_URL.rstrip("/")
 SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 MAX_SITEMAP_HTML_ROUTES = 256
+RETRY_DIAGNOSTIC_SAMPLE_LIMIT = 3
+RETRY_DIAGNOSTIC_SAMPLE_CHARS = 240
 REQUIRED_RELEASE_LOGICAL_PATHS = (
     "atom.xml",
     "build-revision.txt",
@@ -758,6 +762,64 @@ def verify(
     return errors
 
 
+def bounded_retry_diagnostic(errors: list[str]) -> str:
+    """Summarize a transient mismatch without emitting an unbounded log line."""
+    samples: list[str] = []
+    for error in errors[:RETRY_DIAGNOSTIC_SAMPLE_LIMIT]:
+        sample = " ".join(error.splitlines())
+        if len(sample) > RETRY_DIAGNOSTIC_SAMPLE_CHARS:
+            sample = sample[: RETRY_DIAGNOSTIC_SAMPLE_CHARS - 3] + "..."
+        samples.append(sample)
+    omitted = len(errors) - len(samples)
+    noun = "error" if len(errors) == 1 else "errors"
+    summary = f"{len(errors)} {noun}"
+    if samples:
+        summary += "; sample: " + " | ".join(samples)
+    if omitted:
+        summary += f"; {omitted} more deferred until the final attempt"
+    return summary
+
+
+def run_verification_attempts(
+    verify_once: Callable[[set[str]], list[str]],
+    *,
+    attempts: int,
+    delay: float,
+    stdout: TextIO,
+    stderr: TextIO,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> int:
+    """Retry the full proof while keeping transient diagnostics bounded."""
+    last_errors: list[str] = []
+    for attempt in range(1, attempts + 1):
+        attempt_colos: set[str] = set()
+        try:
+            last_errors = verify_once(attempt_colos)
+        except (OSError, URLError) as exc:
+            last_errors = [f"request failed: {exc}"]
+        if not last_errors:
+            colo_receipt = (
+                f"; Cloudflare colos={','.join(sorted(attempt_colos))}"
+                if attempt_colos
+                else ""
+            )
+            stdout.write(
+                f"PASS: production boundary verified on attempt {attempt}"
+                f"{colo_receipt}\n"
+            )
+            return 0
+        if attempt < attempts:
+            stderr.write(
+                f"attempt {attempt}/{attempts} not current: "
+                f"{bounded_retry_diagnostic(last_errors)}\n"
+            )
+            sleep_fn(delay)
+
+    for error in last_errors:
+        stderr.write(f"ERROR: {error}\n")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="https://ardent.tools")
@@ -847,48 +909,30 @@ def main() -> int:
             "invalid retained redirect contract: " + "; ".join(redirect_errors)
         )
 
-    last_errors: list[str] = []
-    successful_colos: set[str] = set()
-    for attempt in range(1, args.attempts + 1):
-        attempt_colos: set[str] = set()
-        try:
-            last_errors = verify(
-                args.base_url,
-                args.timeout,
-                args.expected_revision,
-                release_manifest,
-                local_manifest_bytes,
-                contract["manifest_name"],
-                redirect_rules,
-                html_authority,
-                header_contract,
-                args.canonical_origin,
-                args.require_cf_ray,
-                attempt_colos,
-                args.require_logical_alias_tombstones,
-            )
-        except (OSError, URLError) as exc:
-            last_errors = [f"request failed: {exc}"]
-        if not last_errors:
-            successful_colos = attempt_colos
-            colo_receipt = (
-                f"; Cloudflare colos={','.join(sorted(successful_colos))}"
-                if successful_colos
-                else ""
-            )
-            sys.stdout.write(
-                f"PASS: production boundary verified on attempt {attempt}{colo_receipt}\n"
-            )
-            return 0
-        if attempt < args.attempts:
-            sys.stderr.write(
-                f"attempt {attempt}/{args.attempts} not current: {'; '.join(last_errors)}\n"
-            )
-            time.sleep(args.delay)
+    def verify_once(attempt_colos: set[str]) -> list[str]:
+        return verify(
+            args.base_url,
+            args.timeout,
+            args.expected_revision,
+            release_manifest,
+            local_manifest_bytes,
+            contract["manifest_name"],
+            redirect_rules,
+            html_authority,
+            header_contract,
+            args.canonical_origin,
+            args.require_cf_ray,
+            attempt_colos,
+            args.require_logical_alias_tombstones,
+        )
 
-    for error in last_errors:
-        sys.stderr.write(f"ERROR: {error}\n")
-    return 1
+    return run_verification_attempts(
+        verify_once,
+        attempts=args.attempts,
+        delay=args.delay,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
 
 
 if __name__ == "__main__":
