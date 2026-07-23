@@ -8,13 +8,13 @@
 
    Items come from config.extra.nav_items in the consumer's config.toml.
    Each item: { url, label, greek (optional) }.
-   Logo: config.extra.logo_path + config.extra.brand_name + config.extra.brand_greek.
+   Brand: config.extra.brand_name (+ optional brand_greek). The flame mark
+   renders via site.css .logo::before (CSS mask over the SVG), not an <img>;
+   config.extra.logo_path still feeds ld-organization.html and the favicon set.
 #}
-{% import "partials/asset-url.html" as asset_url %}
 <nav aria-label="Main navigation">
   <a href="/" class="logo" aria-label="{{ config.extra.brand_name | default(value=config.title) }} home"
      {%- if config.extra.brand_greek %} data-greek="{{ config.extra.brand_greek }}"{% endif %}>
-    {%- if config.extra.logo_path %}<img src="{{ asset_url::hashed(path=config.extra.logo_path) | safe }}" alt="{{ config.extra.brand_name | default(value=config.title) }} logo" class="logo-mark" width="44" height="44">{% endif %}
     <span>{{ config.extra.brand_name | default(value=config.title) }}</span>
   </a>
   <div class="nav-links">
