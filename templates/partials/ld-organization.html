@@ -31,6 +31,11 @@
   "description": {{ config.description | json_encode | safe }},
   "url": {{ config.base_url | json_encode | safe }},
   "logo": {{ logo_url | json_encode | safe }}
+  {#- Registered legal entity — emitted only once config [extra.footer]
+     legal_owner is set post-confirmation (see footer.html). -#}
+  {%- if config.extra.footer.legal_owner -%},
+  "legalName": {{ config.extra.footer.legal_owner | json_encode | safe }}
+  {%- endif -%}
   {%- if config.extra.brand_greek -%},
   "alternateName": {{ config.extra.brand_greek | json_encode | safe }}
   {%- endif -%}
