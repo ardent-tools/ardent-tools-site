@@ -40,6 +40,20 @@ function assertDirectHeaders(response) {
 }
 
 
+// The degraded fallback cannot safely compute a speculation-rules URL (that
+// is one of the two things that may have just failed), so it omits that
+// header entirely rather than guess. Everything else in the direct-header
+// contract is a security header and still applies.
+function assertSecurityHeaders(response) {
+  for (const [name, value] of Object.entries(EXPECTED_DIRECT_HEADERS)) {
+    if (name === "speculation-rules") {
+      continue;
+    }
+    assert.equal(response.headers.get(name), value, name);
+  }
+}
+
+
 function retained404(body = "authoritative error") {
   return new Response(body, {
     status: 200,
@@ -270,7 +284,11 @@ test("HEAD errors preserve headers without returning a body", async () => {
 });
 
 
-test("an unavailable retained 404 fails closed", async () => {
+test("a status-mismatched retained 404 authority fails closed", async () => {
+  // The ASSETS.fetch call itself succeeds here (it returns a Response); the
+  // Response just carries the wrong status. That is a shape/integrity
+  // mismatch in something that did come back, not a network-class failure,
+  // so it must keep rejecting rather than degrade.
   const response = new Response("missing", { status: 404 });
   await assert.rejects(
     onRequest(context(response, {
@@ -278,6 +296,62 @@ test("an unavailable retained 404 fails closed", async () => {
     })),
     /retained 404 authority is unavailable/,
   );
+});
+
+
+test("an unreachable ASSETS binding degrades to a hardcoded 404", async () => {
+  const response = new Response("missing", { status: 404 });
+  const actual = await onRequest(context(response, {
+    fetch: async () => {
+      throw new TypeError("network connection lost");
+    },
+  }));
+
+  assert.equal(actual.status, 404);
+  assert.equal(actual.statusText, "Not Found");
+  assertSecurityHeaders(actual);
+  assert.equal(actual.headers.get("speculation-rules"), null);
+  assert.equal(actual.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(await actual.text(), /404/);
+});
+
+
+test("an unreachable ASSETS binding degrades on HEAD requests too", async () => {
+  const response = new Response("missing", { status: 404 });
+  const actual = await onRequest(context(response, {
+    method: "HEAD",
+    fetch: async () => {
+      throw new TypeError("network connection lost");
+    },
+  }));
+
+  assert.equal(actual.status, 404);
+  assertSecurityHeaders(actual);
+  assert.equal(await actual.text(), "");
+});
+
+
+test("an unreachable manifest fetch also degrades to a hardcoded 404", async () => {
+  const response = new Response("missing", { status: 404 });
+  const actual = await onRequest({
+    request: new Request("https://ardent.tools/missing"),
+    next: async () => response,
+    env: {
+      ASSETS: {
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname;
+          if (path === "/release-resources.json") {
+            throw new TypeError("network connection lost");
+          }
+          return retained404();
+        },
+      },
+    },
+  });
+
+  assert.equal(actual.status, 404);
+  assertSecurityHeaders(actual);
+  assert.equal(actual.headers.get("speculation-rules"), null);
 });
 
 
