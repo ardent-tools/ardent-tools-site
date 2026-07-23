@@ -16,11 +16,11 @@ receipt = "aletheia/README.md, Architecture section"
 
 [extra.demo]
 system = "aletheia"
-action = "memory recall across turns"
-target = "local model, no cloud key"
-tape = "/tapes/aletheia-memory.tape"
-shows = "A fact stated in turn 1, recalled correctly and cited back in turn 3, running against a local model with no cloud API key."
-not_shows = "The desktop app — it is a v1.0-target preview installed separately from source, not the default onboarding path."
+action = "disposable boot and health check"
+target = "public health route and seeded demo-agent registration"
+tape = "/tapes/aletheia-health.tape"
+shows = "A disposable copy of the repository's demo instance passing configuration validation, booting, answering `/api/health`, and exposing its seeded demo agent."
+not_shows = "Memory recall, an LLM response, the TUI, or the desktop app. The plan makes no model-quality claim."
 +++
 
 ## What it is
@@ -64,4 +64,4 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 - Repo: [github.com/forkwright/aletheia](https://github.com/forkwright/aletheia)
 - Architecture and current tool inventory: `docs/ARCHITECTURE.md`
 - Every outbound network call the binary makes: `docs/NETWORK.md`
-- The existing scripted demo (local model, no cloud key): `demo/README.md`
+- The demo configuration and authoritative smoke-test lifecycle: `demo/README.md`, `demo/smoke-test.sh`

@@ -7,7 +7,8 @@ template = "system.html"
 [extra]
 badge = "MESH LIVE · 11 OF 17 DOMAINS PLANNED"
 repo = "https://github.com/forkwright/akroasis"
-stack = "Rust workspace · 7 crates · AGPL-3.0"
+stack = "Rust workspace · 7 crates · AGPL-3.0-only"
+license = "AGPL-3.0-only"
 kanon_ci = true
 
 [extra.headline_claim]

@@ -32,11 +32,11 @@ Pushes to `main` and pull requests targeting `main` run the same sequence before
 
 1. `typikon-validate` — frontmatter against JSON Schema
 2. `zola check` — internal links and asset references
-3. `zola build` — must be warning-free
-4. `csp-enforce.sh` — greps the built HTML for anything the CSP above would block at runtime
+3. `zola build` — must complete successfully
+4. `csp-enforce.sh` — the pinned Typikon syntactic preflight for inline script/style and disallowed remote asset forms
 5. `lychee` — external link integrity
 6. `pa11y-ci` — WCAG 2.1 AA
-7. Strict XML/content audit — feed completeness, sitemap resolution, structured-data URLs, conditional player assets, and claim contracts
+7. Strict XML/content audit — feed completeness, sitemap resolution, structured-data URLs, artifact revision, cache-rule overlap, conditional player assets, recording-plan safety, and claim contracts
 8. pa11y and Playwright — every generated public HTML route at the required browser widths
 
 ## What this site does not do

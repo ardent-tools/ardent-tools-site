@@ -1,25 +1,17 @@
 # kanon-gate.tape -- planned VHS script; intended output:
 # static/casts/kanon-gate.cast (not yet recorded)
 #
-# Shot:         a fresh disposable clone is pinned to aletheia
-#               `1a0ee8a29cb2`; kanon lint finds a seeded, labeled
-#               TOML violation, fixes that mechanical class, then runs the
-#               non-mutating lint and configured gate.
+# Shot:         a fresh disposable clone pinned to aletheia
+#               1a0ee8a29cb2; lint observes a seeded, labeled, fixable TOML
+#               violation, fixes it, proves the file clean, then runs gate.
 # Publish gate: requires the real cast and a reviewed transcript.
 # Duration:     planned cap <=75s.
-# Poster frame: the violation table.
-# Doesn't show: kanon's own source. Private by choice, not by necessity --
-#               artifact available on request.
+# Doesn't show: Kanon's private source. The seeded defect exists only in the
+#               disposable clone and is labeled in the recording.
 #
-# Run from a directory where `kanon` is installed and the network can
-#      reach the public aletheia repository:
-#        vhs static/tapes/kanon-gate.tape
-# Geometry: tuned toward 80x24 to match term-panel.html's
-#           data-cols="80" data-rows="24"; confirm the actual PTY size on
-#           the build box and retune Width/Height/FontSize if it drifts.
-# ANSI palette: applied at playback time by the vendored asciinema-player
-#           theme (DESIGN.md §2.2), not by this capture step -- no Theme
-#           is set here.
+# Run from the ardent-tools-site root:
+#   vhs static/tapes/kanon-gate.tape
+# Network prerequisite: the public aletheia repository is reachable.
 
 Output static/casts/kanon-gate.cast
 
@@ -39,8 +31,6 @@ Set CursorBlink false
 Hide
 Type "clear"
 Enter
-# Every mutation belongs to this newly created directory. The EXIT trap is
-# installed before the clone and can remove only that mktemp-owned path.
 Type "KANON_TAPE_ROOT=\"$(mktemp -d -t kanon-gate-tape.XXXXXX)\""
 Enter
 Type "cleanup_kanon_tape() { rm -rf -- \"$KANON_TAPE_ROOT\"; }; trap cleanup_kanon_tape EXIT"
@@ -61,37 +51,28 @@ Type "# kanon -- six featured repos carry Kanon config; enforcement is repositor
 Enter
 Sleep 1s
 
-# A single mechanical violation staged for this recording only -- a missing
-# trailing comma in a TOML array, a real fixable Kanon lint class -- never a
-# finding manufactured to look worse or better than reality. The disposable
-# clone is removed by the scoped EXIT trap.
 Type "printf '\nkanon_recording_proof = [\n  \"seed\"\n]\n' >> \"$PROOF_FILE\""
 Enter
-Sleep 500ms
-Type "# SEEDED VIOLATION -- LABELED IN-CAST (a missing TOML trailing comma staged for this recording; not present on aletheia's actual HEAD)"
+Type "# SEEDED VIOLATION -- missing TOML trailing comma, absent from aletheia's pinned source"
 Enter
 Sleep 1s
 
-Type "kanon lint \"$PROOF_FILE\" || test \"$?\" -eq 1"
+Type "kanon lint \"$PROOF_FILE\"; rc=$?; test \"$rc\" -eq 1 && printf 'KANON_%s\\n' 'VIOLATION_OK'"
 Enter
-Wait+Screen /missing-trailing-comma|violation/
-Sleep 2s
-
-Type "kanon lint --fix \"$PROOF_FILE\""
-Enter
-Wait+Screen /Applied 1 fix|fixed/
+Wait+Screen /KANON_VIOLATION_OK/
 Sleep 1s
 
-Type "kanon lint \"$PROOF_FILE\" && echo '0 violations - lint clean'"
+Type "kanon lint --fix \"$PROOF_FILE\" && printf 'KANON_%s\\n' 'FIX_OK'"
 Enter
-Wait+Screen /0 violations - lint clean/
+Wait+Screen /KANON_FIX_OK/
 Sleep 1s
 
-Type "kanon gate \"$ALETHEIA\""
+Type "kanon lint \"$PROOF_FILE\" && printf 'KANON_%s\\n' 'LINT_CLEAN_OK'"
 Enter
-Wait+Screen /pass|PASS|gate/
-Sleep 2s
+Wait+Screen /KANON_LINT_CLEAN_OK/
+Sleep 1s
 
-Type "# clean gate -- none of kanon's own source appears anywhere in this recording"
+Type "kanon gate \"$ALETHEIA\" && printf 'KANON_%s\\n' 'GATE_OK'"
 Enter
+Wait+Screen /KANON_GATE_OK/
 Sleep 2s

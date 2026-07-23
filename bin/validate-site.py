@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 import sys
@@ -29,6 +30,23 @@ PINNED_SNAPSHOTS = {
     "logismos.md": "94e4e97dce6e",
     "thumos.md": "77cc89906a52",
 }
+REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
+TAPE_TARGETS = {
+    "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
+    "hamma-tests.tape": "ARDENT_HAMMA_ROOT",
+    "harmonia-serve.tape": "ARDENT_HARMONIA_ROOT",
+    "logismos-parity.tape": "ARDENT_LOGISMOS_ROOT",
+    "thumos-boot.tape": "ARDENT_THUMOS_ROOT",
+}
+FORBIDDEN_TAPE_FORMS = (
+    "sudo ",
+    "apt-get ",
+    "dnf install",
+    "brew install",
+    "ollama pull",
+    "demo/instance serve &",
+    "demo/instance tui",
+)
 
 
 class PageParser(HTMLParser):
@@ -85,12 +103,225 @@ def route_file(output: Path, url: str) -> Path:
     return output / path.lstrip("/")
 
 
+def parse_cloudflare_headers(text: str) -> list[tuple[str, list[tuple[str, str | None]]]]:
+    """Parse the subset of Pages _headers syntax used by this site."""
+    rules: list[tuple[str, list[tuple[str, str | None]]]] = []
+    current: list[tuple[str, str | None]] | None = None
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not raw[0].isspace():
+            current = []
+            rules.append((stripped, current))
+            continue
+        if current is None:
+            raise ValueError(f"header without path rule: {stripped}")
+        if stripped.startswith("! "):
+            current.append((stripped[2:].strip().lower(), None))
+            continue
+        if ":" not in stripped:
+            raise ValueError(f"malformed header declaration: {stripped}")
+        name, value = stripped.split(":", 1)
+        current.append((name.strip().lower(), value.strip()))
+    return rules
+
+
+def effective_headers(
+    path: str, rules: list[tuple[str, list[tuple[str, str | None]]]]
+) -> dict[str, list[str]]:
+    """Apply Cloudflare's inherited, comma-joined overlap semantics."""
+    effective: dict[str, list[str]] = {}
+    for pattern, operations in rules:
+        if not fnmatch.fnmatchcase(path, pattern):
+            continue
+        for name, value in operations:
+            if value is None:
+                effective.pop(name, None)
+            else:
+                effective.setdefault(name, []).append(value)
+    return effective
+
+
+def output_url(output: Path, path: Path) -> str:
+    relative = path.relative_to(output).as_posix()
+    if relative == "index.html":
+        return "/"
+    if relative.endswith("/index.html"):
+        return f"/{relative[:-10]}"
+    return f"/{relative}"
+
+
+def validate_cache_contract(errors: list[str], output: Path, headers_text: str) -> None:
+    try:
+        rules = parse_cloudflare_headers(headers_text)
+    except ValueError as exc:
+        fail(errors, f"_headers: {exc}")
+        return
+
+    paths = {
+        output_url(output, path)
+        for path in output.rglob("*")
+        if path.is_file() and path.name not in {"_headers", "_redirects"}
+    }
+    for pattern, _ in rules:
+        paths.add(pattern.replace("*", "contract-probe.bin"))
+
+    for path in sorted(paths):
+        cache_values = effective_headers(path, rules).get("cache-control", [])
+        if len(cache_values) != 1:
+            fail(
+                errors,
+                f"_headers: {path} has {len(cache_values)} effective Cache-Control values: {cache_values}",
+            )
+            continue
+        policy = cache_values[0].lower()
+        if policy.count("max-age=") > 1:
+            fail(errors, f"_headers: {path} has multiple max-age directives: {policy!r}")
+        if "no-transform" not in {part.strip() for part in policy.split(",")}:
+            fail(errors, f"_headers: {path} loses the authored no-transform boundary")
+        if "immutable" in policy:
+            fail(errors, f"_headers: stable path {path} must not be immutable")
+
+    revision_policy = effective_headers("/build-revision.txt", rules).get("cache-control", [])
+    if revision_policy != ["no-store, no-transform"]:
+        fail(
+            errors,
+            "_headers: /build-revision.txt must have exactly 'no-store, no-transform'",
+        )
+
+
+def validate_revision(
+    errors: list[str], output: Path, expected_revision: str | None
+) -> None:
+    path = output / "build-revision.txt"
+    if not path.is_file():
+        fail(errors, "missing build-revision.txt")
+        return
+    raw = path.read_bytes()
+    try:
+        value = raw.decode("ascii")
+    except UnicodeDecodeError:
+        fail(errors, "build-revision.txt is not ASCII")
+        return
+    if not value.endswith("\n") or value.count("\n") != 1:
+        fail(errors, "build-revision.txt must contain one revision plus one newline")
+        return
+    revision = value[:-1]
+    if not REVISION_RE.fullmatch(revision):
+        fail(errors, "build-revision.txt is not exactly one lowercase 40-hex revision")
+    if expected_revision is not None and revision != expected_revision:
+        fail(
+            errors,
+            f"build-revision.txt mismatch: expected {expected_revision}, found {revision}",
+        )
+
+
+def validate_tape_contract(errors: list[str], path: Path) -> None:
+    text = path.read_text()
+    expected_run = f"vhs static/tapes/{path.name}"
+    if "Run from the ardent-tools-site root" not in text or expected_run not in text:
+        fail(errors, f"{path}: instructions must run {expected_run} from the site root")
+    for forbidden in FORBIDDEN_TAPE_FORMS:
+        if forbidden in text:
+            fail(errors, f"{path}: forbidden recording behavior remains: {forbidden!r}")
+
+    target_env = TAPE_TARGETS.get(path.name)
+    if target_env:
+        if target_env not in text:
+            fail(errors, f"{path}: missing explicit target checkout variable {target_env}")
+        if f'test -n \\"${target_env}\\"' not in text:
+            fail(errors, f"{path}: target checkout variable {target_env} is not asserted")
+        if f'cd \\"${target_env}' not in text:
+            fail(errors, f"{path}: recorded terminal never enters {target_env}")
+
+    type_lines = [line for line in text.splitlines() if line.startswith('Type "')]
+    for line in type_lines:
+        if re.search(r"\s&(?:[;\"]|$)", line) and "$!" not in line:
+            fail(errors, f"{path}: unmanaged background process: {line}")
+
+    waits = re.findall(r"^Wait\+Screen /([^/]+)/$", text, re.MULTILINE)
+    if not waits:
+        fail(errors, f"{path}: no output-observation sentinel")
+    for token in waits:
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]+_OK", token):
+            fail(errors, f"{path}: Wait+Screen must observe a unique success token, got {token!r}")
+        if any(token in line for line in type_lines):
+            fail(errors, f"{path}: awaited token {token!r} is visible in a typed command")
+
+    if path.name in {"aletheia-health.tape", "harmonia-serve.tape"}:
+        for required in ("mktemp -d", "trap ", "SERVER_PID", "kill -0", "curl -sf"):
+            if required not in text:
+                fail(errors, f"{path}: stateful service plan lacks {required!r}")
+
+
+def validate_player_contract(
+    errors: list[str],
+    casts: list[tuple[Path, str]],
+    html: dict[Path, str],
+    headers: str,
+    output: Path,
+    static_root: Path = Path("static"),
+) -> None:
+    asset_pattern = re.compile(
+        r"(?:href|src)=[\"'][^\"']*/vendor/asciinema/asciinema-player", re.I
+    )
+    player_requests = [str(path) for path, text in html.items() if asset_pattern.search(text)]
+    data_casts = [str(path) for path, text in html.items() if "data-cast=" in text]
+    if not casts:
+        if player_requests:
+            fail(errors, f"zero casts but player assets are requested by: {player_requests}")
+        if data_casts:
+            fail(errors, f"zero casts but data-cast markup exists in: {data_casts}")
+        if "wasm-unsafe-eval" in headers:
+            fail(errors, "zero casts but _headers still permits wasm-unsafe-eval")
+        if any("WATCH RECORDING" in text for text in html.values()):
+            fail(errors, "zero casts but built catalog exposes WATCH RECORDING")
+        return
+
+    if "wasm-unsafe-eval" not in headers:
+        fail(errors, "published casts require an explicit wasm-unsafe-eval CSP disposition")
+    catalog = html.get(output / "systems/index.html", "")
+    evidence = html.get(output / "evidence/index.html", "")
+    for source, cast in casts:
+        cast_file = static_root / cast.lstrip("/")
+        if not cast_file.is_file():
+            fail(errors, f"{source}: cast points to missing {cast_file}")
+        page_path = output / "systems" / source.stem / "index.html"
+        page_html = html.get(page_path, "")
+        marker = f'data-cast="{cast}"'
+        corpus_count = sum(text.count(marker) for text in html.values())
+        if corpus_count != 1:
+            fail(errors, f"{source}: expected exactly one rendered data-cast, found {corpus_count}")
+        if page_html.count(marker) != 1:
+            fail(errors, f"{source}: system page must render exactly one data-cast")
+        if page_html.count("asciinema-player.css") != 1 or page_html.count(
+            "asciinema-player.min.js"
+        ) != 1:
+            fail(errors, f"{source}: system page lacks exactly one conditional player CSS/JS pair")
+        system_href = f'href="{BASE_URL}/systems/{source.stem}/"'
+        relative_href = f'href="/systems/{source.stem}/"'
+        if "WATCH RECORDING" not in catalog or not (
+            system_href in catalog or relative_href in catalog
+        ):
+            fail(errors, f"{source}: systems catalog lacks a visible recording link")
+        if not (system_href in evidence or relative_href in evidence):
+            fail(errors, f"{source}: evidence register lacks a visible recording link")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path, help="Zola build output directory")
+    parser.add_argument("--expected-revision")
     args = parser.parse_args()
+    if args.expected_revision is not None and not REVISION_RE.fullmatch(args.expected_revision):
+        parser.error("--expected-revision must be exactly one lowercase 40-hex revision")
     output = args.output.resolve()
     errors: list[str] = []
+    headers = Path("_headers").read_text()
+
+    validate_revision(errors, output, args.expected_revision)
+    validate_cache_contract(errors, output, headers)
 
     sitemap_path = output / "sitemap.xml"
     atom_path = output / "atom.xml"
@@ -167,6 +398,21 @@ def main() -> int:
             ) and required_revision not in line:
                 fail(errors, f"{path}:{line_number}: snapshot claim lacks revision {required_revision}")
 
+    exact_licenses = json.loads(Path("data/exact-system-licenses.json").read_text())
+    ledger = frontmatter(Path("content/systems/_index.md")).get("extra", {}).get("ledger", [])
+    ledger_licenses = {entry["name"]: entry.get("license") for entry in ledger}
+    for name, expected in exact_licenses.items():
+        if name == "akroasis":
+            continue
+        if ledger_licenses.get(name) != expected:
+            fail(
+                errors,
+                f"content/systems/_index.md: {name} license must be exact SPDX {expected}",
+            )
+    akroasis_extra = frontmatter(Path("content/systems/akroasis.md")).get("extra", {})
+    if akroasis_extra.get("license") != exact_licenses.get("akroasis"):
+        fail(errors, "content/systems/akroasis.md: license differs from canonical mapping")
+
     akroasis = Path("content/systems/akroasis.md").read_text()
     if "23,569 Rust code lines; 24,538 Rust code-plus-comment lines" not in akroasis:
         fail(errors, "Akroasis line claim must remain 23,569 code and 24,538 code-plus-comment")
@@ -175,10 +421,7 @@ def main() -> int:
 
     html_files = sorted(output.rglob("*.html"))
     html = {path: path.read_text() for path in html_files}
-    asset_pattern = re.compile(r"(?:href|src)=[\"'][^\"']*/vendor/asciinema/asciinema-player", re.I)
-    headers = Path("_headers").read_text()
-    player_requests = [str(path) for path, text in html.items() if asset_pattern.search(text)]
-    data_casts = [str(path) for path, text in html.items() if "data-cast=" in text]
+    validate_player_contract(errors, casts, html, headers, output)
 
     evidence_path = output / "evidence/index.html"
     demos_path = output / "demos/index.html"
@@ -202,23 +445,6 @@ def main() -> int:
 
     if not re.search(r"^\s*Cache-Control:\s*[^\n]*\bno-transform\b", headers, re.MULTILINE | re.I):
         fail(errors, "_headers: root HTML policy must include Cache-Control no-transform")
-
-    if not casts:
-        if player_requests:
-            fail(errors, f"zero casts but player assets are requested by: {player_requests}")
-        if data_casts:
-            fail(errors, f"zero casts but data-cast markup exists in: {data_casts}")
-        if "wasm-unsafe-eval" in headers:
-            fail(errors, "zero casts but _headers still permits wasm-unsafe-eval")
-        if any("WATCH RECORDING" in text for text in html.values()):
-            fail(errors, "zero casts but built catalog exposes WATCH RECORDING")
-    else:
-        if "wasm-unsafe-eval" not in headers:
-            fail(errors, "published casts require an explicit wasm-unsafe-eval CSP disposition")
-        for source, cast in casts:
-            cast_file = Path("static") / cast.lstrip("/")
-            if not cast_file.is_file():
-                fail(errors, f"{source}: cast points to missing {cast_file}")
 
     index_path = output / "index.html"
     if index_path.is_file():
@@ -263,13 +489,20 @@ def main() -> int:
             fail(errors, f"{path}: missing exact ignored-test command")
         if PARITY_MODEL not in text:
             fail(errors, f"{path}: missing Stella model prerequisite")
+    for tape_path in sorted(Path("static/tapes").glob("*.tape")):
+        validate_tape_contract(errors, tape_path)
+
     tape = Path("static/tapes/logismos-parity.tape").read_text()
     if "1 passed" not in tape:
         fail(errors, "Logismos tape does not reject a zero-test green exit")
+    if "phases/03-stella/golden/embeddings_dim1024.safetensors" not in tape:
+        fail(errors, "Logismos tape lacks the actual safetensors parity fixture")
+    if "cpu_baseline.json" in tape:
+        fail(errors, "Logismos tape retains the wrong cpu_baseline.json fixture")
 
     thumos_tape = Path("static/tapes/thumos-boot.tape").read_text()
     for required in (
-        'Type "cd crates/thumos"',
+        'Type "cd \\"$ARDENT_THUMOS_ROOT/crates/thumos\\""',
         "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8",
         "../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos",
     ):
@@ -293,18 +526,12 @@ def main() -> int:
     if seed_at < 0 or len(clean_assertions) != 1 or clean_assertions[0] > seed_at:
         fail(errors, "Kanon tape must contain exactly one clean-tree assertion before seeding")
     initial_lint_at = kanon_tape.find(
-        'kanon lint \\"$PROOF_FILE\\" || test \\"$?\\" -eq 1', seed_at
+        'kanon lint \\"$PROOF_FILE\\"; rc=$?; test \\"$rc\\" -eq 1', seed_at
     )
-    initial_result_at = kanon_tape.find(
-        "Wait+Screen /missing-trailing-comma|violation/", initial_lint_at
-    )
+    initial_result_at = kanon_tape.find("Wait+Screen /KANON_VIOLATION_OK/", initial_lint_at)
     fix_at = kanon_tape.find('kanon lint --fix \\"$PROOF_FILE\\"', initial_result_at)
-    post_fix_lint_at = kanon_tape.find(
-        'kanon lint \\"$PROOF_FILE\\" && echo \'0 violations - lint clean\'', fix_at + 1
-    )
-    post_fix_result_at = kanon_tape.find(
-        "Wait+Screen /0 violations - lint clean/", post_fix_lint_at
-    )
+    post_fix_lint_at = kanon_tape.find('kanon lint \\"$PROOF_FILE\\"', fix_at + 1)
+    post_fix_result_at = kanon_tape.find("Wait+Screen /KANON_LINT_CLEAN_OK/", post_fix_lint_at)
     gate_at = kanon_tape.find('kanon gate \\"$ALETHEIA\\"', post_fix_result_at)
     if not (
         seed_at
@@ -321,10 +548,9 @@ def main() -> int:
             fail(errors, f"Kanon tape retains dangerous or stale form: {dangerous!r}")
 
     harmonia_tape = Path("static/tapes/harmonia-serve.tape").read_text()
-    if "metadata resolution and curation stay named as open" in harmonia_tape:
-        fail(errors, "Harmonia tape retains the stale adapter limitation")
-    if "no external-provider credentials" not in harmonia_tape:
-        fail(errors, "Harmonia tape lacks its seeded/no-provider-credential limitation")
+    for stale in ("/api/library/scan", "import queue", "populat"):
+        if stale in harmonia_tape.lower():
+            fail(errors, f"Harmonia tape retains no-op scan claim: {stale!r}")
 
     source_corpus = "\n".join(
         path.read_text()
@@ -345,6 +571,37 @@ def main() -> int:
     ):
         if stale_claim in source_corpus:
             fail(errors, f"stale dependency or trigger claim remains: {stale_claim!r}")
+
+    authored_corpus = "\n".join(
+        path.read_text()
+        for path in list(Path("content").rglob("*.md"))
+        + list(Path("static/tapes").glob("*.tape"))
+        + [Path(".kanon-ci.toml")]
+    )
+    discredited = (
+        "1.35 million training pairs",
+        "97.5% cluster purity",
+        "second-largest Marine Corps disbursing office",
+        "Marine Corps’ largest disbursing office",
+        "ten-nation deployment",
+        "15 European and African nations",
+        "built directly from the Go source",
+        "Single binary, no external services",
+        "Gate-Passed: kanon 0.5.2 +ruleset:fleet-2026q2",
+        "a mismatched or forged stamp rejects the push",
+        "A grounding step now issues the evidence together with a token",
+        "no unsafe beyond what the underlying `boringtun` crate",
+    )
+    for phrase in discredited:
+        if phrase in authored_corpus:
+            fail(errors, f"discredited or unlanded claim remains: {phrase!r}")
+
+    judge_essay = Path("content/writing/hardest-honest-rung.md").read_text()
+    if "remain sequenced work" not in judge_essay or "generic labeled holdout" not in judge_essay:
+        fail(errors, "hardest-honest-rung must separate the landed holdout from sequenced judge work")
+    counting_essay = Path("content/writing/three-ways-to-count.md").read_text()
+    if "post-receive hook runs after the ref has moved" not in counting_essay:
+        fail(errors, "three-ways-to-count must preserve the post-receive timing boundary")
 
     if errors:
         for error in errors:

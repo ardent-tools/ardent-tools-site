@@ -21,4 +21,5 @@ playwright-report/
 .env
 .env.local
 target/
+__pycache__/
 *.bak

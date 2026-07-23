@@ -2,19 +2,19 @@
 # forge-only: false
 # spdx:
 
-# ardent-tools-site CI pipeline for the forge post-receive hook.
+# Dormant local Kanon pipeline configuration. This direct-GitHub repository is
+# not forge-onboarded, so no Kanon post-receive hook consumes this file today.
 #
 # The full strict gate (typikon-validate + zola check + zola build +
 # csp-enforce + lychee + pa11y + playwright + Cloudflare Pages deploy)
-# lives in .github/workflows/deploy.yml — that's where the real CI runs,
-# on the GitHub mirror, since wrangler is the only tested Cloudflare
+# lives in .github/workflows/deploy.yml — that's where the real CI runs
+# in the authoritative GitHub repository, since Wrangler is the only tested Cloudflare
 # Pages deploy path (matches the pinned typikon SHA's own scaffold
 # output — ci/kanon-ci.toml.tmpl doesn't exist yet at this pin; a later
 # typikon-refresh may replace this stage with a rendered multi-stage
-# file once that template lands). The forge post-receive trigger runs
-# kanon lint against this repo's own tracked files, scoped away from
-# themes/typikon (a separate repo, gated by its own CI) via a
-# git-ls-files pathspec exclusion piped into --paths-from.
+# file once that template lands). An operator may run this stage locally;
+# it scopes Kanon lint away from themes/typikon (a separate repository,
+# gated independently) via a git-ls-files exclusion piped into --paths-from.
 
 [pipeline]
 stages = ["kanon-lint"]

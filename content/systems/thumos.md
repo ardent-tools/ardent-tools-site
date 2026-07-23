@@ -19,8 +19,8 @@ system = "thumos"
 action = "kernel boot"
 target = "qemu-system-arm -machine virt"
 tape = "/tapes/thumos-boot.tape"
-shows = "The exact command sequence CI runs on pushes to main and pull requests targeting main, ending on the service loop visibly ticking."
-not_shows = "Hardware bring-up on the physical AGM M7. QEMU proves the boot path, not the modem/WiFi/BT/GPS vendor blobs."
+shows = "The same primary qemu-feature build and runner invocation used by CI, with the banner, boot-complete, and service-loop markers observed after a zero exit."
+not_shows = "The complete CI sequence or hardware bring-up on the physical AGM M7. QEMU proves this boot path, not the modem/WiFi/BT/GPS vendor blobs."
 +++
 
 ## What it is

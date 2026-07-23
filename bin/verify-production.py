@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -43,8 +46,28 @@ def header(headers: dict[str, str], name: str) -> str:
     return next((value for key, value in headers.items() if key.lower() == name.lower()), "")
 
 
-def verify(base_url: str, timeout: float) -> list[str]:
+def verify(base_url: str, timeout: float, expected_revision: str) -> list[str]:
     errors: list[str] = []
+    revision_url = urljoin(base_url.rstrip("/") + "/", "build-revision.txt")
+    revision_status, revision_headers, revision_body = request(revision_url, timeout)
+    if revision_status != 200:
+        errors.append(f"/build-revision.txt returned {revision_status}, expected 200")
+    expected_body = f"{expected_revision}\n".encode()
+    if revision_body != expected_body:
+        errors.append(
+            "deployed revision mismatch: "
+            f"expected {expected_revision!r}, got {revision_body.decode('utf-8', errors='replace').strip()!r}"
+        )
+    revision_cache = {
+        part.strip().lower()
+        for part in header(revision_headers, "Cache-Control").split(",")
+        if part.strip()
+    }
+    if "no-store" not in revision_cache:
+        errors.append(
+            f"/build-revision.txt Cache-Control is stale-capable: {header(revision_headers, 'Cache-Control')!r}"
+        )
+
     evidence_url = urljoin(base_url.rstrip("/") + "/", "evidence/")
     status, headers, body_bytes = request(evidence_url, timeout)
     body = body_bytes.decode("utf-8", errors="replace")
@@ -97,14 +120,17 @@ def main() -> int:
     parser.add_argument("--attempts", type=int, default=8)
     parser.add_argument("--delay", type=float, default=5.0)
     parser.add_argument("--timeout", type=float, default=15.0)
+    parser.add_argument("--expected-revision", required=True)
     args = parser.parse_args()
     if args.attempts < 1:
         parser.error("--attempts must be at least 1")
+    if not REVISION_RE.fullmatch(args.expected_revision):
+        parser.error("--expected-revision must be exactly one lowercase 40-hex revision")
 
     last_errors: list[str] = []
     for attempt in range(1, args.attempts + 1):
         try:
-            last_errors = verify(args.base_url, args.timeout)
+            last_errors = verify(args.base_url, args.timeout, args.expected_revision)
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]
         if not last_errors:

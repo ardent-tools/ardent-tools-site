@@ -57,6 +57,21 @@ jobs:
         run: |
           python3 -m pip install --user jsonschema==4.26.0
 
+      - name: Install Typst and PDF text tools
+        env:
+          TYPST_VERSION: 0.14.2
+          TYPST_SHA256: a6044cbad2a954deb921167e257e120ac0a16b20339ec01121194ff9d394996d
+        run: |
+          curl -L "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+            -o typst.tar.xz
+          echo "${TYPST_SHA256}  typst.tar.xz" | sha256sum -c
+          mkdir -p typst-extract
+          tar -xJf typst.tar.xz -C typst-extract --strip-components=1
+          sudo mv typst-extract/typst /usr/local/bin/
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          typst --version
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -87,6 +102,7 @@ jobs:
           # Retain the exact production tree the helper validates; normal
           # local runs remain temporary and leave the worktree unchanged.
           ARDENT_RETAIN_VALIDATED_PUBLIC: '1'
+          ARDENT_BUILD_REVISION: ${{ github.sha }}
         run: bin/check-site.sh
 
       # ── Deploy on green pushes to main only ───────────────────
@@ -101,4 +117,6 @@ jobs:
 
       - name: Verify live authored/runtime boundary
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 13 --delay 10
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 13 --delay 10 --expected-revision "$GITHUB_SHA"

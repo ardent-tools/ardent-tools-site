@@ -12,7 +12,7 @@ Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat 
 
 ## Build / run
 
-Requires [Zola](https://www.getzola.org/) 0.22.1 (pinned; see `.github/workflows/deploy.yml`).
+Requires [Zola](https://www.getzola.org/) 0.22.1 and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` for the repository-owned résumé check.
 
 `themes/typikon/` ships as a git submodule - a plain clone leaves it empty and `zola build` fails outright. Initialize it first:
 
@@ -39,10 +39,12 @@ removes that exact directory on exit or signal, and verifies that the worktree
 and `playwright.config.ts` are unchanged. CI alone sets
 `ARDENT_RETAIN_VALIDATED_PUBLIC=1`; that mode refuses to replace an existing
 `public/` and moves the already validated production tree there for Wrangler.
+The validated tree carries `build-revision.txt`; CI supplies the exact GitHub
+revision and the post-deploy verifier refuses a different live sentinel.
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (schema validation, generator cleanliness, Zola check/build, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys to Cloudflare Pages. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages, then verifies that revision at the live sentinel. See `.github/workflows/deploy.yml`.
 
 ## License
 

@@ -10,7 +10,7 @@ anchor = "private-repos"
 
 [[extra.questions]]
 q = "What does a label like 'pre-alpha' or 'Phase 4 blocked on hardware' actually mean?"
-a = "It means exactly what it says, quoted from the repo's own current status line, never rounded up."
+a = "It is a derived summary of pinned repository evidence, not a verbatim status-line quote. Each label is bounded by the source, revision, and open limits published on that system page; it is never rounded up."
 anchor = "labeling"
 
 [[extra.questions]]

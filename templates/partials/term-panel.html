@@ -3,29 +3,18 @@
    swaps it for a live asciinema-player instance when the conditional player
    library is present. An absent cast renders no panel.
 
-   Usage: {{ term_panel::panel(demo=page.extra.demo, hero=true) }}
+   Usage: {{ term_panel::panel(demo=page.extra.demo, label=page.title ~ " demo") }}
    `demo` fields (see schemas note in system.html / evidence.html):
      system, action, target, commit (optional), duration,
      cast (optional), tape (optional), poster (optional, npt:MM:SS),
      cols (default 80), rows (default 24), fallback (array of strings,
      optional), shows, not_shows, transcript (optional).
-
-   `heading` (default false): renders the meta line's system·action text
-   as an <h3> instead of a <span> — the DESIGN-v1.1 T6 fix for /evidence/'s
-   missing internal headings (audit-technical §6). Scoped to evidence.html's
-   loop only (list page, needs landmarks); index.html's hero and
-   system.html's single demo already sit under a page h1 and stay spans.
-   `.term-meta h3` in site.css resets the element back to the meta line's
-   own typography — visually identical to the span it replaces. #}
-{% macro panel(demo, hero=false, label="", heading=false) %}
+ #}
+{% macro panel(demo, label="") %}
 {%- if demo.cast %}
 <figure class="term-panel">
   <div class="term-meta">
-    {%- if heading %}
-    <h3>{{ demo.system }} &middot; {{ demo.action }}{% if demo.target %} &middot; {{ demo.target }}{% endif %}{% if demo.commit %} &middot; {{ demo.commit }}{% endif %}</h3>
-    {%- else %}
     <span>{{ demo.system }} &middot; {{ demo.action }}{% if demo.target %} &middot; {{ demo.target }}{% endif %}{% if demo.commit %} &middot; {{ demo.commit }}{% endif %}</span>
-    {%- endif %}
     <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ demo.cast | safe }}">.cast</a>{% endif %}{% if demo.tape %} &middot; <a href="{{ demo.tape | safe }}">.tape</a>{% endif %}</span>
   </div>
   <div class="term-mat">
@@ -33,7 +22,6 @@
          data-cast="{{ demo.cast | safe }}"
          data-cols="{{ demo.cols | default(value=80) }}"
          data-rows="{{ demo.rows | default(value=24) }}"
-         {%- if hero %} data-hero="true"{% endif %}
          {%- if demo.poster %} data-poster="{{ demo.poster }}"{% endif %}
          data-label="{{ label | default(value=demo.system ~ " " ~ demo.action) }}">
       <pre class="term-fallback">{%- for line in demo.fallback | default(value=[]) %}{{ line }}

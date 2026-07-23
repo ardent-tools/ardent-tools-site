@@ -7,7 +7,7 @@ template = "system.html"
 [extra]
 badge = "PRE-ALPHA"
 repo = "https://github.com/forkwright/hamma"
-stack = "Rust · WireGuard (boringtun) · Noise protocol"
+stack = "Rust · Noise protocol · WireGuard data plane planned"
 kanon_ci = true
 
 [extra.headline_claim]
@@ -31,7 +31,7 @@ hamma is a clean-room Rust implementation of a Tailscale-compatible mesh network
 
 ### Clean-room, not a port
 
-hamma is written from the protocol spec and public behavior, not translated line-by-line from Tailscale's Go client. No vendor blobs, no unsafe beyond what the underlying `boringtun` crate already audits. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
+hamma is written from the protocol specification and public behavior, not translated line-by-line from Tailscale's Go client. Its current workspace denies unsafe code. BoringTun is only a commented Cargo placeholder for the planned WireGuard data plane, not a present dependency or a source of current unsafe code. The trade-off: a clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -42,7 +42,7 @@ hamma is written from the protocol spec and public behavior, not translated line
 
 **Solid:** the Noise handshake, control-protocol types, TCP/TLS registration, and the map-streaming loop, all landed as part of Phase A's `dictyon` peer client.
 
-**Open, stated as the repo itself states it:** pre-alpha, no releases yet, no stable API. The next implementation milestone is the WireGuard data plane via `boringtun` — until that lands, there's no working end-to-end tailnet, and this page won't imply otherwise. An open audit backlog tracks known gaps in map deltas, frame handling, node-key expiry, tracing, and map-stream integration coverage.
+**Open, stated as the repo itself states it:** pre-alpha, no releases yet, no stable API. The next implementation milestone is the WireGuard data plane via BoringTun — the dependency itself has not landed, and until the data plane lands there's no working end-to-end tailnet. An open audit backlog tracks known gaps in map deltas, frame handling, node-key expiry, tracing, and map-stream integration coverage.
 
 ## Numbers, and how they were measured
 

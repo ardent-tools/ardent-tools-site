@@ -71,7 +71,9 @@ consumer configuration, including `playwright.config.ts`; the pinned Typikon
 runner does not, and its owning defect is tracked upstream as typikon#39.
 Normal runs remove their exact `mktemp` output and preserve worktree state. CI
 sets `ARDENT_RETAIN_VALIDATED_PUBLIC=1` to move the already validated production
-tree into an initially absent, ignored `public/` directory for deployment.
+tree into an initially absent, ignored `public/` directory for deployment. CI
+also passes `ARDENT_BUILD_REVISION` so that tree carries the exact commit in
+`build-revision.txt`; the live verifier requires the same revision after deploy.
 
 ## Remotes
 

@@ -7,12 +7,31 @@ set -euo pipefail
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
 
-for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum cmp; do
+BUILD_REVISION=${ARDENT_BUILD_REVISION:-$(git rev-parse --verify 'HEAD^{commit}')}
+if [[ ! "$BUILD_REVISION" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "ERROR: ARDENT_BUILD_REVISION must be exactly one lowercase 40-hex commit" >&2
+  exit 1
+fi
+RESOLVED_REVISION=$(git rev-parse --verify "${BUILD_REVISION}^{commit}" 2>/dev/null) || {
+  echo "ERROR: build revision does not resolve to a commit in this checkout: $BUILD_REVISION" >&2
+  exit 1
+}
+[[ "$RESOLVED_REVISION" == "$BUILD_REVISION" ]] || {
+  echo "ERROR: build revision is ambiguous or does not resolve exactly: $BUILD_REVISION" >&2
+  exit 1
+}
+readonly BUILD_REVISION
+
+for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "ERROR: required tool is missing: $tool" >&2
     exit 1
   }
 done
+[[ "$(typst --version)" == typst\ 0.14.2* ]] || {
+  echo "ERROR: Typst 0.14.2 is required for the tracked résumé" >&2
+  exit 1
+}
 
 RETAIN_VALIDATED_PUBLIC=${ARDENT_RETAIN_VALIDATED_PUBLIC:-0}
 case "$RETAIN_VALIDATED_PUBLIC" in
@@ -73,15 +92,25 @@ echo "==> generated catalog cleanliness"
 python3 bin/generate-systems-json.py --output "$CHECK_ROOT/systems.json"
 cmp static/systems.json "$CHECK_ROOT/systems.json"
 
+echo "==> integrity regression tests"
+python3 -m unittest discover -s tests -p 'test_*.py'
+
+echo "==> resume reproducibility and factual manifest"
+typst compile --root "$ROOT" resume/cody-kickertz-resume.typ "$CHECK_ROOT/cody-kickertz-resume.pdf"
+cmp static/files/cody-kickertz-resume.pdf "$CHECK_ROOT/cody-kickertz-resume.pdf"
+pdftotext "$CHECK_ROOT/cody-kickertz-resume.pdf" "$CHECK_ROOT/cody-kickertz-resume.txt"
+python3 bin/validate-resume.py "$CHECK_ROOT/cody-kickertz-resume.txt"
+
 echo "==> production build, CSP, and strict contracts"
 zola build --output-dir "$PROD_OUTPUT"
 cp _headers "$PROD_OUTPUT/_headers"
 cp _redirects "$PROD_OUTPUT/_redirects"
+printf '%s\n' "$BUILD_REVISION" > "$PROD_OUTPUT/build-revision.txt"
 if [[ -f "$PROD_OUTPUT/404/index.html" ]]; then
   cp "$PROD_OUTPUT/404/index.html" "$PROD_OUTPUT/404.html"
 fi
 themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
-python3 bin/validate-site.py "$PROD_OUTPUT"
+python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 
 echo "==> external links"
 BASE_URL=$(sed -nE 's/^base_url[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' config.toml | head -1)

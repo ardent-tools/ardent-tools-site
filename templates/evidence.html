@@ -2,28 +2,6 @@
    source for both current receipts and future recording targets. A planned
    target is prose, never a player-shaped placeholder. #}
 {% extends "page.html" %}
-{% import "partials/term-panel.html" as term_panel %}
-
-{% block player_css %}
-  {%- set systems = get_section(path="systems/_index.md") -%}
-  {%- set_global cast_count = 0 -%}
-  {%- for system in systems.pages -%}
-    {%- if system.extra.demo and system.extra.demo.cast -%}{%- set_global cast_count = cast_count + 1 -%}{%- endif -%}
-  {%- endfor -%}
-  {%- if cast_count > 0 %}
-  <link rel="stylesheet" href="{{ get_url(path='vendor/asciinema/asciinema-player.css', cachebust=true) }}">
-  {%- endif %}
-{% endblock player_css %}
-{% block player_js %}
-  {%- set systems = get_section(path="systems/_index.md") -%}
-  {%- set_global cast_count = 0 -%}
-  {%- for system in systems.pages -%}
-    {%- if system.extra.demo and system.extra.demo.cast -%}{%- set_global cast_count = cast_count + 1 -%}{%- endif -%}
-  {%- endfor -%}
-  {%- if cast_count > 0 %}
-  <script src="{{ get_url(path='vendor/asciinema/asciinema-player.min.js', cachebust=true) }}" defer></script>
-  {%- endif %}
-{% endblock player_js %}
 
 {% block content %}
 {%- set systems = get_section(path="systems/_index.md") %}
@@ -54,13 +32,13 @@
   <p class="recording-status"><strong>{{ cast_count }} published casts.</strong> Recording plans remain backlog until a real <code>.cast</code> artifact exists. Planned entries below are not players and make no claim that the session has run.</p>
 
   {%- if cast_count > 0 %}
-  <div class="published-casts">
+  <ul class="evidence-index published-casts">
     {%- for system in systems.pages %}
       {%- if system.extra.demo and system.extra.demo.cast %}
-      {{ term_panel::panel(demo=system.extra.demo, hero=false, label=system.title ~ " recording", heading=true) }}
+    <li><a href="{{ system.permalink | safe }}"><strong>{{ system.title }} recording</strong><span>{{ system.extra.demo.shows }}</span></a></li>
       {%- endif %}
     {%- endfor %}
-  </div>
+  </ul>
   {%- endif %}
 
   <ol class="recording-plan-list">
