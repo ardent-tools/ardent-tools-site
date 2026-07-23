@@ -2,7 +2,6 @@
    writing links come from content/writing; this template owns only the
    composition. No recording surface renders without a published cast. #}
 {% extends "base.html" %}
-{% import "partials/catalog-row.html" as catalog_row %}
 {% import "partials/asset-url.html" as asset_url %}
 {% import "partials/feature-block.html" as feature_block %}
 
@@ -25,14 +24,14 @@
 </header>
 
 <section class="proof-surface" aria-labelledby="proof-heading">
-  <div class="proof-intro">
+  <div class="proof-intro reveal">
     <p class="section-label"><span class="section-label-index">01</span> &middot; Published receipt</p>
     <h2 id="proof-heading">The rule is only real where the mechanism enforces it.</h2>
     <p>Kanon is the private standards and dispatch control plane behind this practice. Its public receipt is deliberately narrower than its source.</p>
   </div>
   {%- for p in systems.pages %}
     {%- if p.slug == section.extra.proof_system %}
-  <div class="proof-record">
+  <div class="proof-record reveal-2">
     <div class="proof-record-strip">
       <span>RECORD &mdash; {{ p.title }}</span>
       {%- if p.extra.badge %}<span class="badge">{{ p.extra.badge }}</span>{%- endif %}
@@ -53,7 +52,7 @@
 
 <section class="home-section" aria-labelledby="selected-heading">
   <div class="section-heading-row">
-    <div>
+    <div class="reveal">
       <p class="section-label"><span class="section-label-index">02</span> &middot; Selected systems</p>
       <h2 id="selected-heading">Different work, one receipt discipline.</h2>
     </div>
@@ -83,7 +82,7 @@
 
 <section class="home-section fleet-map-section" aria-labelledby="map-heading">
   <div class="section-heading-row">
-    <div>
+    <div class="reveal">
       <p class="section-label"><span class="section-label-index">03</span> &middot; Fleet map</p>
       <h2 id="map-heading">Standards travel through repository-owned configuration.</h2>
     </div>
@@ -98,9 +97,17 @@
       <span class="fleet-map-chip">.kanon-ci.toml</span>
     </div>
     <ul class="fleet-map-nodes">
+      {#- Reveal stagger by grid row (DESIGN-v2 §2.2/§3.4): 3 columns at
+         the desktop breakpoint, so nodes 1-3 share .reveal, 4-6 share
+         .reveal-2, any beyond that .reveal-3. node_i counts only the
+         kanon_ci-true nodes actually rendered — loop.index would count
+         every system.pages iteration, filtered or not, and misalign the
+         grouping the moment a system lacks extra.kanon_ci. #}
+      {%- set_global node_i = 0 %}
       {%- for p in systems.pages %}
         {%- if p.extra.kanon_ci %}
-      <li><a href="{{ p.permalink | safe }}"><strong>{{ p.title }}</strong><span>{{ p.extra.badge }}</span></a></li>
+          {%- set_global node_i = node_i + 1 %}
+      <li class="{% if node_i <= 3 %}reveal{% elif node_i <= 6 %}reveal-2{% else %}reveal-3{% endif %}"><a href="{{ p.permalink | safe }}"><strong>{{ p.title }}</strong><span>{{ p.extra.badge }}</span></a></li>
         {%- endif %}
       {%- endfor %}
     </ul>
@@ -110,7 +117,7 @@
 
 <section class="home-section" aria-labelledby="writing-heading">
   <div class="section-heading-row">
-    <div>
+    <div class="reveal">
       <p class="section-label"><span class="section-label-index">04</span> &middot; Recent writing</p>
       <h2 id="writing-heading">Methods behind the systems.</h2>
     </div>
@@ -118,7 +125,7 @@
   </div>
   <ol class="home-writing-list">
     {%- for entry in writing.pages | slice(end=3) %}
-    <li>
+    <li class="reveal">
       <time datetime="{{ entry.date }}">{{ entry.date | date(format="%Y-%m-%d") }}</time>
       <h3><a href="{{ entry.permalink | safe }}">{{ entry.title }}</a></h3>
       <p>{{ entry.description }}</p>
@@ -128,10 +135,12 @@
 </section>
 
 <section class="consulting-close" aria-labelledby="consulting-close-heading">
-  <p class="section-label"><span class="section-label-index">05</span> &middot; Consulting</p>
-  <h2 id="consulting-close-heading">Make the operating evidence part of the system.</h2>
-  <p class="consulting-line">{{ section.extra.consulting_line }}</p>
-  <p><a href="/consulting/" class="button">See fit, process, and deliverables</a></p>
+  <div class="consulting-close-inner reveal">
+    <p class="section-label"><span class="section-label-index">05</span> &middot; Consulting</p>
+    <h2 id="consulting-close-heading">Make the operating evidence part of the system.</h2>
+    <p class="consulting-line">{{ section.extra.consulting_line }}</p>
+    <p><a href="/consulting/" class="button">See fit, process, and deliverables</a></p>
+  </div>
 </section>
 
 <div class="practice-paragraph">

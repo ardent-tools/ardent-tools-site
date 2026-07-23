@@ -334,6 +334,89 @@ nav[aria-label="Main navigation"] {
   view-transition-name: chrome;
 }
 
+/* Cross-document timing (§2.1, §2.3) — the whole-page cross-fade's own
+   duration/easing, on the root pseudo-elements every navigation always
+   creates (unlike the named groups below, which only exist when their
+   named element is present on both documents). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--t-cross);
+  animation-timing-function: var(--ease-cross);
+}
+
+/* === View-transition morph (§2.3) — "a system's name travels": the one
+   morph on the site. Per-slug static classes, CSP-clean (no inline
+   styles), one per flagship system — the browser matches an outgoing
+   element and an incoming element that share a view-transition-name
+   across the navigation and glides between their two positions/sizes
+   automatically; nothing here schedules or times that beyond the root
+   duration/easing above. Templates put the matching class on the
+   catalog-row name link (/systems/), the feature-block title
+   (home), and the dossier h1 (each system's own page) — see
+   partials/catalog-row.html, partials/feature-block.html, system.html.
+   INVARIANT: at most one element per rendered page may carry a given
+   name, or the browser has two candidates to match and silently drops
+   the transition for that name. Home carries only the three
+   feature-block titles (no catalog-row reuse there — see
+   templates/index.html's own note on the unused import); /systems/
+   carries each of the seven flagship rows exactly once; each dossier
+   carries exactly one h1. Reduced motion: the @view-transition opt-out
+   above already kills the whole navigation transition, this class
+   included. */
+.vtn-akroasis { view-transition-name: sys-akroasis; }
+.vtn-aletheia { view-transition-name: sys-aletheia; }
+.vtn-hamma    { view-transition-name: sys-hamma; }
+.vtn-harmonia { view-transition-name: sys-harmonia; }
+.vtn-kanon    { view-transition-name: sys-kanon; }
+.vtn-logismos { view-transition-name: sys-logismos; }
+.vtn-thumos   { view-transition-name: sys-thumos; }
+
+/* === Scroll reveals — "settle" (§2.2) — CSS scroll-driven, no JS. One
+   pattern: opacity 0->1 + translateY(12px->0), completing well before
+   the element reaches mid-viewport so nothing chases the reader's eye.
+   Base state is fully visible: elements are never authored hidden; the
+   keyframe `from` supplies the hidden state only inside @supports, so a
+   browser without view() (and reader modes, crawlers, print) renders
+   the complete static page.
+   BOTH gates below are mandatory, not defensive. typikon's blanket
+   reduced-motion sweep (style.css, `*, *::before, *::after {
+   animation-duration: 0.01ms !important; ... }`) zeroes duration but
+   never touches animation-timeline — and a view()-timelined animation's
+   'from' keyframe still applies during its before/entry phase via
+   animation-fill-mode: both regardless of duration, so an element gated
+   on @supports alone would render stuck at opacity: 0 for a
+   reduced-motion visitor who scrolls it into view without ever
+   completing the (near-instant) animation. The explicit
+   prefers-reduced-motion: no-preference wrapper is what actually turns
+   this off for that visitor; it is load-bearing, not a defensive
+   double-guard. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+
+    /* Stagger by RANGE, not delay — animation-delay is ignored under a
+       view() timeline. */
+    .reveal-2 {
+      animation-range: entry 8% entry 43%;
+    }
+
+    .reveal-3 {
+      animation-range: entry 16% entry 51%;
+    }
+
+    @keyframes settle {
+      from {
+        opacity: 0;
+        translate: 0 12px;
+      }
+    }
+  }
+}
+
 /* === Essay progress gnomon (§4.4) — a 2px reading-position line, CSS
    scroll-driven, essay pages only. Base state is display: none (the
    inverse of a reveal's hidden-by-default: an unsupported browser gets
@@ -1954,9 +2037,17 @@ a.proof-record:focus-visible {
 .consulting-close {
   position: relative;
   isolation: isolate;
+  padding-block: var(--space-2xl);
+}
+
+/* Reveal wrapper (§2.2) — "the consulting close inner content" reveals
+   as one group; the wash-bearing section above it does not (revealing a
+   full-bleed ::before parent would translate the tint with the text).
+   Same grid+gap the section itself carried before this wrapper existed,
+   so the label/h2/line/button rhythm is unchanged. */
+.consulting-close-inner {
   display: grid;
   gap: var(--space-l);
-  padding-block: var(--space-2xl);
 }
 
 .consulting-close::before {
