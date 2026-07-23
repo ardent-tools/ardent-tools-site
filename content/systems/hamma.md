@@ -19,13 +19,13 @@ system = "hamma"
 action = "handshake + control-protocol type tests"
 target = "hamma-core, dictyon"
 tape = "/tapes/hamma-tests.tape"
-shows = "The Noise-handshake and control-protocol-type tests passing — modest, explicitly test-suite-shaped, matching where the project actually is."
+shows = "The Noise-handshake and control-protocol-type tests passing - modest, explicitly test-suite-shaped, matching where the project actually is."
 not_shows = "Two peers joining a tailnet. The WireGuard data plane is not wired in."
 +++
 
 ## What it is
 
-No production-grade Rust implementation of Tailscale's protocol exists. hamma is built to fill that gap — the pieces needed to knot a set of devices into one flat network, speak WireGuard peer-to-peer, traverse NATs through DERP relays, and name each other through MagicDNS. It targets wire compatibility with the existing control plane, so a device running hamma can join the same tailnet as a device running the reference client. The work serves this practice's own systems first, and openly, anyone who wants a memory-safe, auditable mesh client.
+No production-grade Rust implementation of Tailscale's protocol exists. hamma is built to fill that gap - the pieces needed to knot a set of devices into one flat network, speak WireGuard peer-to-peer, traverse NATs through DERP relays, and name each other through MagicDNS. It targets wire compatibility with the existing control plane, so a device running hamma can join the same tailnet as a device running the reference client. The work serves this practice's own systems first, and openly, anyone who wants a memory-safe, auditable mesh client.
 
 ## Decisions and trade-offs
 
@@ -42,7 +42,7 @@ hamma is written from the protocol specification and public behavior, not transl
 
 **Solid:** the Noise handshake, control-protocol types, TCP/TLS registration, and the map-streaming loop, all landed as part of Phase A's `dictyon` peer client.
 
-**Open, stated as the repo itself states it:** pre-alpha, no releases yet, no stable API. The next implementation milestone is the WireGuard data plane via BoringTun — the dependency itself has not landed, and until the data plane lands there's no working end-to-end tailnet. An open audit backlog tracks known gaps in map deltas, frame handling, node-key expiry, tracing, and map-stream integration coverage.
+**Open, stated as the repo itself states it:** pre-alpha, no releases yet, no stable API. The next implementation milestone is the WireGuard data plane via BoringTun - the dependency itself has not landed, and until the data plane lands there's no working end-to-end tailnet. An open audit backlog tracks known gaps in map deltas, frame handling, node-key expiry, tracing, and map-stream integration coverage.
 
 ## Numbers, and how they were measured
 
@@ -55,7 +55,7 @@ hamma is written from the protocol specification and public behavior, not transl
 
 </div>
 
-Smallest of the systems on this site — the newest and least mature.
+Smallest of the systems on this site - the newest and least mature.
 
 ## Where to look
 

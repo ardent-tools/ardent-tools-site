@@ -44,7 +44,7 @@ The floor above bans words; this section bans *shapes*. Each is a construction c
 
 - **The drumroll colon** — `[noun phrase]: [payoff]` ("The trade-off accepted here: X"). A colon appears only when the first clause does real syntactic work. Default replacements: two sentences, or an em-dash appositive ("the pieces needed — X, Y, Z").
 - **Negative parallelism** — "it's not X, it's Y" / "isn't just X". Assert the claim affirmatively; reserve antithesis for correcting a belief the reader actually holds.
-- **Triple-negation countdown** — "Not X. Not Y. Just Z." as manufactured drama. The clearing-ground move ("Not passion. Not enthusiasm. The fire that tests.") is distinct and stays legal: it negates *live* readings, lands a real claim, and appears at most once per page.
+- **Triple-negation countdown** — "Not X. Not Y. Just Z." in any form, including the book's clearing-ground variant. The measured corpus (VOICE-CODY) shows zero staccato negation; the operator's real negation is one comma-joined scoping clause mid-sentence ("not X, just Y") while still explaining, never a fragment sequence.
 - **The rhetorical pivot** — "The result?" / question-as-transition / question-into-imperative CTA ("Need X? Start with Y."). A question on this site is genuine and gets a real answer, or it doesn't appear.
 - **Tricolon by default** — groups of three regardless of how many items exist. Use the number the content has.
 - **Hedge-then-assert** — "While X varies, the evidence suggests…". Pick the position; one load-bearing caveat, stated as fact.
@@ -56,6 +56,27 @@ The floor above bans words; this section bans *shapes*. Each is a construction c
 - **The false range** — "from X to Y to Z" where no spectrum exists. Name the actual things.
 
 Sweep for all three model flavors, not just one: GPT's negative-parallelism and too-perfect gloss, Claude's hedging and closing rhetorical questions, Gemini's intensifiers and hyperbolic verbs. And never manufacture imperfection to compensate — asymmetry comes from writing to the fingerprint, not from distressing the output.
+
+## The measured register (VOICE-CODY; supersedes the book-derived rules above where they conflict)
+
+Source: the corpus study at theke `site-design/VOICE-CODY.md` (~1,500 verbatim operator messages across three platforms, adversarially validated). The book voice is the crafted ceiling; site prose follows the measured hand.
+
+**Punctuation and closure**
+- Plain spaced dash (` - `), not the em-dash — measured up to 70:1 in his unperformed prose; the em-dash is foreign to his hand. Colons only as literal labels (a URL, a day, a list label), never announcement.
+- The pull-quote test: if a section's final sentence would work as a pull-quote, it's wrong. He ends on information, a genuine question, or a plain next step — never an engineered landing. The sentence stops when the information runs out.
+- Fragments carry terse information (a status, a label); they are never a rhetorical beat.
+
+**Stance**
+- Hedging is both-ways and topic-conditional: subjective or open content gets an explicit hedge ("I think", "granted") or amplified certainty ("100%") — never vague softening; settled facts and process carry zero hedge.
+- Multi-part material chains inline ("Then… Also… Lastly…"), it doesn't bullet; long sentences build by accretion (coordinators), not subordination.
+
+**Syntax-layer bans (the tells that pass punctuation filters)**
+- No balanced tricolon — three same-shape parallel phrases is a model signature the corpus never produces. Two items, or an asymmetric list.
+- Evaluative claims ride first-person, second-person, or imperative subjects — not impersonal abstractions ("The pipeline…", "The result…").
+- Repetition must escalate: each repeat adds newer, more specific content, or it's formula.
+- The stock-opener class is banned regardless of punctuation: "Here's the thing", "The thing is", "Let's be honest", "At its core", and kin — a legal dash does not launder the phrase.
+
+**Tiering** — the bans on generic filler (semicolons, however/moreover, delve-class lexicon) are hygiene, true of any terse engineer. The signature is elsewhere: dash-glued acknowledgments, inline chaining, both-ways hedging, label-colons, genuine questions. Prose that only clears hygiene has not found the voice.
 
 ## Register (where this site diverges from the book, deliberately)
 

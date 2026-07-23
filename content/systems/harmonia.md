@@ -25,7 +25,7 @@ not_shows = "A library scan or import. The current admin-protected `POST /api/li
 
 ## What it is
 
-Running a self-hosted media stack usually means five or six separate *arr-style applications — one for movies, one for TV, one for music, one for indexing, one for requests — each with its own database and auth, wired together by hand. harmonia collapses that pattern into one server. A single Tokio/Axum/SQLite process, 21 Cargo workspace members, covering the full media lifecycle — import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household requests, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
+Running a self-hosted media stack usually means five or six separate *arr-style applications - one for movies, one for TV, one for music, one for indexing, one for requests - each with its own database and auth, wired together by hand. harmonia collapses that pattern into one server. A single Tokio/Axum/SQLite process, 21 Cargo workspace members, covering the full media lifecycle - import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household requests, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
 
 ## Decisions and trade-offs
 
@@ -35,12 +35,12 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
-| Status reporting | A capability table naming shipped-and-wired vs. stubbed capabilities, down to the exact stub count | A blanket "it works" status claim | Harder to keep honest than a vague claim — the count has to stay current |
+| Status reporting | A capability table naming shipped-and-wired vs. stubbed capabilities, down to the exact stub count | A blanket "it works" status claim | Harder to keep honest than a vague claim - the count has to stay current |
 | Audio decode | Native bit-perfect decode and DSP (`akouo-core`), in-process | Piping through an external decoder tool | ALSA development headers required at build time on Linux, a real stated prerequisite |
 
 ## What's solid / what's open
 
-**Solid, shipped and wired to live routes:** auth, library read/import surfaces, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import — a completed download lands directly in the library for music, movie, and book wants.
+**Solid, shipped and wired to live routes:** auth, library read/import surfaces, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import - a completed download lands directly in the library for music, movie, and book wants.
 
 **Solid, on the live serve path:** `serve` wires `metadata_adapter` and `CurationAdapter(DefaultCurationService)`; the earlier metadata and curation null-resolver claim is no longer true. Audiobook, comic, podcast, and TV library types exist alongside the established media paths.
 
