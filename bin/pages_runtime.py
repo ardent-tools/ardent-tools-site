@@ -28,6 +28,7 @@ MANIFEST_NAME = "release-resources.json"
 ROUTES_SCHEMA_VERSION = 1
 BOUNDARY_SCHEMA_VERSION = 2
 MAX_ROUTE_RULES = 100
+WARN_ROUTE_RULES = 80
 MAX_ROUTE_LENGTH = 100
 SAFE_ROUTE_RE = re.compile(r"^/[A-Za-z0-9._~!$&'()+,;=:@%*/-]*$")
 ADDRESSED_RESOURCE_RE = re.compile(r"^a/[0-9a-f]{64}\.[A-Za-z0-9]+$")
@@ -123,6 +124,65 @@ def validate_overlapping_rules(routes: list[str], label: str) -> list[str]:
     return errors
 
 
+def collapsible_route_families(excludes: list[str]) -> dict[str, list[str]]:
+    """Group excludes rooted at a genuine content-section index route.
+
+    A candidate root is an exclude that is itself exactly one non-empty path
+    segment (e.g. "/systems/", derived from this build's own HTML authority,
+    never a bare textual coincidence). Its family is every current exclude —
+    page, resource, or redirect source — that the root's own path prefixes.
+    Single-member "families" (a lone top-level page with no siblings) are
+    omitted: collapsing them would trade away Function coverage for zero rule
+    savings.
+    """
+    excluded = set(excludes)
+    roots = sorted(
+        route for route in excluded if route.endswith("/") and route.count("/") == 2
+    )
+    families: dict[str, list[str]] = {}
+    for root in roots:
+        members = sorted(
+            route for route in excluded if route == root or route.startswith(root)
+        )
+        if len(members) >= 2:
+            families[root] = members
+    return families
+
+
+def collapse_route_families(excludes: list[str]) -> tuple[list[str], list[str]]:
+    """Replace a provably-complete same-prefix family with one wildcard rule.
+
+    "<root>*" may replace its family only when the family already accounts
+    for every route/resource/redirect-source this build derived that matches
+    it — re-verified against the resulting rule set itself below, so the
+    replacement can never silently swallow a path this build does not already
+    know about (fail closed: any leftover match skips the collapse). Requests
+    for a path this build never produced under a collapsed prefix fall back
+    to Cloudflare's native static 404 instead of this repository's
+    authoritative one — the same trade-off already accepted for /a/* and for
+    this file's own hand-authored redirect wildcards (AGENTS.md).
+    """
+    notes: list[str] = []
+    collapsed = list(excludes)
+    for root, members in sorted(collapsible_route_families(excludes).items()):
+        wildcard = f"{root}*"
+        if wildcard in collapsed:
+            continue
+        candidate = sorted({*(route for route in collapsed if route not in members), wildcard})
+        leftover = [
+            route
+            for route in candidate
+            if route != wildcard and (route == root or route.startswith(root))
+        ]
+        if leftover:
+            continue
+        collapsed = candidate
+        notes.append(
+            f"{wildcard} replaces {len(members)} member excludes rooted at {root!r}"
+        )
+    return collapsed, notes
+
+
 def authority_paths(output: Path) -> tuple[set[str], list[str]]:
     authority, errors = read_json(output / AUTHORITY_NAME, AUTHORITY_NAME)
     if errors:
@@ -150,7 +210,8 @@ def build_routes(output: Path) -> tuple[dict, list[str]]:
     errors.extend(authority_errors)
     errors.extend(redirect_errors)
 
-    excludes = sorted(resources | pages | {rule.source for rule in redirects})
+    raw_excludes = sorted(resources | pages | {rule.source for rule in redirects})
+    excludes, _collapse_notes = collapse_route_families(raw_excludes)
     for index, route in enumerate(excludes):
         errors.extend(validate_route(route, f"{ROUTES_NAME}: exclude[{index}]"))
     errors.extend(validate_overlapping_rules(["/*"], "include"))
@@ -347,6 +408,17 @@ def main() -> int:
         f"{exclude_count} retained/redirect paths static and "
         f"{include_count} catch-all active\n"
     )
+    if exclude_count >= WARN_ROUTE_RULES:
+        sys.stdout.write(
+            f"WARNING: {ROUTES_NAME} carries {exclude_count} exclude rules "
+            f"(soft threshold {WARN_ROUTE_RULES}, hard Cloudflare limit "
+            f"{MAX_ROUTE_RULES}); one rule is still consumed per canonical HTML "
+            "path/resource/redirect not already folded into a collapsed "
+            "content-section wildcard (see collapse_route_families) — add new "
+            "content sections under a shared index route so future pages "
+            "collapse automatically, or file for a manual review before the "
+            "hard limit blocks a release\n"
+        )
     return 0
 
 

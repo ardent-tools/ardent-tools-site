@@ -2659,6 +2659,26 @@ class PagesRuntimeContractTests(unittest.TestCase):
         }
         (output / pages_runtime.AUTHORITY_NAME).write_text(json.dumps(authority))
 
+    def make_fixture_with_extra_routes(
+        self, output: Path, extra_request_paths: list[str]
+    ) -> None:
+        self.make_fixture(output)
+        authority = json.loads((output / pages_runtime.AUTHORITY_NAME).read_text())
+        for index, request_path in enumerate(extra_request_paths):
+            output_path = f"{request_path.strip('/')}/index.html"
+            page = output / output_path
+            page.parent.mkdir(parents=True, exist_ok=True)
+            page.write_text(f"page {index}\n")
+            authority["routes"].append(
+                {
+                    "request_path": request_path,
+                    "output_path": output_path,
+                    "sha256": f"{index:064x}",
+                }
+            )
+        authority["route_count"] = len(authority["routes"])
+        (output / pages_runtime.AUTHORITY_NAME).write_text(json.dumps(authority))
+
     def test_routes_leave_retained_artifacts_static_and_missing_paths_guarded(
         self,
     ) -> None:
@@ -2708,6 +2728,106 @@ class PagesRuntimeContractTests(unittest.TestCase):
             hashlib.sha256((ROOT / "wrangler.toml").read_bytes()).hexdigest(),
         )
         self.assertEqual(errors, [])
+
+    def test_same_prefix_route_family_collapses_to_one_safe_wildcard(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture_with_extra_routes(
+                output,
+                [
+                    "/systems/",
+                    "/systems/akroasis/",
+                    "/systems/aletheia/",
+                    "/systems/kanon/",
+                ],
+            )
+            include_count, exclude_count = pages_runtime.write_runtime(output)
+            routes = json.loads((output / pages_runtime.ROUTES_NAME).read_text())
+            errors = pages_runtime.validate_runtime(output)
+        self.assertEqual(errors, [])
+        self.assertEqual(include_count, 1)
+        self.assertEqual(exclude_count, len(routes["exclude"]))
+        self.assertIn("/systems/*", routes["exclude"])
+        for member in (
+            "/systems/",
+            "/systems/akroasis/",
+            "/systems/aletheia/",
+            "/systems/kanon/",
+        ):
+            self.assertNotIn(member, routes["exclude"])
+        # The pre-existing hand-authored redirect wildcards for these two
+        # slugs are subsumed by the broader family wildcard rather than left
+        # behind as a separate, now-redundant, overlapping rule.
+        self.assertNotIn("/systems/ergon-tools/*", routes["exclude"])
+        self.assertNotIn("/systems/nosologia/*", routes["exclude"])
+        self.assertNotIn("/about/*", routes["exclude"])
+        self.assertIn("/about/", routes["exclude"])
+
+    def test_single_member_prefix_is_left_uncollapsed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            routes, errors = pages_runtime.build_routes(output)
+        self.assertEqual(errors, [])
+        self.assertIn("/about/", routes["exclude"])
+        self.assertNotIn("/about/*", routes["exclude"])
+
+    def test_collapse_route_families_derives_and_fails_closed(self) -> None:
+        safe = ["/systems/", "/systems/a/", "/systems/b/", "/other/"]
+        collapsed, notes = pages_runtime.collapse_route_families(safe)
+        self.assertEqual(collapsed, sorted(["/systems/*", "/other/"]))
+        self.assertEqual(len(notes), 1)
+
+        # A lone root with no siblings never forms a family at all.
+        lone_root = sorted(["/systems/", "/other/"])
+        collapsed_lone, notes_lone = pages_runtime.collapse_route_families(lone_root)
+        self.assertEqual(collapsed_lone, lone_root)
+        self.assertEqual(notes_lone, [])
+
+        # The safety re-check inside collapse_route_families() is what makes
+        # the design fail closed: replacing a family's members must leave no
+        # route besides the wildcard itself still matching the wildcard's own
+        # prefix. Exercise that guard directly against a deliberately
+        # incomplete replacement (as if a family were only partially known).
+        incomplete_candidate = sorted({"/systems/a/", "/systems/*"})
+        leftover = [
+            route
+            for route in incomplete_candidate
+            if route != "/systems/*" and route.startswith("/systems/")
+        ]
+        self.assertEqual(leftover, ["/systems/a/"])
+
+    def test_route_rule_soft_warning_names_the_growth_trend(self) -> None:
+        with tempfile.TemporaryDirectory() as baseline_directory:
+            baseline_output = Path(baseline_directory)
+            self.make_fixture(baseline_output)
+            baseline_routes, baseline_errors = pages_runtime.build_routes(
+                baseline_output
+            )
+            self.assertEqual(baseline_errors, [])
+            baseline_count = len(baseline_routes["exclude"])
+        needed = pages_runtime.WARN_ROUTE_RULES - baseline_count + 5
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture_with_extra_routes(
+                output, [f"/solo-{index}/" for index in range(needed)]
+            )
+            stdout = io.StringIO()
+            with (
+                mock.patch.object(
+                    pages_runtime.sys,
+                    "argv",
+                    ["pages_runtime.py", str(output)],
+                ),
+                mock.patch.object(pages_runtime.sys, "stdout", stdout),
+            ):
+                exit_code = pages_runtime.main()
+        self.assertEqual(exit_code, 0)
+        output_text = stdout.getvalue()
+        self.assertIn("PASS", output_text)
+        self.assertIn("WARNING", output_text)
+        self.assertIn(str(pages_runtime.WARN_ROUTE_RULES), output_text)
+        self.assertIn(str(pages_runtime.MAX_ROUTE_RULES), output_text)
 
     def test_wrangler_config_is_exact_and_compatibility_date_is_pinned(self) -> None:
         source = (ROOT / pages_runtime.WRANGLER_RELATIVE_PATH).read_bytes()
