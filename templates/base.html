@@ -9,6 +9,7 @@
    themes/typikon/templates/base.html on every typikon-refresh.
 #}
 {% import "partials/ld-breadcrumb.html" as crumb %}
+{% import "partials/asset-url.html" as asset_url %}
 <!DOCTYPE html>
 <html lang="{{ lang | default(value="en") }}">
 <head>
@@ -76,14 +77,14 @@
   <link rel="preload" href="{{ font | safe }}" as="font" type="font/woff2" crossorigin>
     {%- endfor %}
   {%- endif %}
-  <link rel="stylesheet" href="{{ get_url(path='css/fonts.css', cachebust=true) }}">
-  <link rel="stylesheet" href="{{ get_url(path='css/style.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/fonts.css') | safe }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/style.css') | safe }}">
   {# --- ardent.tools delta begins: consumer-side token override + new
      component CSS, loaded after typikon's own stylesheet so equal-
      specificity selectors here win the cascade (see site.css's own
      header comment). --- #}
-  <link rel="stylesheet" href="{{ get_url(path='css/site.css', cachebust=true) }}">
-  <link rel="stylesheet" href="{{ get_url(path='css/syntax.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/site.css') | safe }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/syntax.css') | safe }}">
   {# --- ardent.tools delta ends --- #}
   {# A page may populate this block only when it renders a published cast. #}
   {% block player_css %}{% endblock player_css %}
@@ -112,7 +113,7 @@
      site.js is the site's own external enhancement script and no-ops when
      the optional player library is absent. #}
   {% block player_js %}{% endblock player_js %}
-  <script src="{{ get_url(path='js/site.js', cachebust=true) }}" defer></script>
+  <script src="{{ asset_url::hashed(path='js/site.js') | safe }}" defer></script>
   {% block scripts %}{% endblock scripts %}
 </body>
 </html>

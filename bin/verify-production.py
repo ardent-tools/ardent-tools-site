@@ -8,14 +8,26 @@ import hashlib
 import re
 import sys
 import time
+import tomllib
+import xml.etree.ElementTree as ET
+from collections import Counter
 from html.parser import HTMLParser
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 ASSET_HASH_RE = re.compile(r"^[0-9a-f]{20}$")
-HTML_PATHS = ("/", "/evidence/")
+ASSET_EPOCH_RE = re.compile(r"^[1-9][0-9]*$")
+SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+MAX_SITEMAP_HTML_ROUTES = 256
+STRUCTURED_RESOURCE_PATHS = (
+    "/atom.xml",
+    "/systems.json",
+    "/site.webmanifest",
+    "/speculation-rules.json",
+)
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -77,37 +89,16 @@ def cache_directives(headers: dict[str, str]) -> list[tuple[str, str | None]]:
     return directives
 
 
-def validate_revalidating_cache(
+def validate_no_store_cache(
     errors: list[str], label: str, headers: dict[str, str]
 ) -> None:
     cache_control = header(headers, "Cache-Control")
     directives = cache_directives(headers)
-    names = {name for name, _ in directives}
-    max_ages = [value for name, value in directives if name == "max-age"]
-    if len(max_ages) != 1:
+    expected = Counter({("no-store", None): 1, ("no-transform", None): 1})
+    if Counter(directives) != expected:
         errors.append(
-            f"{label} Cache-Control must expose exactly one max-age value: {cache_control!r}"
-        )
-    elif max_ages[0] != "0":
-        errors.append(f"{label} Cache-Control must use max-age=0: {cache_control!r}")
-    for required in ("must-revalidate", "no-transform"):
-        if required not in names:
-            errors.append(f"{label} Cache-Control lacks {required}: {cache_control!r}")
-    if "immutable" in names:
-        errors.append(f"{label} Cache-Control must not be immutable: {cache_control!r}")
-
-
-def validate_revision_cache(errors: list[str], headers: dict[str, str]) -> None:
-    cache_control = header(headers, "Cache-Control")
-    names = {name for name, _ in cache_directives(headers)}
-    for required in ("no-store", "no-transform"):
-        if required not in names:
-            errors.append(
-                f"/build-revision.txt Cache-Control lacks {required}: {cache_control!r}"
-            )
-    if "immutable" in names:
-        errors.append(
-            f"/build-revision.txt Cache-Control must not be immutable: {cache_control!r}"
+            f"{label} Cache-Control must be exactly no-store, no-transform; "
+            f"found {cache_control!r}"
         )
 
 
@@ -128,13 +119,13 @@ def asset_identity(url: str) -> tuple[str, str, str, tuple[tuple[str, str], ...]
     other_query = tuple(
         (name, value)
         for name, value in parse_qsl(parsed.query, keep_blank_values=True)
-        if name != "h"
+        if name not in {"h", "v"}
     )
     return parsed.scheme.lower(), parsed.netloc.lower(), parsed.path, other_query
 
 
 def collect_hashed_assets(
-    errors: list[str], base_url: str, page_url: str, body: str
+    errors: list[str], base_url: str, page_url: str, body: str, asset_epoch: str
 ) -> list[tuple[str, str, str]]:
     parser = AssetParser()
     parser.feed(body)
@@ -153,23 +144,72 @@ def collect_hashed_assets(
             errors.append(f"{page_url}: external {kind} asset is not allowed: {reference!r}")
             continue
         parsed = urlparse(resolved)
-        hashes = [
-            value
-            for name, value in parse_qsl(parsed.query, keep_blank_values=True)
-            if name == "h"
-        ]
-        if len(hashes) != 1:
+        pairs = parse_qsl(parsed.query, keep_blank_values=True)
+        names = [name for name, _ in pairs]
+        if len(pairs) != 2 or Counter(names) != Counter({"h": 1, "v": 1}):
             errors.append(
-                f"{page_url}: {kind} asset must carry exactly one h query value: {reference!r}"
+                f"{page_url}: {kind} asset must carry exactly one h and one v query and "
+                f"no others: {reference!r}"
             )
             continue
-        if not ASSET_HASH_RE.fullmatch(hashes[0]):
+        values = dict(pairs)
+        if not ASSET_HASH_RE.fullmatch(values["h"]):
             errors.append(
-                f"{page_url}: {kind} asset has malformed h query value {hashes[0]!r}: {reference!r}"
+                f"{page_url}: {kind} asset has malformed h query value {values['h']!r}: "
+                f"{reference!r}"
             )
             continue
-        assets.append((resolved, hashes[0], kind))
+        if values["v"] != asset_epoch:
+            errors.append(
+                f"{page_url}: {kind} asset has v={values['v']!r}, expected "
+                f"{asset_epoch!r}: {reference!r}"
+            )
+            continue
+        assets.append((resolved, values["h"], kind))
     return assets
+
+
+def sitemap_html_paths(
+    errors: list[str], site_root: str, body: bytes
+) -> list[str]:
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as exc:
+        errors.append(f"/sitemap.xml strict XML parse failed: {exc}")
+        return []
+    urls = [node.text or "" for node in root.findall(f"{SITEMAP}url/{SITEMAP}loc")]
+    if not urls:
+        errors.append("/sitemap.xml contains no authored HTML routes")
+        return []
+    if len(urls) > MAX_SITEMAP_HTML_ROUTES:
+        errors.append(
+            f"/sitemap.xml contains {len(urls)} routes, exceeding bounded verifier limit "
+            f"{MAX_SITEMAP_HTML_ROUTES}"
+        )
+        return []
+    paths: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            errors.append(f"/sitemap.xml has malformed route: {url!r}")
+            continue
+        if not same_origin(site_root, url):
+            errors.append(f"/sitemap.xml has external route: {url!r}")
+            continue
+        if parsed.query or parsed.fragment or not parsed.path.endswith("/"):
+            errors.append(f"/sitemap.xml has non-HTML route shape: {url!r}")
+            continue
+        if parsed.path in seen:
+            errors.append(f"/sitemap.xml repeats route: {parsed.path}")
+            continue
+        seen.add(parsed.path)
+        paths.append(parsed.path)
+    for required in ("/", "/evidence/"):
+        if required not in seen:
+            errors.append(f"/sitemap.xml lacks required route {required}")
+    return paths
 
 
 def distinct_assets(
@@ -195,7 +235,9 @@ def distinct_assets(
     return assets
 
 
-def verify(base_url: str, timeout: float, expected_revision: str) -> list[str]:
+def verify(
+    base_url: str, timeout: float, expected_revision: str, asset_epoch: str
+) -> list[str]:
     errors: list[str] = []
     site_root = base_url.rstrip("/") + "/"
     revision_url = urljoin(site_root, "build-revision.txt")
@@ -208,17 +250,31 @@ def verify(base_url: str, timeout: float, expected_revision: str) -> list[str]:
             "deployed revision mismatch: "
             f"expected {expected_revision!r}, got {revision_body.decode('utf-8', errors='replace').strip()!r}"
         )
-    validate_revision_cache(errors, revision_headers)
+    validate_no_store_cache(errors, "/build-revision.txt", revision_headers)
+
+    sitemap_url = urljoin(site_root, "sitemap.xml")
+    sitemap_status, sitemap_headers, sitemap_body = request(sitemap_url, timeout)
+    if sitemap_status != 200:
+        errors.append(f"/sitemap.xml returned {sitemap_status}, expected 200")
+    validate_no_store_cache(errors, "/sitemap.xml", sitemap_headers)
+    html_paths = sitemap_html_paths(errors, site_root, sitemap_body)
+
+    for path in STRUCTURED_RESOURCE_PATHS:
+        resource_url = urljoin(site_root, path.lstrip("/"))
+        status, resource_headers, _ = request(resource_url, timeout, follow=False)
+        if status != 200:
+            errors.append(f"{path} returned {status}, expected 200")
+        validate_no_store_cache(errors, path, resource_headers)
 
     pages: dict[str, str] = {}
     asset_references: list[tuple[str, str, str]] = []
-    for path in HTML_PATHS:
+    for path in html_paths:
         page_url = urljoin(site_root, path.lstrip("/"))
         status, headers, body_bytes = request(page_url, timeout)
         body = body_bytes.decode("utf-8", errors="replace")
         if status != 200:
             errors.append(f"{path} returned {status}, expected 200")
-        validate_revalidating_cache(errors, path, headers)
+        validate_no_store_cache(errors, path, headers)
 
         csp = header(headers, "Content-Security-Policy")
         if "script-src 'self'" not in csp or "'unsafe-inline'" in csp or "wasm-unsafe-eval" in csp:
@@ -226,7 +282,9 @@ def verify(base_url: str, timeout: float, expected_revision: str) -> list[str]:
         if "/cdn-cgi/" in body or "__cf_email__" in body or "data-cfemail" in body:
             errors.append(f"{path} has Cloudflare email-protection markup/script injected")
 
-        asset_references.extend(collect_hashed_assets(errors, site_root, page_url, body))
+        asset_references.extend(
+            collect_hashed_assets(errors, site_root, page_url, body, asset_epoch)
+        )
         pages[path] = body
 
     evidence_url = urljoin(site_root, "evidence/")
@@ -246,7 +304,7 @@ def verify(base_url: str, timeout: float, expected_revision: str) -> list[str]:
         if asset_status != 200:
             errors.append(f"authored {kind} asset {asset_url!r} returned {asset_status}, expected 200")
             continue
-        validate_revalidating_cache(
+        validate_no_store_cache(
             errors, f"authored {kind} asset {asset_url!r}", asset_headers
         )
         digest = hashlib.sha256(asset_body).hexdigest()
@@ -279,11 +337,20 @@ def main() -> int:
         parser.error("--attempts must be at least 1")
     if not REVISION_RE.fullmatch(args.expected_revision):
         parser.error("--expected-revision must be exactly one lowercase 40-hex revision")
+    try:
+        config = tomllib.loads(Path("config.toml").read_text())
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        parser.error(f"cannot read asset epoch from config.toml: {exc}")
+    asset_epoch = config.get("extra", {}).get("asset_epoch")
+    if not isinstance(asset_epoch, str) or not ASSET_EPOCH_RE.fullmatch(asset_epoch):
+        parser.error("config.toml extra.asset_epoch must be a nonzero decimal string")
 
     last_errors: list[str] = []
     for attempt in range(1, args.attempts + 1):
         try:
-            last_errors = verify(args.base_url, args.timeout, args.expected_revision)
+            last_errors = verify(
+                args.base_url, args.timeout, args.expected_revision, asset_epoch
+            )
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]
         if not last_errors:

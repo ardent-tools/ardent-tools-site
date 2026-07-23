@@ -739,6 +739,14 @@ a.badge:focus-visible {
   color: var(--text-mid);
 }
 
+/* Typikon's list reset removes the browser's marker reservation. Preserve a
+   deliberate inline-start gutter so outside bullets and numerals remain on
+   the paper at narrow widths while prose retains its readable measure. */
+.prose ul,
+.prose ol {
+  padding-inline-start: 1.75rem;
+}
+
 /* === Terminal panel (§3.1) — the base primitive === */
 .term-panel {
   margin: var(--space-l) 0;
@@ -1528,6 +1536,12 @@ footer {
 
   body {
     padding-inline: var(--space-s);
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
   }
 
   nav,

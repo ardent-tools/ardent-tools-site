@@ -5,7 +5,7 @@
 # disposition before the build can pass.
 
 /*
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
+  Cache-Control: no-store, no-transform
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -14,51 +14,5 @@
   Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
   Speculation-Rules: "/speculation-rules.json"
 
-/css/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/fonts/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/js/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/vendor/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/img/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/casts/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/tapes/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/files/*
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/systems.json
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
-/site.webmanifest
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-
 /speculation-rules.json
-  ! Cache-Control
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
   Content-Type: application/speculationrules+json
-
-/build-revision.txt
-  ! Cache-Control
-  Cache-Control: no-store, no-transform

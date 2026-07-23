@@ -1,6 +1,6 @@
 +++
 title = "Three ways to count the same thing"
-description = "One number confirmed by three methods with no shared failure mode; a gate stamp the server recomputes before honoring; an audit run that checks agents against the tracker they filed into."
+description = "One number triangulated three ways; a SHA-bound local gate stamp followed by independent post-push CI; an audit checked against its tracker."
 date = 2026-07-21
 
 [extra]

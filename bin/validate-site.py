@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import re
 import sys
@@ -13,7 +14,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urljoin, urlparse
 
 BASE_URL = "https://ardent.tools"
 ATOM = "{http://www.w3.org/2005/Atom}"
@@ -31,6 +32,8 @@ PINNED_SNAPSHOTS = {
     "thumos.md": "77cc89906a52",
 }
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
+ASSET_HASH_RE = re.compile(r"^[0-9a-f]{20}$")
+ASSET_EPOCH_RE = re.compile(r"^[1-9][0-9]*$")
 TAPE_TARGETS = {
     "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
     "hamma-tests.tape": "ARDENT_HAMMA_ROOT",
@@ -81,6 +84,19 @@ class PageParser(HTMLParser):
             self.title += data
         if self.in_json:
             self._json += data
+
+
+class AssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.references: list[tuple[str, str]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "script" and "src" in values:
+            self.references.append(("JavaScript", values.get("src") or ""))
+        if tag == "link" and "stylesheet" in (values.get("rel") or "").lower().split():
+            self.references.append(("CSS", values.get("href") or ""))
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -175,20 +191,111 @@ def validate_cache_contract(errors: list[str], output: Path, headers_text: str) 
                 f"_headers: {path} has {len(cache_values)} effective Cache-Control values: {cache_values}",
             )
             continue
-        policy = cache_values[0].lower()
-        if policy.count("max-age=") > 1:
-            fail(errors, f"_headers: {path} has multiple max-age directives: {policy!r}")
-        if "no-transform" not in {part.strip() for part in policy.split(",")}:
-            fail(errors, f"_headers: {path} loses the authored no-transform boundary")
-        if "immutable" in policy:
-            fail(errors, f"_headers: stable path {path} must not be immutable")
+        directives: list[tuple[str, str | None]] = []
+        for raw in cache_values[0].split(","):
+            name, separator, value = raw.strip().partition("=")
+            directives.append(
+                (name.strip().lower(), value.strip().strip('"').lower() if separator else None)
+            )
+        if Counter(directives) != Counter({("no-store", None): 1, ("no-transform", None): 1}):
+            fail(
+                errors,
+                f"_headers: {path} Cache-Control must be exactly no-store, no-transform; "
+                f"found {cache_values[0]!r}",
+            )
 
-    revision_policy = effective_headers("/build-revision.txt", rules).get("cache-control", [])
-    if revision_policy != ["no-store, no-transform"]:
+
+def inspect_asset_reference(
+    errors: list[str],
+    *,
+    page: Path,
+    kind: str,
+    reference: str,
+    output: Path,
+    asset_epoch: str,
+) -> tuple[str, str] | None:
+    try:
+        resolved = urljoin(BASE_URL + "/", reference)
+        parsed = urlparse(resolved)
+    except ValueError:
+        fail(errors, f"{page}: malformed {kind} asset URL: {reference!r}")
+        return None
+    base = urlparse(BASE_URL)
+    if (parsed.scheme.lower(), parsed.netloc.lower()) != (
+        base.scheme.lower(),
+        base.netloc.lower(),
+    ):
+        fail(errors, f"{page}: external {kind} asset is not allowed: {reference!r}")
+        return None
+    if parsed.fragment:
+        fail(errors, f"{page}: {kind} asset URL must not carry a fragment: {reference!r}")
+        return None
+    pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    names = [name for name, _ in pairs]
+    if len(pairs) != 2 or Counter(names) != Counter({"h": 1, "v": 1}):
         fail(
             errors,
-            "_headers: /build-revision.txt must have exactly 'no-store, no-transform'",
+            f"{page}: {kind} asset must carry exactly one h and one v query and no others: "
+            f"{reference!r}",
         )
+        return None
+    values = dict(pairs)
+    authored_hash = values["h"]
+    if not ASSET_HASH_RE.fullmatch(authored_hash):
+        fail(errors, f"{page}: {kind} asset has malformed h={authored_hash!r}: {reference!r}")
+        return None
+    if values["v"] != asset_epoch:
+        fail(
+            errors,
+            f"{page}: {kind} asset has v={values['v']!r}, expected {asset_epoch!r}: {reference!r}",
+        )
+        return None
+    asset_path = output / parsed.path.lstrip("/")
+    if not asset_path.is_file():
+        fail(errors, f"{page}: {kind} asset does not resolve in output: {parsed.path}")
+        return None
+    digest = hashlib.sha256(asset_path.read_bytes()).hexdigest()
+    if not digest.startswith(authored_hash):
+        fail(
+            errors,
+            f"{page}: {kind} asset digest mismatch for {reference!r}: "
+            f"h={authored_hash}, SHA-256={digest}",
+        )
+    return parsed.path, authored_hash
+
+
+def validate_asset_contract(
+    errors: list[str], html: dict[Path, str], output: Path, asset_epoch: str
+) -> None:
+    identities: dict[str, tuple[str, Path]] = {}
+    for page, text in html.items():
+        parser = AssetParser()
+        parser.feed(text)
+        kinds = {kind for kind, _ in parser.references}
+        for required in ("CSS", "JavaScript"):
+            if required not in kinds:
+                fail(errors, f"{page}: no authored {required} asset reference found")
+        for kind, reference in parser.references:
+            inspected = inspect_asset_reference(
+                errors,
+                page=page,
+                kind=kind,
+                reference=reference,
+                output=output,
+                asset_epoch=asset_epoch,
+            )
+            if inspected is None:
+                continue
+            asset_path, authored_hash = inspected
+            prior = identities.get(asset_path)
+            if prior and prior[0] != authored_hash:
+                fail(
+                    errors,
+                    f"conflicting authored hashes for {asset_path}: {prior[0]} at {prior[1]}, "
+                    f"{authored_hash} at {page}",
+                )
+            else:
+                identities[asset_path] = (authored_hash, page)
 
 
 def validate_revision(
@@ -319,6 +426,11 @@ def main() -> int:
     output = args.output.resolve()
     errors: list[str] = []
     headers = Path("_headers").read_text()
+    config = tomllib.loads(Path("config.toml").read_text())
+    asset_epoch = config.get("extra", {}).get("asset_epoch")
+    if not isinstance(asset_epoch, str) or not ASSET_EPOCH_RE.fullmatch(asset_epoch):
+        fail(errors, "config.toml: extra.asset_epoch must be a nonzero decimal string")
+        asset_epoch = "INVALID"
 
     validate_revision(errors, output, args.expected_revision)
     validate_cache_contract(errors, output, headers)
@@ -421,6 +533,7 @@ def main() -> int:
 
     html_files = sorted(output.rglob("*.html"))
     html = {path: path.read_text() for path in html_files}
+    validate_asset_contract(errors, html, output, asset_epoch)
     validate_player_contract(errors, casts, html, headers, output)
 
     evidence_path = output / "evidence/index.html"
@@ -591,6 +704,9 @@ def main() -> int:
         "a mismatched or forged stamp rejects the push",
         "A grounding step now issues the evidence together with a token",
         "no unsafe beyond what the underlying `boringtun` crate",
+        "Every rule is now tagged substance or proxy",
+        "a gate stamp the server recomputes before honoring",
+        "Bluetooth/GPS control, BT audio, mesh/inbox) sit unreachable",
     )
     for phrase in discredited:
         if phrase in authored_corpus:
@@ -599,6 +715,9 @@ def main() -> int:
     judge_essay = Path("content/writing/hardest-honest-rung.md").read_text()
     if "remain sequenced work" not in judge_essay or "generic labeled holdout" not in judge_essay:
         fail(errors, "hardest-honest-rung must separate the landed holdout from sequenced judge work")
+    for required in ("remains roadmap work", "Error, Warning, and Info"):
+        if required not in judge_essay:
+            fail(errors, f"hardest-honest-rung lacks the current Kanon boundary: {required!r}")
     counting_essay = Path("content/writing/three-ways-to-count.md").read_text()
     if "post-receive hook runs after the ref has moved" not in counting_essay:
         fail(errors, "three-ways-to-count must preserve the post-receive timing boundary")

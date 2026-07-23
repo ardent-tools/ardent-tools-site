@@ -40,6 +40,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/partials/footer.html` | Shadow | Typikon's stock footer is one brand line + one flat link list; this site's footer needs three mono clusters + a sibling-brand line (DESIGN §3.7), which the flat list can't produce. |
 | `templates/partials/ld-person.html` | New | Person JSON-LD, same pattern as typikon's six `ld-*.html` partials. |
 | `templates/partials/term-panel.html` | New | Terminal-player macro guarded by a real `demo.cast`; absent casts render nothing. |
+| `templates/partials/asset-url.html` | New | Single CSS/JavaScript URL constructor: one Zola content digest plus the release-scoped `extra.asset_epoch`. |
 | `templates/partials/catalog-row.html` | New | The Tier-1 flagship ledger-row macro `systems.html` and `index.html`'s selected-work block both call. |
 | `templates/partials/catalog-ledger.html` | New | Tier-2 (`grid()`, Libraries/Web) and Tier-3 (`register()`, In-design) ledger-row macros, both data-driven from `content/systems/_index.md`'s `[[extra.ledger]]` array — no hand-authored per-repo HTML. |
 | `templates/atom.xml` | Shadow | Makes `/atom.xml` the canonical writing feed by deriving entries from the writing section. |
@@ -74,8 +75,13 @@ sets `ARDENT_RETAIN_VALIDATED_PUBLIC=1` to move the already validated production
 tree into an initially absent, ignored `public/` directory for deployment. CI
 also passes `ARDENT_BUILD_REVISION` so that tree carries the exact commit in
 `build-revision.txt`; the live verifier requires the same revision after deploy
-and verifies the exact hashed CSS/JavaScript URLs authored by live HTML against
-their response bodies and effective cache policy.
+and derives all public HTML from the live sitemap. Every authored CSS/JavaScript
+URL carries its content digest plus the central `extra.asset_epoch`; the live
+verifier checks the exact URL's response body and requires `no-store,
+no-transform` on HTML, assets, structured resources, and the revision sentinel.
+The résumé compiles twice with only the pinned, licensed inputs under
+`resume/fonts/`; system and Typst-embedded fonts are disabled, and `pdffonts`
+must report only embedded/subsetted Nimbus Sans Regular and Bold.
 
 ## Remotes
 

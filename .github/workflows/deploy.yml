@@ -57,7 +57,7 @@ jobs:
         run: |
           python3 -m pip install --user jsonschema==4.26.0
 
-      - name: Install Typst and PDF text tools
+      - name: Install Typst and PDF inspection tools
         env:
           TYPST_VERSION: 0.14.2
           TYPST_SHA256: a6044cbad2a954deb921167e257e120ac0a16b20339ec01121194ff9d394996d

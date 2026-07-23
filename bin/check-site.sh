@@ -22,7 +22,7 @@ RESOLVED_REVISION=$(git rev-parse --verify "${BUILD_REVISION}^{commit}" 2>/dev/n
 }
 readonly BUILD_REVISION
 
-for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext; do
+for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext pdffonts; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "ERROR: required tool is missing: $tool" >&2
     exit 1
@@ -96,9 +96,17 @@ echo "==> integrity regression tests"
 python3 -m unittest discover -s tests -p 'test_*.py'
 
 echo "==> resume reproducibility and factual manifest"
-typst compile --root "$ROOT" resume/cody-kickertz-resume.typ "$CHECK_ROOT/cody-kickertz-resume.pdf"
-cmp static/files/cody-kickertz-resume.pdf "$CHECK_ROOT/cody-kickertz-resume.pdf"
-pdftotext "$CHECK_ROOT/cody-kickertz-resume.pdf" "$CHECK_ROOT/cody-kickertz-resume.txt"
+python3 bin/validate-resume-fonts.py --font-dir resume/fonts
+typst compile --root "$ROOT" --font-path resume/fonts --ignore-system-fonts \
+  --ignore-embedded-fonts resume/cody-kickertz-resume.typ "$CHECK_ROOT/cody-kickertz-resume-a.pdf"
+typst compile --root "$ROOT" --font-path resume/fonts --ignore-system-fonts \
+  --ignore-embedded-fonts resume/cody-kickertz-resume.typ "$CHECK_ROOT/cody-kickertz-resume-b.pdf"
+cmp "$CHECK_ROOT/cody-kickertz-resume-a.pdf" "$CHECK_ROOT/cody-kickertz-resume-b.pdf"
+cmp static/files/cody-kickertz-resume.pdf "$CHECK_ROOT/cody-kickertz-resume-a.pdf"
+pdffonts "$CHECK_ROOT/cody-kickertz-resume-a.pdf" > "$CHECK_ROOT/cody-kickertz-resume-fonts.txt"
+python3 bin/validate-resume-fonts.py --font-dir resume/fonts \
+  --pdffonts "$CHECK_ROOT/cody-kickertz-resume-fonts.txt"
+pdftotext "$CHECK_ROOT/cody-kickertz-resume-a.pdf" "$CHECK_ROOT/cody-kickertz-resume.txt"
 python3 bin/validate-resume.py "$CHECK_ROOT/cody-kickertz-resume.txt"
 
 echo "==> production build, CSP, and strict contracts"

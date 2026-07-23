@@ -9,6 +9,7 @@
 #}
 {% extends "page.html" %}
 {% import "partials/term-panel.html" as term_panel %}
+{% import "partials/asset-url.html" as asset_url %}
 
 {# SoftwareSourceCode/CreativeWork JSON-LD (DESIGN-v1.3 §4 item 7) ships
    alongside page.html's default Organization/Person/Breadcrumb stack —
@@ -20,12 +21,12 @@
 
 {% block player_css %}
   {%- if page.extra.demo and page.extra.demo.cast %}
-  <link rel="stylesheet" href="{{ get_url(path='vendor/asciinema/asciinema-player.css', cachebust=true) }}">
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='vendor/asciinema/asciinema-player.css') | safe }}">
   {%- endif %}
 {% endblock player_css %}
 {% block player_js %}
   {%- if page.extra.demo and page.extra.demo.cast %}
-  <script src="{{ get_url(path='vendor/asciinema/asciinema-player.min.js', cachebust=true) }}" defer></script>
+  <script src="{{ asset_url::hashed(path='vendor/asciinema/asciinema-player.min.js') | safe }}" defer></script>
   {%- endif %}
 {% endblock player_js %}
 

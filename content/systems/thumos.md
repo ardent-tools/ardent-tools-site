@@ -38,13 +38,15 @@ On QEMU's `virt` board, the kernel reaches its service loop under `qemu-system-a
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
 | Kernel language and target | Bare-metal Rust, kernel excluded from the main workspace for a clean `armv7a-none-eabi` cross-compile | Leaning on Linux's existing driver ecosystem | Every subsystem written and tested from scratch, no free drivers |
-| Capability labeling | A capability counts as supported only once a boot or userspace call path reaches it | Calling a crate "supported" the moment it compiles | Several implemented capabilities (UI routing, Bluetooth/GPS control, BT audio, mesh/inbox) sit unreachable, named as such |
+| Capability labeling | A capability counts as supported only once a boot or userspace call path reaches it | Calling a crate "supported" the moment it compiles | UI routing and Bluetooth A2DP are wired into the service loop and CI-smoked; GPS userspace and mesh/inbox remain open |
 
 ## What's solid / what's open
 
 **Solid:** the kernel boots end-to-end under QEMU — MMU/cache setup, the GIC, the scheduler, the first timer interrupt, the CSPRNG, every subsystem's init step, the boot-to-service handoff, and a cooperative service loop running as PID 0 off a 100 Hz timer. CI gates pushes to `main` and pull requests targeting `main` on the kernel's host test suite, the bare-metal cross-compile, and the boot itself. The kernel implements and unit-tests an OS core: memory management, interrupts and scheduling, IPC and signals, syscalls, a VFS, a CSPRNG, capabilities, power management, a watchdog.
 
-**Open:** Hardware validation on a physical AGM M7 has not run yet. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. Several implemented capabilities aren't wired to the boot/service loop yet (tracked as the boot-wiring epic). Real radio I/O is hardware work; the boot degrades to a fail-closed loopback path when the data path is absent. A live Aletheia runtime bridge (`metaxu`) is future work — the protocol surface exists, nothing embeds a live agent runtime yet.
+**Wired witness:** the same QEMU CI boot observes a nonblank rendered screen, a Home → Search → Home UI round trip, and the Bluetooth audio state machine configured for A2DP at 44.1 kHz stereo. Those are real service-loop paths against emulated or synthetic devices, not proof of the physical display or radio silicon.
+
+**Open:** Hardware validation on a physical AGM M7 has not run yet. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. GPS initialization exists, but its userspace device path remains a stub; mesh/inbox has no service-loop path. Real radio I/O is hardware work, and the boot degrades to a fail-closed loopback path when the data path is absent. A live Aletheia runtime bridge (`metaxu`) is future work — the protocol surface exists, nothing embeds a live agent runtime yet.
 
 ## Numbers, and how they were measured
 

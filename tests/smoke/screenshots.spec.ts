@@ -5,6 +5,7 @@ const targets = [
   ['systems', '/systems/'],
   ['system-aletheia', '/systems/aletheia/'],
   ['consulting', '/consulting/'],
+  ['contact', '/contact/'],
   ['writing', '/writing/'],
   ['evidence', '/evidence/'],
 ];

@@ -12,7 +12,7 @@ Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat 
 
 ## Build / run
 
-Requires [Zola](https://www.getzola.org/) 0.22.1 and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` for the repository-owned résumé check.
+Requires [Zola](https://www.getzola.org/) 0.22.1 and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` and `pdffonts` for the repository-owned résumé check. The exact Nimbus Sans inputs, hashes, provenance, and license notices live under [`resume/fonts/`](resume/fonts/README.md); compilation ignores system and Typst-embedded fonts.
 
 `themes/typikon/` ships as a git submodule - a plain clone leaves it empty and `zola build` fails outright. Initialize it first:
 
@@ -40,9 +40,11 @@ and `playwright.config.ts` are unchanged. CI alone sets
 `ARDENT_RETAIN_VALIDATED_PUBLIC=1`; that mode refuses to replace an existing
 `public/` and moves the already validated production tree there for Wrangler.
 The validated tree carries `build-revision.txt`; CI supplies the exact GitHub
-revision. The post-deploy verifier refuses a different live sentinel, fetches
-the exact hashed CSS and JavaScript URLs authored by the live HTML, and checks
-their bodies and effective revalidation policy at the CDN boundary.
+revision. Every authored CSS/JavaScript URL has one Zola content digest and the
+single release asset epoch from `config.toml`. The post-deploy verifier refuses
+a different live sentinel, derives the finite HTML route set from the sitemap,
+fetches every exact authored asset URL, and checks its body digest plus the
+effective `no-store, no-transform` policy at the CDN boundary.
 
 ## Deploy
 
@@ -50,4 +52,4 @@ GitHub Actions runs the full strict gate (schema validation, generator and résu
 
 ## License
 
-Code: [PolyForm Shield 1.0.0](LICENSE), with an AI-training-prohibition addendum. Content and copy: [CC BY-NC-ND 4.0](LICENSE-DOCS), same addendum.
+Original site code: [PolyForm Shield 1.0.0](LICENSE), with an AI-training-prohibition addendum. Original content and copy: [CC BY-NC-ND 4.0](LICENSE-DOCS), same addendum. Third-party assets retain their own terms; the vendored résumé fonts and complete notices are documented under [`resume/fonts/`](resume/fonts/README.md).

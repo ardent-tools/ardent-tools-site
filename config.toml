@@ -30,6 +30,10 @@ style = "class"
 theme = "github-light"
 
 [extra]
+# One release-scoped cache-key epoch shared by every authored CSS/JavaScript
+# URL. Content digests still prove the response bytes; changing this single
+# value gives a release a fresh CDN key without inventing per-asset versions.
+asset_epoch = "2"
 # Brand strings — read by typikon's base.html / nav.html / footer.html.
 # No brand_greek, no triad, no home_logo: plain-English register, no
 # Greek-branch templates activated (every Greek path in typikon is

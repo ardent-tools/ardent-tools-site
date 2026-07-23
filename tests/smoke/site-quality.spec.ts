@@ -126,3 +126,48 @@ test('FAQ permalink names are non-empty and unique', async ({ page }) => {
   expect(names.every((name) => name.trim().length > 0)).toBe(true);
   expect(new Set(names).size).toBe(names.length);
 });
+
+for (const width of [320, 375]) {
+  for (const route of ['/contact/', '/systems/aletheia/']) {
+    test(`${route} reserves visible list-marker space at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(route, { waitUntil: 'networkidle' });
+      const metrics = await page.locator('.prose ul, .prose ol').evaluateAll((lists) =>
+        lists.map((list) => {
+          const item = list.querySelector(':scope > li');
+          if (!item) throw new Error('prose list has no direct list item');
+          const listBox = list.getBoundingClientRect();
+          const itemBox = item.getBoundingClientRect();
+          const style = getComputedStyle(list);
+          return {
+            listLeft: listBox.left,
+            itemLeft: itemBox.left,
+            reservation: itemBox.left - listBox.left,
+            paddingInlineStart: parseFloat(style.paddingInlineStart),
+            listStyleType: getComputedStyle(item).listStyleType,
+            viewportWidth: document.documentElement.clientWidth,
+          };
+        }),
+      );
+      expect(metrics.length).toBeGreaterThan(0);
+      for (const metric of metrics) {
+        expect(metric.listLeft, 'list box escapes the paper gutter').toBeGreaterThanOrEqual(0);
+        expect(metric.itemLeft, 'list item starts outside the viewport').toBeGreaterThanOrEqual(24);
+        expect(metric.itemLeft, 'list item starts past the viewport').toBeLessThan(metric.viewportWidth);
+        expect(metric.paddingInlineStart, 'list has no marker reservation').toBeGreaterThanOrEqual(24);
+        expect(metric.reservation, 'outside marker reservation collapsed').toBeGreaterThanOrEqual(24);
+        expect(metric.listStyleType).not.toBe('none');
+      }
+    });
+  }
+
+  test(`mobile calls to action meet the 44px target floor at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/', { waitUntil: 'networkidle' });
+    const heights = await page.locator('.button').evaluateAll((buttons) =>
+      buttons.map((button) => button.getBoundingClientRect().height),
+    );
+    expect(heights.length).toBeGreaterThan(0);
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+  });
+}

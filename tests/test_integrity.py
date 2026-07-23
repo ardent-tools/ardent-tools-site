@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,16 +26,18 @@ def load_script(name: str, filename: str):
 site = load_script("ardent_validate_site", "validate-site.py")
 production = load_script("ardent_verify_production", "verify-production.py")
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
+resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
 
 BASE_URL = "https://ardent.tools"
 EXPECTED_REVISION = "2" * 40
+ASSET_EPOCH = "2"
 CSS_BODY = b"body { color: #231f20; }\n"
 JS_BODY = b"document.documentElement.dataset.ready = 'true';\n"
 CSS_HASH = hashlib.sha256(CSS_BODY).hexdigest()[:20]
 JS_HASH = hashlib.sha256(JS_BODY).hexdigest()[:20]
-CSS_URL = f"{BASE_URL}/css/site.css?h={CSS_HASH}"
-JS_URL = f"{BASE_URL}/js/site.js?h={JS_HASH}"
-GOOD_CACHE = "public, max-age = 0, must-revalidate, no-transform"
+CSS_URL = f"{BASE_URL}/css/site.css?h={CSS_HASH}&v={ASSET_EPOCH}"
+JS_URL = f"{BASE_URL}/js/site.js?h={JS_HASH}&v={ASSET_EPOCH}"
+GOOD_CACHE = "no-store, no-transform"
 GOOD_CSP = "default-src 'self'; script-src 'self'"
 
 
@@ -59,6 +62,25 @@ def run_production_fixture(
             {"Cache-Control": revision_cache},
             f"{revision}\n".encode(),
         ),
+        (f"{BASE_URL}/sitemap.xml", True): (
+            200,
+            {"Cache-Control": GOOD_CACHE},
+            (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                f"<url><loc>{BASE_URL}/</loc></url>"
+                f"<url><loc>{BASE_URL}/evidence/</loc></url>"
+                "</urlset>"
+            ).encode(),
+        ),
+        **{
+            (f"{BASE_URL}{path}", False): (
+                200,
+                {"Cache-Control": GOOD_CACHE},
+                b"structured resource\n",
+            )
+            for path in production.STRUCTURED_RESOURCE_PATHS
+        },
         (f"{BASE_URL}/", True): (
             200,
             {"Cache-Control": GOOD_CACHE, "Content-Security-Policy": GOOD_CSP},
@@ -86,9 +108,9 @@ def run_production_fixture(
         return responses.pop(key)
 
     with mock.patch.object(production, "request", side_effect=response):
-        errors = production.verify(BASE_URL, 1.0, EXPECTED_REVISION)
+        errors = production.verify(BASE_URL, 1.0, EXPECTED_REVISION, ASSET_EPOCH)
     test.assertEqual(responses, {}, f"required URLs were not requested: {responses!r}")
-    test.assertEqual(len(calls), 6)
+    test.assertEqual(len(calls), 7 + len(production.STRUCTURED_RESOURCE_PATHS))
     return errors
 
 
@@ -123,7 +145,7 @@ class ProductionAssetContractTests(unittest.TestCase):
             js_cache="public, max-age=0, must-revalidate, no-transform, immutable",
         )
         self.assertEqual(len(errors), 1, errors)
-        self.assertIn("must not be immutable", errors[0])
+        self.assertIn("must be exactly no-store, no-transform", errors[0])
 
     def test_non_200_authored_asset_fails(self) -> None:
         errors = run_production_fixture(self, js_status=404, js_body=b"not found")
@@ -135,28 +157,32 @@ class ProductionAssetContractTests(unittest.TestCase):
             self, revision_cache="NO-STORE, NO-TRANSFORM, IMMUTABLE"
         )
         self.assertEqual(len(errors), 1, errors)
-        self.assertIn("/build-revision.txt Cache-Control must not be immutable", errors[0])
+        self.assertIn("/build-revision.txt Cache-Control must be exactly", errors[0])
 
     def test_missing_malformed_and_external_asset_hashes_fail(self) -> None:
         errors: list[str] = []
         body = (
             '<link rel="stylesheet" href="/css/missing.css">'
-            '<script src="/js/bad.js?h=ABC"></script>'
-            '<script src="https://example.com/app.js?h=11111111111111111111"></script>'
+            '<script src="/js/bad.js?h=ABC&amp;v=2"></script>'
+            '<script src="https://example.com/app.js?h=11111111111111111111&amp;v=2"></script>'
         )
         assets = production.collect_hashed_assets(
-            errors, f"{BASE_URL}/", f"{BASE_URL}/", body
+            errors, f"{BASE_URL}/", f"{BASE_URL}/", body, ASSET_EPOCH
         )
         self.assertEqual(assets, [])
         self.assertEqual(len(errors), 3, errors)
-        self.assertTrue(any("exactly one h" in error for error in errors), errors)
+        self.assertTrue(any("exactly one h and one v" in error for error in errors), errors)
         self.assertTrue(any("malformed h" in error for error in errors), errors)
         self.assertTrue(any("external JavaScript" in error for error in errors), errors)
 
     def test_page_missing_css_and_javascript_references_fails(self) -> None:
         errors: list[str] = []
         assets = production.collect_hashed_assets(
-            errors, f"{BASE_URL}/", f"{BASE_URL}/", "<main>Evidence register</main>"
+            errors,
+            f"{BASE_URL}/",
+            f"{BASE_URL}/",
+            "<main>Evidence register</main>",
+            ASSET_EPOCH,
         )
         self.assertEqual(assets, [])
         self.assertEqual(len(errors), 2, errors)
@@ -165,7 +191,7 @@ class ProductionAssetContractTests(unittest.TestCase):
 
     def test_conflicting_hashes_for_one_asset_path_fail(self) -> None:
         other_hash = "1" * 20
-        other_url = f"{BASE_URL}/js/site.js?h={other_hash}"
+        other_url = f"{BASE_URL}/js/site.js?h={other_hash}&v={ASSET_EPOCH}"
         errors: list[str] = []
         assets = production.distinct_assets(
             errors,
@@ -178,9 +204,9 @@ class ProductionAssetContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("conflicting authored hashes for /js/site.js", errors[0])
 
-    def test_duplicate_live_max_age_values_fail(self) -> None:
+    def test_live_max_age_and_duplicate_policy_fail(self) -> None:
         errors: list[str] = []
-        production.validate_revalidating_cache(
+        production.validate_no_store_cache(
             errors,
             "/",
             {
@@ -190,15 +216,69 @@ class ProductionAssetContractTests(unittest.TestCase):
             },
         )
         self.assertEqual(len(errors), 1, errors)
-        self.assertIn("exactly one max-age value", errors[0])
+        self.assertIn("must be exactly no-store, no-transform", errors[0])
+
+    def test_asset_epoch_and_query_shape_fail_closed(self) -> None:
+        cases = {
+            "missing hash": "/js/site.js?v=2",
+            "missing epoch": f"/js/site.js?h={JS_HASH}",
+            "empty hash": "/js/site.js?h=&v=2",
+            "wrong epoch": f"/js/site.js?h={JS_HASH}&v=1",
+            "empty epoch": f"/js/site.js?h={JS_HASH}&v=",
+            "duplicate epoch": f"/js/site.js?h={JS_HASH}&v=2&v=2",
+            "duplicate hash": f"/js/site.js?h={JS_HASH}&h={JS_HASH}&v=2",
+            "unexpected query": f"/js/site.js?h={JS_HASH}&v=2&x=1",
+        }
+        for label, reference in cases.items():
+            with self.subTest(label=label):
+                errors: list[str] = []
+                production.collect_hashed_assets(
+                    errors,
+                    f"{BASE_URL}/",
+                    f"{BASE_URL}/",
+                    f'<link rel="stylesheet" href="{CSS_URL}"><script src="{reference}"></script>',
+                    ASSET_EPOCH,
+                )
+                self.assertEqual(len(errors), 1, errors)
+
+    def test_every_forbidden_cache_directive_and_duplicate_fail(self) -> None:
+        policies = (
+            "no-store, no-transform, max-age=0",
+            "no-store, no-transform, s-maxage=0",
+            "no-store, no-transform, public",
+            "no-store, no-transform, private",
+            "no-store, no-transform, must-revalidate",
+            "no-store, no-transform, immutable",
+            "no-store, no-transform, no-store",
+        )
+        for policy in policies:
+            with self.subTest(policy=policy):
+                errors: list[str] = []
+                production.validate_no_store_cache(
+                    errors, "/resource", {"Cache-Control": policy}
+                )
+                self.assertEqual(len(errors), 1, errors)
 
 
 class CacheContractTests(unittest.TestCase):
+    def test_single_global_no_store_policy_covers_overlapping_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("css").mkdir()
+            output.joinpath("css/site.css").write_text("body{}")
+            errors: list[str] = []
+            site.validate_cache_contract(
+                errors,
+                output,
+                "/*\n  Cache-Control: no-store, no-transform\n",
+            )
+        self.assertEqual(errors, [])
+
     def test_overlapping_cache_values_are_rejected(self) -> None:
         headers = """/*
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
+  Cache-Control: no-store, no-transform
 /css/*
-  Cache-Control: public, max-age=60, no-transform
+  Cache-Control: no-store, no-transform
 """
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -210,13 +290,7 @@ class CacheContractTests(unittest.TestCase):
 
     def test_immutable_stable_asset_is_rejected(self) -> None:
         headers = """/*
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-/img/*
-  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable, no-transform
-/build-revision.txt
-  ! Cache-Control
-  Cache-Control: no-store, no-transform
 """
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -224,19 +298,16 @@ class CacheContractTests(unittest.TestCase):
             output.joinpath("img/art.png").write_bytes(b"png")
             errors: list[str] = []
             site.validate_cache_contract(errors, output, headers)
-        self.assertTrue(any("must not be immutable" in error for error in errors), errors)
+        self.assertTrue(any("must be exactly no-store, no-transform" in error for error in errors), errors)
 
     def test_revision_sentinel_must_be_no_store(self) -> None:
         headers = """/*
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
-/build-revision.txt
-  ! Cache-Control
   Cache-Control: public, max-age=60, no-transform
 """
         with tempfile.TemporaryDirectory() as directory:
             errors: list[str] = []
             site.validate_cache_contract(errors, Path(directory), headers)
-        self.assertTrue(any("must have exactly" in error for error in errors), errors)
+        self.assertTrue(any("must be exactly no-store, no-transform" in error for error in errors), errors)
 
 
 class RecordingContractTests(unittest.TestCase):
@@ -265,14 +336,25 @@ class RecordingContractTests(unittest.TestCase):
             catalog_page = output / "systems/index.html"
             evidence_page = output / "evidence/index.html"
             cast_file = static / "casts/demo.cast"
-            for path in (system_page, catalog_page, evidence_page, cast_file):
+            player_css = output / "vendor/asciinema/asciinema-player.css"
+            player_js = output / "vendor/asciinema/asciinema-player.min.js"
+            for path in (
+                system_page,
+                catalog_page,
+                evidence_page,
+                cast_file,
+                player_css,
+                player_js,
+            ):
                 path.parent.mkdir(parents=True, exist_ok=True)
             cast_file.write_text("{}\n")
+            player_css.write_bytes(CSS_BODY)
+            player_js.write_bytes(JS_BODY)
             cast = "/casts/demo.cast"
             system_markup = (
                 f'<div data-cast="{cast}"></div>'
-                '<link href="/vendor/asciinema/asciinema-player.css">'
-                '<script src="/vendor/asciinema/asciinema-player.min.js"></script>'
+                f'<link rel="stylesheet" href="/vendor/asciinema/asciinema-player.css?h={CSS_HASH}&amp;v=2">'
+                f'<script src="/vendor/asciinema/asciinema-player.min.js?h={JS_HASH}&amp;v=2"></script>'
             )
             catalog_markup = (
                 '<a href="https://ardent.tools/systems/demo/">WATCH RECORDING</a>'
@@ -284,6 +366,7 @@ class RecordingContractTests(unittest.TestCase):
                 evidence_page: evidence_markup,
             }
             errors: list[str] = []
+            site.validate_asset_contract(errors, {system_page: system_markup}, output, ASSET_EPOCH)
             site.validate_player_contract(
                 errors,
                 [(Path("content/systems/demo.md"), cast)],
@@ -293,6 +376,14 @@ class RecordingContractTests(unittest.TestCase):
                 static,
             )
             self.assertEqual(errors, [])
+
+            wrong_epoch_markup = system_markup.replace("&amp;v=2", "&amp;v=1")
+            errors = []
+            site.validate_asset_contract(
+                errors, {system_page: wrong_epoch_markup}, output, ASSET_EPOCH
+            )
+            self.assertEqual(len(errors), 2, errors)
+            self.assertTrue(all("expected '2'" in error for error in errors), errors)
 
             broken = dict(html)
             broken[system_page] = f'<div data-cast="{cast}"></div>'
@@ -312,6 +403,28 @@ class CatalogContractTests(unittest.TestCase):
     def test_ambiguous_agpl_identifier_is_rejected(self) -> None:
         with self.assertRaises(SystemExit):
             catalog.exact_license("sphragis", "AGPL-3.0")
+
+
+class ResumeFontContractTests(unittest.TestCase):
+    def test_changed_font_bytes_fail_pinned_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            font_dir = Path(directory)
+            for name in (*resume_fonts.EXPECTED_FILES, "SHA256SUMS"):
+                shutil.copy2(ROOT / "resume/fonts" / name, font_dir / name)
+            with (font_dir / "NimbusSans-Regular.otf").open("ab") as handle:
+                handle.write(b"changed")
+            errors = resume_fonts.validate_inputs(font_dir)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("hash mismatch for NimbusSans-Regular.otf", errors[0])
+
+    def test_unexpected_embedded_font_fails_closed(self) -> None:
+        report = (
+            "name type encoding emb sub uni object ID\n"
+            "-----------------------------------------\n"
+            "ABCDEF+DejaVuSansMono-Identity-H CID Type 0C Identity-H yes yes yes 1 0\n"
+        )
+        errors = resume_fonts.validate_pdffonts(report)
+        self.assertTrue(any("embedded font set differs" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
