@@ -15,9 +15,8 @@
 {% block og_type %}article{% endblock og_type %}
 
 {% block ld_json %}
-  {%- include "partials/ld-organization.html" -%}
+  {{ super() }}
   {%- include "partials/ld-article.html" -%}
-  {{ crumb::breadcrumb(title=page.title, permalink=page.permalink, ancestors=page.ancestors) }}
 {% endblock ld_json %}
 
 {% block content %}

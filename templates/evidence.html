@@ -12,14 +12,12 @@
 {%- endfor %}
 
 <header class="evidence-header">
-  <p class="section-label">Evidence register</p>
   <h1>{{ page.title }}</h1>
   <div class="evidence-intro">{{ page.content | safe }}</div>
 </header>
 
 <section class="evidence-section" aria-labelledby="available-evidence">
   <h2 id="available-evidence">Inspectable now</h2>
-  <p>Source repositories, implementation boundaries, reproduction methods, dated measurements, and four essays are published now.</p>
   <ul class="evidence-index">
     <li><a href="/systems/"><strong>{{ systems.pages | length }} system dossiers</strong><span>Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</span></a></li>
     <li><a href="/systems.json"><strong>Machine-readable catalog</strong><span>Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span></a></li>
@@ -29,7 +27,7 @@
 
 <section class="evidence-section" aria-labelledby="recording-register">
   <h2 id="recording-register">Recording register</h2>
-  <p class="recording-status"><strong>{{ cast_count }} published casts.</strong> Recording plans remain backlog until a real <code>.cast</code> artifact exists. Planned entries below are not players and make no claim that the session has run.</p>
+  <p class="recording-status"><strong>{{ cast_count }} published casts.</strong> A recording plan stays backlog until a real <code>.cast</code> artifact exists. The entries below are plans, not players — they make no claim the session ran.</p>
 
   {%- if cast_count > 0 %}
   <ul class="evidence-index published-casts">
@@ -47,8 +45,8 @@
     <li>
       <div><span class="plan-state">Planned</span><h3><a href="{{ system.permalink | safe }}">{{ system.title }}</a></h3></div>
       <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} — {{ system.extra.demo.target }}{% endif %}</p>
-      <p><strong>Would establish:</strong> {{ system.extra.demo.shows }}</p>
-      <p><strong>Would not establish:</strong> {{ system.extra.demo.not_shows }}</p>
+      <p><strong>Would show:</strong> {{ system.extra.demo.shows }}</p>
+      <p><strong>Would not show:</strong> {{ system.extra.demo.not_shows }}</p>
       {%- if system.extra.demo.tape %}<p><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}">Inspect the planned recording script&nbsp;&rarr;</a></p>{% endif %}
     </li>
       {%- endif %}

@@ -383,8 +383,200 @@
         }
       ],
       "sequence": 2
+    },
+    {
+      "previous_entry_sha256": "4afc01eb4d5f98742183136aa1f72ad495f083c3142073ba4582b1e96732a728",
+      "resource_count": 37,
+      "resources": [
+        {
+          "logical_path": "css/fonts.css",
+          "output_path": "a/57551c5043106008d75a93a6aad760dc82f650937b3c6ec3a514648a34443984.css",
+          "sha256": "57551c5043106008d75a93a6aad760dc82f650937b3c6ec3a514648a34443984"
+        },
+        {
+          "logical_path": "css/site.css",
+          "output_path": "a/a9637221e2d6b270434ac4a69639fd0f5c6f2eee7092f936ac77bdd094277a61.css",
+          "sha256": "a9637221e2d6b270434ac4a69639fd0f5c6f2eee7092f936ac77bdd094277a61"
+        },
+        {
+          "logical_path": "css/style.css",
+          "output_path": "a/88620e8ea214338045d618345ba051945fafb46aa9178563c9e52094fbd91144.css",
+          "sha256": "88620e8ea214338045d618345ba051945fafb46aa9178563c9e52094fbd91144"
+        },
+        {
+          "logical_path": "css/syntax.css",
+          "output_path": "a/a0f18e346c6748bbeccede900e33cc1cf14f156ac8a05f68e3ea841e8c722397.css",
+          "sha256": "a0f18e346c6748bbeccede900e33cc1cf14f156ac8a05f68e3ea841e8c722397"
+        },
+        {
+          "logical_path": "files/cody-kickertz-resume.pdf",
+          "output_path": "a/aa3563375fe23637987a242f05e3cdbb8d5d154f940e916b74cbb21c14a8a754.pdf",
+          "sha256": "aa3563375fe23637987a242f05e3cdbb8d5d154f940e916b74cbb21c14a8a754"
+        },
+        {
+          "logical_path": "fonts/OFL.txt",
+          "output_path": "a/7c99e883f62d68731de73a376cb5a65d4e5b94bd74534dd6357e413a4b847b49.txt",
+          "sha256": "7c99e883f62d68731de73a376cb5a65d4e5b94bd74534dd6357e413a4b847b49"
+        },
+        {
+          "logical_path": "fonts/cormorant-garamond-400-italic.woff2",
+          "output_path": "a/6bb8b0f40ab6cbef1bfa0e8afe43ee1904352d047a128d0823a019e42c12d172.woff2",
+          "sha256": "6bb8b0f40ab6cbef1bfa0e8afe43ee1904352d047a128d0823a019e42c12d172"
+        },
+        {
+          "logical_path": "fonts/cormorant-garamond-400.woff2",
+          "output_path": "a/9a842d62d34ddfa36c1a6aefd9ba482150d3d8408c244256a4c2a6d511cc3c22.woff2",
+          "sha256": "9a842d62d34ddfa36c1a6aefd9ba482150d3d8408c244256a4c2a6d511cc3c22"
+        },
+        {
+          "logical_path": "fonts/cormorant-garamond-500.woff2",
+          "output_path": "a/b0606158f37f6e2a243c6ac5a810ac632cf119b66383e07ab2dbcb623f1ecbd4.woff2",
+          "sha256": "b0606158f37f6e2a243c6ac5a810ac632cf119b66383e07ab2dbcb623f1ecbd4"
+        },
+        {
+          "logical_path": "fonts/cormorant-garamond-600.woff2",
+          "output_path": "a/cbc6f0618c997aece5478ce4f38eb8fddb3e7db0499ddb37bca82b84d6a785cc.woff2",
+          "sha256": "cbc6f0618c997aece5478ce4f38eb8fddb3e7db0499ddb37bca82b84d6a785cc"
+        },
+        {
+          "logical_path": "fonts/ibm-plex-mono-400.woff2",
+          "output_path": "a/8130faf9255d5d7de9932785ff46faf163a80cd8a1488fa457757304aea58e0b.woff2",
+          "sha256": "8130faf9255d5d7de9932785ff46faf163a80cd8a1488fa457757304aea58e0b"
+        },
+        {
+          "logical_path": "fonts/ibm-plex-mono-500.woff2",
+          "output_path": "a/2e4f14e6ba4631a2b35152f7bfad3a550d5c73c917721472d6eb94fe74fa9488.woff2",
+          "sha256": "2e4f14e6ba4631a2b35152f7bfad3a550d5c73c917721472d6eb94fe74fa9488"
+        },
+        {
+          "logical_path": "fonts/plex-mono-600-latin.woff2",
+          "output_path": "a/bcc2e809c6adce034b1de8baebf38dfeea8952d9754060ecf7f8f1419906e7b8.woff2",
+          "sha256": "bcc2e809c6adce034b1de8baebf38dfeea8952d9754060ecf7f8f1419906e7b8"
+        },
+        {
+          "logical_path": "fonts/spectral-400-italic.woff2",
+          "output_path": "a/e8d6035ec5f41658bc84d5c2b7b0a0df90fb95203e055c1389c6810f8f960de3.woff2",
+          "sha256": "e8d6035ec5f41658bc84d5c2b7b0a0df90fb95203e055c1389c6810f8f960de3"
+        },
+        {
+          "logical_path": "fonts/spectral-400.woff2",
+          "output_path": "a/0d7b708c4b21eba1ec7d4d72cf529ad0cf9e7f1b70462647cf56e86ea1f2e0e1.woff2",
+          "sha256": "0d7b708c4b21eba1ec7d4d72cf529ad0cf9e7f1b70462647cf56e86ea1f2e0e1"
+        },
+        {
+          "logical_path": "fonts/spectral-500-italic.woff2",
+          "output_path": "a/ee7b7e196484668b2c425cb342ca0e26c612eeffc7e4dc7d80c0fa03841e611f.woff2",
+          "sha256": "ee7b7e196484668b2c425cb342ca0e26c612eeffc7e4dc7d80c0fa03841e611f"
+        },
+        {
+          "logical_path": "fonts/spectral-500.woff2",
+          "output_path": "a/945ad1f27bd3022121b5d148abc56f00aa391228dd350b066c922c59978928da.woff2",
+          "sha256": "945ad1f27bd3022121b5d148abc56f00aa391228dd350b066c922c59978928da"
+        },
+        {
+          "logical_path": "giallo.css",
+          "output_path": "a/5cefe4954cda1947c74d407fe9f1bf5ce2748fd37236dfbff702c8a19925d80a.css",
+          "sha256": "5cefe4954cda1947c74d407fe9f1bf5ce2748fd37236dfbff702c8a19925d80a"
+        },
+        {
+          "logical_path": "img/apple-touch-icon.png",
+          "output_path": "a/a443b5d2a7a14222883ef0aeb948824d5f6bb521789c646cdc7adb9ef376764f.png",
+          "sha256": "a443b5d2a7a14222883ef0aeb948824d5f6bb521789c646cdc7adb9ef376764f"
+        },
+        {
+          "logical_path": "img/favicon-32.png",
+          "output_path": "a/3a40c892b101d27c9251d472c25f09467b102152f65deac1a69e3e114f9aa394.png",
+          "sha256": "3a40c892b101d27c9251d472c25f09467b102152f65deac1a69e3e114f9aa394"
+        },
+        {
+          "logical_path": "img/grain.svg",
+          "output_path": "a/ce8b1b44003fee7e991fef48691388ec2b9ac94686cc7af4b121a221f332f2b9.svg",
+          "sha256": "ce8b1b44003fee7e991fef48691388ec2b9ac94686cc7af4b121a221f332f2b9"
+        },
+        {
+          "logical_path": "img/icon-512.png",
+          "output_path": "a/e7e9a0cb57192579a90f44d567ba3a2b976e389279ec83b6f36912b45a13f3c7.png",
+          "sha256": "e7e9a0cb57192579a90f44d567ba3a2b976e389279ec83b6f36912b45a13f3c7"
+        },
+        {
+          "logical_path": "img/logo-flame.svg",
+          "output_path": "a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg",
+          "sha256": "8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b"
+        },
+        {
+          "logical_path": "img/og-card.png",
+          "output_path": "a/9b3d85a059bd3a76a4bce17a291e55a68538bd0170965eef174d11efc940e5bc.png",
+          "sha256": "9b3d85a059bd3a76a4bce17a291e55a68538bd0170965eef174d11efc940e5bc"
+        },
+        {
+          "logical_path": "img/og-card.svg",
+          "output_path": "a/067dff0c2454dfa1b371ed654b20602cf05f743ce3d18b3042e59f9a010fb0cf.svg",
+          "sha256": "067dff0c2454dfa1b371ed654b20602cf05f743ce3d18b3042e59f9a010fb0cf"
+        },
+        {
+          "logical_path": "js/site.js",
+          "output_path": "a/6ed9caedc28f581b7e345ceeec6577b9b6af18099aa9623f9f36d97b4dd68adc.js",
+          "sha256": "6ed9caedc28f581b7e345ceeec6577b9b6af18099aa9623f9f36d97b4dd68adc"
+        },
+        {
+          "logical_path": "js/triad.js",
+          "output_path": "a/a38e394c7d5c963e7494cd88c9fa49f586c81a27661c9997f50456f3d4275492.js",
+          "sha256": "a38e394c7d5c963e7494cd88c9fa49f586c81a27661c9997f50456f3d4275492"
+        },
+        {
+          "logical_path": "site.webmanifest",
+          "output_path": "a/56db587ce5566dc7a2dd04951971536ff53a1bb1e85a12ae2dfb9f4b829f0f33.webmanifest",
+          "sha256": "56db587ce5566dc7a2dd04951971536ff53a1bb1e85a12ae2dfb9f4b829f0f33"
+        },
+        {
+          "logical_path": "speculation-rules.json",
+          "output_path": "a/ca6af2cdd7f527796ca2a25479febca544b91f53d1c6a285e862df359a9e776e.json",
+          "sha256": "ca6af2cdd7f527796ca2a25479febca544b91f53d1c6a285e862df359a9e776e"
+        },
+        {
+          "logical_path": "tapes/aletheia-health.tape",
+          "output_path": "a/f73b9206329c7c431bf2068a97351414962c5507fcda1f399cfd0402f45bde47.tape",
+          "sha256": "f73b9206329c7c431bf2068a97351414962c5507fcda1f399cfd0402f45bde47"
+        },
+        {
+          "logical_path": "tapes/hamma-tests.tape",
+          "output_path": "a/eb90ca226ffbecdc031c694d06353bfeb7f60ed71627383499ecb35c35e4ae44.tape",
+          "sha256": "eb90ca226ffbecdc031c694d06353bfeb7f60ed71627383499ecb35c35e4ae44"
+        },
+        {
+          "logical_path": "tapes/harmonia-serve.tape",
+          "output_path": "a/8052ea471cc5ba1e6d19d06355755efee0435cc7d66369229d84b38e543c0a70.tape",
+          "sha256": "8052ea471cc5ba1e6d19d06355755efee0435cc7d66369229d84b38e543c0a70"
+        },
+        {
+          "logical_path": "tapes/kanon-gate.tape",
+          "output_path": "a/a6fa2e90c9fd86dd21785665911a53158abdf0894cc9a11c815069c0bda96d32.tape",
+          "sha256": "a6fa2e90c9fd86dd21785665911a53158abdf0894cc9a11c815069c0bda96d32"
+        },
+        {
+          "logical_path": "tapes/logismos-parity.tape",
+          "output_path": "a/305bfdd223f4723f5e990c32e4621d1967b08bf613ba70ec19c7f07acfddb437.tape",
+          "sha256": "305bfdd223f4723f5e990c32e4621d1967b08bf613ba70ec19c7f07acfddb437"
+        },
+        {
+          "logical_path": "tapes/thumos-boot.tape",
+          "output_path": "a/976e7fec786874754b63a3a51368401848fc1263e5b3850d7acf94d454d48a52.tape",
+          "sha256": "976e7fec786874754b63a3a51368401848fc1263e5b3850d7acf94d454d48a52"
+        },
+        {
+          "logical_path": "vendor/asciinema/asciinema-player.css",
+          "output_path": "a/f619fe17597043564f03b2c6918b3daf890ee8b912fb408542fba11afade4fdb.css",
+          "sha256": "f619fe17597043564f03b2c6918b3daf890ee8b912fb408542fba11afade4fdb"
+        },
+        {
+          "logical_path": "vendor/asciinema/asciinema-player.min.js",
+          "output_path": "a/a13c37632e1b5c49fe9128417b9319a9b5bc64cb457dd5ae52cbba8a3aceb880.js",
+          "sha256": "a13c37632e1b5c49fe9128417b9319a9b5bc64cb457dd5ae52cbba8a3aceb880"
+        }
+      ],
+      "sequence": 3
     }
   ],
-  "entry_count": 2,
+  "entry_count": 3,
   "schema_version": 1
 }

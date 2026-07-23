@@ -25,7 +25,7 @@ not_shows = "Two peers joining a tailnet. The WireGuard data plane is not wired 
 
 ## What it is
 
-hamma is a clean-room Rust implementation of a Tailscale-compatible mesh networking stack: the pieces needed to knot a set of devices into one flat network, speak WireGuard peer-to-peer, traverse NATs through DERP relays, and name each other through MagicDNS. It targets wire compatibility with Tailscale's existing control plane, so a device running hamma can join the same tailnet as a device running the reference client. It exists because no production-grade Rust implementation of that protocol exists yet, and it's meant to fill that gap both for this practice's own systems and openly, for anyone who wants a memory-safe, auditable mesh client.
+No production-grade Rust implementation of Tailscale's protocol exists. hamma is built to fill that gap — the pieces needed to knot a set of devices into one flat network, speak WireGuard peer-to-peer, traverse NATs through DERP relays, and name each other through MagicDNS. It targets wire compatibility with the existing control plane, so a device running hamma can join the same tailnet as a device running the reference client. The work serves this practice's own systems first, and openly, anyone who wants a memory-safe, auditable mesh client.
 
 ## Decisions and trade-offs
 

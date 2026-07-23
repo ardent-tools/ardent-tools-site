@@ -38,6 +38,25 @@ When a sentence lands, the reader notices nothing. That is the definition of suc
 - **Concrete grounds the abstract.** No capability claim without a mechanical anchor nearby — a number with a method, a command, a commit, a demo slot. If the anchor doesn't exist, the claim doesn't ship.
 - **Mechanical punctuation floor follows kanon lint** wherever the linter gates (repo docs use ` - `); where the linter is silent (site prose), em-dash density follows the book discipline — one, sometimes two per paragraph, usually zero, and never as the AI-tell triple.
 
+## The construction bans (the AI-tell class)
+
+The floor above bans words; this section bans *shapes*. Each is a construction current flagship models reach for by default, and each has a native alternative measured from the source prose (zero colons, one em-dash per ~90 words, five semicolons across ~3,900 words of the book chapters this contract derives from).
+
+- **The drumroll colon** — `[noun phrase]: [payoff]` ("The trade-off accepted here: X"). A colon appears only when the first clause does real syntactic work. Default replacements: two sentences, or an em-dash appositive ("the pieces needed — X, Y, Z").
+- **Negative parallelism** — "it's not X, it's Y" / "isn't just X". Assert the claim affirmatively; reserve antithesis for correcting a belief the reader actually holds.
+- **Triple-negation countdown** — "Not X. Not Y. Just Z." as manufactured drama. The clearing-ground move ("Not passion. Not enthusiasm. The fire that tests.") is distinct and stays legal: it negates *live* readings, lands a real claim, and appears at most once per page.
+- **The rhetorical pivot** — "The result?" / question-as-transition / question-into-imperative CTA ("Need X? Start with Y."). A question on this site is genuine and gets a real answer, or it doesn't appear.
+- **Tricolon by default** — groups of three regardless of how many items exist. Use the number the content has.
+- **Hedge-then-assert** — "While X varies, the evidence suggests…". Pick the position; one load-bearing caveat, stated as fact.
+- **Signposting** — "Here's the thing," "Let's break this down," "This means…" as transition. Structure carries organization.
+- **The participial trailer** — ", making it ideal for…" tacked on to manufacture significance. Make the causal claim specific or cut it.
+- **The copula dodge** — "serves as," "stands as," "boasts," "represents a." Plain is/has/does.
+- **Perfect parallelism** — successive sentences sharing one grammatical shape; uniform paragraph sizes; every sentence resolving. Cadence uniformity is the deepest tell — importance dictates length, and a short flat sentence after a long one is where certainty lands.
+- **The wh-cleft opener** — "What makes this interesting is…". State the interesting thing.
+- **The false range** — "from X to Y to Z" where no spectrum exists. Name the actual things.
+
+Sweep for all three model flavors, not just one: GPT's negative-parallelism and too-perfect gloss, Claude's hedging and closing rhetorical questions, Gemini's intensifiers and hyperbolic verbs. And never manufacture imperfection to compensate — asymmetry comes from writing to the fingerprint, not from distressing the output.
+
 ## Register (where this site diverges from the book, deliberately)
 
 | Surface | Book contract | This site |

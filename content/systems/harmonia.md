@@ -25,7 +25,7 @@ not_shows = "A library scan or import. The current admin-protected `POST /api/li
 
 ## What it is
 
-harmonia is a unified self-hosted media platform: a single Tokio/Axum/SQLite server spanning 21 Cargo workspace members, aimed at replacing the pattern of five or six separate *arr-style applications (one for movies, one for TV, one for music, one for indexing, one for requests) wired together by hand. Instead it's one coherent server covering the full media lifecycle: import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household request handling, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
+Running a self-hosted media stack usually means five or six separate *arr-style applications — one for movies, one for TV, one for music, one for indexing, one for requests — each with its own database and auth, wired together by hand. harmonia collapses that pattern into one server. A single Tokio/Axum/SQLite process, 21 Cargo workspace members, covering the full media lifecycle — import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household requests, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
 
 ## Decisions and trade-offs
 
