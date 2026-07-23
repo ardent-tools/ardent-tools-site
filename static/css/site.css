@@ -1710,6 +1710,16 @@ footer {
   border-top: 1px solid var(--rule);
 }
 
+/* min-width: 0 lets a grid item shrink below its content's intrinsic
+   size; overflow-wrap breaks long unbroken tokens (paths, filenames)
+   instead of forcing the grid — and the page — wider than the
+   viewport. Same pattern as .fact-row > span above. */
+.spec-plate dt,
+.spec-plate dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .spec-plate dt {
   font-family: var(--font-mono);
   font-size: var(--step--2);
