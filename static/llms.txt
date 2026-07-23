@@ -30,7 +30,7 @@ corpus is not, absent written consent.
 - [Consulting](https://ardent.tools/consulting/): agent infrastructure,
   governed AI platforms, and standards-as-code — advisory retainer,
   scoped builds, or transition and handoff support.
-- [Resume](https://ardent.tools/resume/): AI Systems Architect — agent
+- [Resume](https://ardent.tools/hire/): AI Systems Architect — agent
   infrastructure, standards-as-code, governed AI platforms.
 - [Career-claim verification receipt](https://ardent.tools/career-claims.json):
   typed scope and values for selected Marine Corps claims repeated on the About

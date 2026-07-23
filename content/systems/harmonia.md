@@ -1,6 +1,6 @@
 +++
 title = "harmonia"
-description = "A unified self-hosted media platform: one Rust server across 21 crates, replacing a stack of separate *arr-pattern services with one coherent media lifecycle manager."
+description = "A self-hosted media platform built to replace a stack of separate *arr-pattern services - one Rust server across 21 crates, collapsing the pattern into one media lifecycle manager."
 weight = 4
 template = "system.html"
 

@@ -1,0 +1,35 @@
+{# Consumer shadow of typikon's partials/ld-faq.html. Delta from the theme
+   copy: `item.a` now carries inline markdown (templates/faq.html renders
+   it through the `markdown` filter so paths and case-study mentions
+   become real links) — Schema.org's Answer.text wants plain text, not
+   markup, so this shadow renders the same markdown then strips the
+   resulting tags before JSON-encoding, instead of json_encode-ing the
+   raw markdown source as if it were prose. Re-diff against
+   themes/typikon/templates/partials/ld-faq.html on every typikon-refresh.
+
+   Inputs:
+     page.extra.questions — array of {q, a, anchor?} per faq schema
+#}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {%- for item in page.extra.questions -%}
+    {
+      "@type": "Question",
+      "name": {{ item.q | json_encode | safe }},
+      {%- set_global answer_text = "" %}
+      {%- for paragraph in item.a | split(pat="\n\n") %}
+        {%- set clean_paragraph = paragraph | trim | markdown(inline=true) | striptags %}
+        {%- set_global answer_text = answer_text ~ clean_paragraph ~ " " %}
+      {%- endfor %}
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": {{ answer_text | trim | json_encode | safe }}
+      }
+    }{%- if not loop.last -%},{%- endif -%}
+    {%- endfor %}
+  ]
+}
+</script>

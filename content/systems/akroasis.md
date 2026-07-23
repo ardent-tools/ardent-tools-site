@@ -1,6 +1,6 @@
 +++
 title = "akroasis"
-description = "An RF signals toolkit in Rust: a clean-room Meshtastic mesh stack running live, CHIRP radio workflows, an encrypted credential vault, and a 17-domain signal model labeled by what actually ships."
+description = "An RF signals toolkit in Rust: a clean-room Meshtastic mesh stack live, CHIRP radio workflows, an encrypted vault, and a 7-domain typed signal contract across 17 declared domains, 11 still stubs."
 weight = 5
 template = "system.html"
 
