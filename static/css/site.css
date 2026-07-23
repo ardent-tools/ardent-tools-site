@@ -961,9 +961,9 @@ a.badge:focus-visible {
   min-height: 12rem;
 }
 
-/* Architecture-diagram variant (ergon-tools, nosologia — §4.2): the same
-   matted-frame treatment, paper-toned instead of a dark screen — a
-   diagram is not a running session. */
+/* Architecture-diagram variant (the no-demo/employer-diagram branch,
+   §4.2): the same matted-frame treatment, paper-toned instead of a dark
+   screen — a diagram is not a running session. */
 .diagram-plate {
   background: var(--bg-accent);
 }
