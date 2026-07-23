@@ -43,7 +43,11 @@
   {%- if page.extra.license -%},
   "license": {{ page.extra.license | json_encode | safe }}
   {%- endif -%},
-  "author": { "@type": "Person", "name": {{ config.extra.person.name | json_encode | safe }} },
+  {#- Authorship register: the practice, never a personal Person claim.
+     The visible prose holds functional authorship ("I build", never an
+     artifact-attached achievement claim — docs/VOICE.md floor); the
+     machine layer must not assert what the prose deliberately doesn't. -#}
+  "author": { "@type": "Organization", "name": {{ config.title | json_encode | safe }} },
   "additionalProperty": [
     { "@type": "PropertyValue", "name": "maturity", "value": {{ page.extra.badge | json_encode | safe }} }
   ]

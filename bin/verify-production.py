@@ -676,7 +676,7 @@ def verify(
     evidence_body = pages.get("/evidence/", "")
     for marker in (
         'href="https://ardent.tools/evidence/"',
-        "Evidence register",
+        "Would show:",
         "0 published casts.",
     ):
         if marker not in evidence_body:
