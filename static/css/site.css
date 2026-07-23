@@ -703,7 +703,7 @@ a.badge:focus-visible {
 }
 
 .receipt-table-wrap .ok::before {
-  content: "\2713 "; /* check glyph, --ok — the one call site outside terminal content */
+  content: "✓ "; /* check glyph, --ok — the one call site outside terminal content */
   color: var(--ok);
 }
 

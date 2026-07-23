@@ -58,9 +58,10 @@ revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
 
 The complete four-rule `_redirects` file is a strict local contract. The live
-verifier requests a revision-specific representative for every declaration
-without following it and requires the
-declared permanent status and exact same-origin destination. Redirect responses
+verifier requests a safe representative for every declaration without following
+it; the two system wildcard probes are revision-specific, while the exact
+`/demos` rule and its catch-all use their fixed non-destructive paths. It requires
+the declared permanent status and exact same-origin destination. Redirect responses
 are not assigned cache-header claims because Cloudflare Pages applies
 `_redirects` before `_headers`.
 

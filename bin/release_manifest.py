@@ -9,11 +9,13 @@ import json
 import posixpath
 import re
 import stat
+import subprocess
 import sys
 import tomllib
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import unquote, urlparse
 
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -24,20 +26,103 @@ MAX_RESOURCES = 1024
 MANIFEST_SCHEMA_VERSION = 1
 CONTRACT_PATH = Path("release-resources.toml")
 BASE_URL = "https://ardent.tools/"
-CSS_URL_RE = re.compile(r"url\(\s*(['\"]?)([^)'\"]+)\1\s*\)", re.I)
 TEXT_URL_RE = re.compile(r"https://ardent\.tools/[^\s)\]>'\"]+")
 HEADER_URL_RE = re.compile(r"[\"'](/[^\"']+)[\"']")
 BAD_PERCENT_RE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+BROWSER_URL_SCRIPT = r"""
+const fs = require("node:fs");
+const base = process.argv[1];
+const inputs = JSON.parse(fs.readFileSync(0, "utf8"));
+const resolved = inputs.map(({ reference, base }) => {
+  try {
+    const url = new URL(reference, base);
+    // Match the deployed `upgrade-insecure-requests` CSP before returning the
+    // effective request identity. Mutating the URL also applies the standard's
+    // port behavior (for example, authored http :443 becomes default HTTPS).
+    if (url.protocol === "http:") {
+      url.protocol = "https:";
+    }
+    return {
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port,
+      pathname: url.pathname,
+    };
+  } catch {
+    return null;
+  }
+});
+process.stdout.write(JSON.stringify(resolved));
+"""
+_UNRESOLVED = object()
 
 
 class ResourceReferenceParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.references: list[str] = []
+        self.errors: list[str] = []
 
-    def handle_starttag(self, _tag: str, attrs: list[tuple[str, str | None]]) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        names = [name for name, _value in attrs]
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            self.errors.append(f"duplicate HTML attributes are forbidden: {duplicates}")
+        if tag in {"svg", "math"}:
+            self.errors.append(
+                f"inline {tag} foreign content is forbidden; use a retained external asset"
+            )
+        if tag == "base":
+            self.errors.append("base elements are forbidden; URL identity uses the document URL")
+        if tag == "meta" and any(
+            name == "http-equiv" and (value or "").lower() == "refresh"
+            for name, value in attrs
+        ):
+            self.errors.append("meta refresh is forbidden; redirects belong in _redirects")
         for name, value in attrs:
-            if name in {"href", "src", "content", "data-cast"} and value:
+            if name in {
+                "archive",
+                "attributionsrc",
+                "imagesrcset",
+                "ping",
+                "srcdoc",
+                "srcset",
+            } and value:
+                self.errors.append(
+                    f"compound URL attribute {name!r} is forbidden until its grammar is validated"
+                )
+            elif name in {
+                "action",
+                "background",
+                "cite",
+                "classid",
+                "code",
+                "codebase",
+                "content",
+                "data",
+                "data-cast",
+                "data-poster",
+                "formaction",
+                "href",
+                "icon",
+                "longdesc",
+                "lowsrc",
+                "manifest",
+                "poster",
+                "profile",
+                "src",
+                "usemap",
+                "xlink:href",
+            } and value:
+                if (
+                    name != "content"
+                    and not value.startswith(("/", "#", "?"))
+                    and not SCHEME_RE.match(value)
+                ):
+                    self.errors.append(
+                        f"relative URL attribute {name!r} is forbidden: {value!r}"
+                    )
                 self.references.append(value)
 
 
@@ -75,69 +160,341 @@ class JsonLdParser(HTMLParser):
         return self._recording
 
 
-def normalized_origin(parsed) -> tuple[str, str, int] | None:
-    """Origin triple with the scheme's default port made explicit.
-
-    Implicit and explicit default ports (https://host vs https://host:443)
-    normalize identically, so a padded netloc cannot pose as external and
-    skip the manifest check. Non-HTTP(S) URLs have no origin here.
-    """
-    scheme = parsed.scheme.lower()
-    if scheme not in {"http", "https"}:
-        return None
-    hostname = parsed.hostname
-    if not hostname:
-        return None
-    port = parsed.port
-    if port is None:
-        port = 443 if scheme == "https" else 80
-    return scheme, hostname, port
-
-
 def canonical_resource_path(path: str) -> str:
     """Decode and normalize a same-origin path for manifest-member identity.
 
     Percent-encoded spellings decode first (strict UTF-8, malformed
-    sequences rejected) and dot segments resolve via posixpath.normpath, so
-    an alias such as /img/%6cogo-flame.svg or /img/./logo-flame.svg maps to
-    the same member it tries to impersonate instead of bypassing the lookup.
+    sequences rejected), WHATWG-special backslashes are treated as path
+    separators, and dot segments resolve via posixpath.normpath. An alias
+    such as /img/%6cogo-flame.svg, /img\\logo-flame.svg, or
+    /img/./logo-flame.svg therefore maps to the same member it tries to
+    impersonate instead of bypassing the lookup.
     """
     if BAD_PERCENT_RE.search(path):
         raise ValueError(f"malformed percent-encoding in path {path!r}")
-    decoded = unquote(path, encoding="utf-8", errors="strict")
-    return posixpath.normpath(decoded)
+    decoded = unquote(path, encoding="utf-8", errors="strict").replace("\\", "/")
+    normalized = posixpath.normpath(decoded)
+    # POSIX intentionally preserves exactly two leading slashes, but the
+    # deployed HTTP origin serves that spelling as the same retained path.
+    if normalized.startswith("//"):
+        normalized = f"/{normalized.lstrip('/')}"
+    return normalized
+
+
+def resolve_browser_references(
+    references: list[str], bases: list[str] | None = None
+) -> list[dict[str, str] | None]:
+    """Resolve authored URLs with the same WHATWG parser used by Node browsers.
+
+    Python's RFC-oriented urllib parser intentionally differs at security-
+    relevant boundaries including reverse solidus, excess authority slashes,
+    C0 trimming, and IDNA host normalization. Node 22 is a pinned gate input,
+    so one batched subprocess supplies the authoritative consumer parse rather
+    than maintaining an inevitably incomplete second URL grammar here.
+    """
+    if not references:
+        return []
+    if bases is None:
+        bases = [BASE_URL] * len(references)
+    if len(bases) != len(references):
+        raise ValueError("browser URL resolver requires one base per reference")
+    inputs = [
+        {"reference": reference, "base": base}
+        for reference, base in zip(references, bases, strict=True)
+    ]
+    try:
+        process = subprocess.run(
+            ["node", "-e", BROWSER_URL_SCRIPT, BASE_URL],
+            input=json.dumps(inputs),
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError(f"cannot execute pinned Node URL parser: {exc}") from exc
+    if process.returncode != 0:
+        detail = process.stderr.strip() or f"exit {process.returncode}"
+        raise ValueError(f"pinned Node URL parser failed: {detail}")
+    try:
+        document = json.loads(process.stdout)
+    except (json.JSONDecodeError, RecursionError) as exc:
+        raise ValueError(f"pinned Node URL parser returned invalid JSON: {exc}") from exc
+    if not isinstance(document, list) or len(document) != len(references):
+        raise ValueError("pinned Node URL parser returned the wrong result count")
+    expected_keys = {"protocol", "hostname", "port", "pathname"}
+    for item in document:
+        if item is None:
+            continue
+        if (
+            not isinstance(item, dict)
+            or set(item) != expected_keys
+            or not all(isinstance(item[key], str) for key in expected_keys)
+        ):
+            raise ValueError("pinned Node URL parser returned a malformed result")
+    return document
+
+
+def css_references(raw: str, label: str, errors: list[str]) -> list[str]:
+    """Return directly inspectable CSS strings and unquoted url() targets.
+
+    CSS escapes can obscure both the `url` function and its argument, so they
+    are forbidden in retained CSS. Comments are skipped only while scanning
+    ordinary CSS; inside url() they are literal URL bytes in Chromium and must
+    remain visible to exact-identity checks. Imports and image-set are forbidden;
+    with escapes excluded, the remaining url() grammar has no hidden continuation
+    or quote rules.
+    """
+    if "\\" in raw:
+        errors.append(
+            f"{label}: CSS source contains a forbidden escape or backslash; "
+            "resource syntax must remain directly inspectable"
+        )
+        return []
+    source = raw
+    references: list[str] = []
+    index = 0
+    while index < len(source):
+        if source.startswith("/*", index):
+            end = source.find("*/", index + 2)
+            if end < 0:
+                errors.append(f"{label}: CSS contains an unterminated comment")
+                return []
+            index = end + 2
+            continue
+        if source[index] in {"'", '"'}:
+            quote = source[index]
+            newline = min(
+                (
+                    position
+                    for position in (
+                        source.find("\n", index + 1),
+                        source.find("\r", index + 1),
+                        source.find("\f", index + 1),
+                    )
+                    if position >= 0
+                ),
+                default=-1,
+            )
+            end = source.find(quote, index + 1)
+            if end < 0 or (newline >= 0 and newline < end):
+                errors.append(f"{label}: CSS contains an invalid or unterminated string")
+                return []
+            index = end + 1
+            continue
+        if source[index : index + len("@import")].lower() == "@import":
+            end = index + len("@import")
+            if end == len(source) or not (source[end].isalnum() or source[end] in "_-"):
+                errors.append(f"{label}: CSS @import is forbidden; styles must be retained")
+                return []
+        image_function = next(
+            (
+                name
+                for name in ("image-set", "-webkit-image-set")
+                if source[index : index + len(name)].lower() == name
+            ),
+            None,
+        )
+        if image_function is not None:
+            cursor = index + len(image_function)
+            while cursor < len(source) and source[cursor].isspace():
+                cursor += 1
+            if cursor < len(source) and source[cursor] == "(":
+                errors.append(
+                    f"{label}: CSS {image_function}() is forbidden until its grammar is validated"
+                )
+                return []
+        if source[index : index + len("url")].lower() == "url" and (
+            index == 0 or not (source[index - 1].isalnum() or source[index - 1] in "_-")
+        ):
+            cursor = index + 3
+            while cursor < len(source) and source[cursor].isspace():
+                cursor += 1
+            if cursor < len(source) and source[cursor] == "(":
+                cursor += 1
+                while cursor < len(source) and source[cursor].isspace():
+                    cursor += 1
+                if cursor >= len(source):
+                    errors.append(f"{label}: CSS contains an unterminated url()")
+                    return []
+                if source[cursor] in {"'", '"'}:
+                    quote = source[cursor]
+                    end = source.find(quote, cursor + 1)
+                    if end < 0 or any(char in source[cursor + 1 : end] for char in "\n\r\f"):
+                        errors.append(f"{label}: CSS contains an invalid url() string")
+                        return []
+                    reference = source[cursor + 1 : end]
+                    closing = end + 1
+                    while closing < len(source) and source[closing].isspace():
+                        closing += 1
+                    if closing >= len(source) or source[closing] != ")":
+                        errors.append(f"{label}: CSS contains a malformed url()")
+                        return []
+                else:
+                    closing = source.find(")", cursor)
+                    if closing < 0:
+                        errors.append(f"{label}: CSS contains an unterminated url()")
+                        return []
+                    reference = source[cursor:closing].strip()
+                    if any(char in reference for char in "'\""):
+                        errors.append(f"{label}: CSS contains a malformed url()")
+                        return []
+                if (
+                    reference
+                    and not reference.startswith(("/", "#", "?"))
+                    and not SCHEME_RE.match(reference)
+                ):
+                    errors.append(
+                        f"{label}: path-relative CSS url() is forbidden: {reference!r}"
+                    )
+                    return []
+                references.append(reference)
+                index = closing + 1
+                continue
+        index += 1
+    return references
+
+
+def validate_svg_files(output: Path) -> list[str]:
+    """Require retained SVG images to remain strict and self-contained.
+
+    An SVG served as a top-level document can initiate subresource requests.
+    The site has no need for that capability: external URLs, active/foreign
+    content, and URL animation are forbidden, while local fragment references
+    used by definitions and filters remain valid.
+    """
+    errors: list[str] = []
+    svg_namespace = "http://www.w3.org/2000/svg"
+    forbidden_elements = {
+        "animate",
+        "animateMotion",
+        "animateTransform",
+        "discard",
+        "foreignObject",
+        "script",
+        "set",
+    }
+    for path in sorted(output.rglob("*.svg")):
+        label = str(path.relative_to(output))
+        try:
+            raw = path.read_text(encoding="utf-8", errors="strict")
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"{label}: SVG is not strict UTF-8: {exc}")
+            continue
+        xml_body = raw.removeprefix("\ufeff")
+        declaration = re.match(r"<\?xml\s[^?]*\?>", xml_body, re.I)
+        if declaration is not None:
+            xml_body = xml_body[declaration.end() :]
+        if "<?" in xml_body:
+            errors.append(f"{label}: SVG processing instructions are forbidden")
+            continue
+        if "<!DOCTYPE" in raw.upper():
+            errors.append(f"{label}: SVG document types are forbidden")
+            continue
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError as exc:
+            errors.append(f"{label}: SVG is not strict XML: {exc}")
+            continue
+        if root.tag != f"{{{svg_namespace}}}svg":
+            errors.append(
+                f"{label}: retained .svg root must use the canonical SVG namespace"
+            )
+            continue
+        for element in root.iter():
+            if not element.tag.startswith(f"{{{svg_namespace}}}"):
+                errors.append(f"{label}: foreign-namespace SVG elements are forbidden")
+                continue
+            element_name = element.tag.removeprefix(f"{{{svg_namespace}}}")
+            if element_name in forbidden_elements:
+                errors.append(f"{label}: SVG element {element_name!r} is forbidden")
+            if element_name == "style":
+                # Chromium derives SVG style data from textContent, which also
+                # includes the tails of child elements. Keep the accepted XML
+                # grammar narrower so no CSS can hide outside element.text.
+                if len(element):
+                    errors.append(f"{label}: SVG style elements must not have children")
+                elif element.text:
+                    style_errors: list[str] = []
+                    for reference in css_references(element.text, label, style_errors):
+                        if not reference.lstrip("\t\n\r ").startswith("#"):
+                            errors.append(
+                                f"{label}: SVG styles must not load external "
+                                f"resource {reference!r}"
+                            )
+                    errors.extend(style_errors)
+            for raw_name, value in element.attrib.items():
+                name = raw_name.rsplit("}", 1)[-1]
+                if "\\" in value:
+                    errors.append(
+                        f"{label}: SVG attribute {name!r} contains a forbidden "
+                        "escape or backslash"
+                    )
+                    continue
+                if name.lower().startswith("on"):
+                    errors.append(f"{label}: SVG event attribute {name!r} is forbidden")
+                if name in {"base", "href"} and value and not value.startswith("#"):
+                    errors.append(
+                        f"{label}: SVG attribute {name!r} must be a local fragment"
+                    )
+                if "url(" in value.lower() or name == "style":
+                    style_errors = []
+                    for reference in css_references(value, label, style_errors):
+                        if not reference.lstrip("\t\n\r ").startswith("#"):
+                            errors.append(
+                                f"{label}: SVG attribute {name!r} must not load "
+                                f"external resource {reference!r}"
+                            )
+                    errors.extend(style_errors)
+    return errors
 
 
 def inspect_manifest_reference(
-    errors: list[str], label: str, reference: str, by_path: dict[str, str]
+    errors: list[str],
+    label: str,
+    reference: str,
+    by_path: dict[str, str],
+    resolved: dict[str, str] | None | object = _UNRESOLVED,
 ) -> None:
     """Fail when a same-origin reference spells a manifest member inexactly.
 
-    The reference resolves against the site root for member lookup, but only
-    the exact root-relative manifest URL or its exact absolute spelling is
-    accepted. Aliases that decode or normalize to a member (percent-encoded,
-    dot-segment, padded-port, relative, protocol-relative, or otherwise
-    re-spelled) are still caught: the lookup is canonical, while acceptance
-    compares the authored spelling before URL resolution can erase aliases.
+    The reference resolves through the browser's WHATWG URL implementation for
+    member lookup, but only the exact root-relative manifest URL or its exact
+    HTTPS absolute spelling is accepted. HTTP references to the canonical host
+    are also examined because the deployed CSP upgrades them before fetch.
     """
-    try:
-        resolved = urljoin(BASE_URL, reference)
-        parsed = urlparse(resolved)
-        origin = normalized_origin(parsed)
-    except ValueError:
-        errors.append(f"{label}: malformed public resource reference {reference!r}")
+    # Fragment-only strings do not initiate a resource request. This also
+    # distinguishes webmanifest color values such as "#F7F3E8" from URLs.
+    # Query-only references are intentionally inspected: in CSS they refetch
+    # the stylesheet itself under a different, non-manifest identity.
+    if reference.lstrip("\t\n\r ").startswith("#"):
         return
-    if origin != normalized_origin(urlparse(BASE_URL)):
+    if resolved is _UNRESOLVED:
+        try:
+            resolved = resolve_browser_references([reference])[0]
+        except ValueError as exc:
+            errors.append(f"{label}: browser URL resolution failed closed: {exc}")
+            return
+    if resolved is None:
+        return
+    assert isinstance(resolved, dict)
+    base_host = urlparse(BASE_URL).hostname
+    is_effective_site_origin = (
+        resolved["protocol"] == "https:"
+        and resolved["hostname"] == base_host
+        and resolved["port"] == ""
+    )
+    if not is_effective_site_origin:
         return
     try:
-        canonical_path = canonical_resource_path(parsed.path)
+        canonical_path = canonical_resource_path(resolved["pathname"])
     except (UnicodeDecodeError, ValueError) as exc:
         errors.append(f"{label}: noncanonical resource path in {reference!r}: {exc}")
         return
     expected = by_path.get(canonical_path)
     if expected is None:
         return
-    accepted = {expected, urljoin(BASE_URL, expected)}
+    accepted = {expected, f"{BASE_URL.rstrip('/')}{expected}"}
     if reference not in accepted:
         errors.append(
             f"{label}: public resource {reference!r} must use manifest URL {expected!r}"
@@ -173,13 +530,12 @@ def strict_json_loads(
         return None
 
 
-def validate_json_ld_block(
-    errors: list[str], label: str, raw: str, by_path: dict[str, str]
-) -> None:
-    """Strict-parse one JSON-LD block and inspect every string."""
+def json_ld_references(errors: list[str], label: str, raw: str) -> list[str]:
+    """Strict-parse one JSON-LD block and return every string."""
     document = strict_json_loads(raw, label, errors)
     if document is None:
-        return
+        return []
+    references: list[str] = []
     pending: list[object] = [document]
     while pending:
         value = pending.pop()
@@ -188,7 +544,8 @@ def validate_json_ld_block(
         elif isinstance(value, list):
             pending.extend(value)
         elif isinstance(value, str):
-            inspect_manifest_reference(errors, label, value, by_path)
+            references.append(value)
+    return references
 
 
 def read_contract(path: Path = CONTRACT_PATH) -> tuple[dict, list[str]]:
@@ -328,11 +685,11 @@ def serialize_manifest(manifest: dict) -> bytes:
 def validate_public_references(output: Path, manifest: dict) -> list[str]:
     """Require every authored reference to a manifest member to use its exact URL.
 
-    Coverage: HTML element attributes (entity-decoded by the parser, so the
-    authored &amp;v= separator compares as &v=), every string inside each
-    application/ld+json block (strict JSON, raw text), CSS url() targets,
-    site.webmanifest JSON strings, agent-facing text files, and _headers
-    resource values.
+    Coverage: HTML URL attributes (entity-decoded by the parser, with compound
+    URL grammars and document-base overrides rejected), every string inside
+    each application/ld+json block (strict JSON, raw text), CSS url() targets
+    (with escapes, imports, and image-set rejected), self-contained strict SVG,
+    site.webmanifest JSON strings, agent-facing text files, and _headers values.
     """
     errors: list[str] = []
     by_path = {
@@ -342,6 +699,7 @@ def validate_public_references(output: Path, manifest: dict) -> list[str]:
         and isinstance(item.get("output_path"), str)
         and isinstance(item.get("request_url"), str)
     }
+    references: list[tuple[str, str, str]] = []
 
     for path in sorted(output.rglob("*.html")):
         text = path.read_text()
@@ -349,20 +707,33 @@ def validate_public_references(output: Path, manifest: dict) -> list[str]:
         parser = ResourceReferenceParser()
         parser.feed(text)
         parser.close()
+        errors.extend(f"{label}: {error}" for error in parser.errors)
+        if label == "index.html":
+            document_url = BASE_URL
+        elif label.endswith("/index.html"):
+            document_url = f"{BASE_URL}{label.removesuffix('index.html')}"
+        else:
+            document_url = f"{BASE_URL}{label}"
         for reference in parser.references:
-            inspect_manifest_reference(errors, label, reference, by_path)
+            references.append((label, reference, document_url))
         ld_parser = JsonLdParser()
         ld_parser.feed(text)
         ld_parser.close()
         if ld_parser.unterminated:
             errors.append(f"{label}: unterminated application/ld+json block")
         for block in ld_parser.blocks:
-            validate_json_ld_block(errors, label, block, by_path)
-    for path in sorted(output.rglob("*.css")):
-        for match in CSS_URL_RE.finditer(path.read_text()):
-            inspect_manifest_reference(
-                errors, str(path.relative_to(output)), match.group(2), by_path
+            references.extend(
+                (label, reference, document_url)
+                for reference in json_ld_references(errors, label, block)
             )
+    for path in sorted(output.rglob("*.css")):
+        label = str(path.relative_to(output))
+        css = path.read_text()
+        references.extend(
+            (label, reference, f"{BASE_URL}{label}")
+            for reference in css_references(css, label, errors)
+        )
+    errors.extend(validate_svg_files(output))
     webmanifest = output / "site.webmanifest"
     if webmanifest.is_file():
         document = strict_json_loads(
@@ -380,16 +751,28 @@ def validate_public_references(output: Path, manifest: dict) -> list[str]:
                 elif isinstance(value, list):
                     pending.extend(value)
                 elif isinstance(value, str):
-                    inspect_manifest_reference(errors, "site.webmanifest", value, by_path)
+                    references.append(
+                        ("site.webmanifest", value, f"{BASE_URL}site.webmanifest")
+                    )
     for relative in ("llms.txt", "robots.txt"):
         path = output / relative
         if path.is_file():
             for match in TEXT_URL_RE.finditer(path.read_text()):
-                inspect_manifest_reference(errors, relative, match.group(0), by_path)
+                references.append((relative, match.group(0), f"{BASE_URL}{relative}"))
     headers = output / "_headers"
     if headers.is_file():
         for match in HEADER_URL_RE.finditer(headers.read_text()):
-            inspect_manifest_reference(errors, "_headers", match.group(1), by_path)
+            references.append(("_headers", match.group(1), BASE_URL))
+    try:
+        resolved = resolve_browser_references(
+            [reference for _label, reference, _base in references],
+            [base for _label, _reference, base in references],
+        )
+    except ValueError as exc:
+        errors.append(f"browser URL resolution failed closed: {exc}")
+        return errors
+    for (label, reference, _base), browser_url in zip(references, resolved, strict=True):
+        inspect_manifest_reference(errors, label, reference, by_path, browser_url)
     return errors
 
 

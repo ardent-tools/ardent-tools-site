@@ -89,8 +89,9 @@ manifest resource, and requires the complete configured direct-response header
 map plus the special speculation-rules media type. `_redirects` responses are
 checked only for status and location because Cloudflare Pages resolves redirects
 before `_headers`; the complete four-rule file is validated locally, and
-production probes a revision-specific representative for every declaration
-without following it.
+production probes a safe representative for every declaration without following
+it. The two system wildcard probes are revision-specific; the exact `/demos`
+rule and its catch-all use fixed non-destructive paths.
 The résumé compiles twice with only the pinned, licensed inputs under
 `resume/fonts/`; system and Typst-embedded fonts are disabled, and `pdffonts`
 must report only embedded/subsetted Nimbus Sans Regular and Bold.

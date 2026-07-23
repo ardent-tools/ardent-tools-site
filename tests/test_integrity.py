@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import shutil
 import sys
 import tempfile
@@ -696,12 +697,19 @@ class ReleaseManifestContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             _contract, manifest, _raw = self.make_fixture(output)
-            (output / "index.html").write_text(
-                '<a href="/files/report.pdf">Download report</a>'
+            cases = (
+                "/files/report.pdf",
+                "/files/report.pdf ",
+                "///ardent.tools/files/report.pdf",
             )
-            errors = release.validate_public_references(output, manifest)
-        self.assertEqual(len(errors), 1, errors)
-        self.assertIn("must use manifest URL", errors[0])
+            for reference in cases:
+                with self.subTest(reference=reference):
+                    (output / "index.html").write_text(
+                        f'<a href="{reference}">Download report</a>'
+                    )
+                    errors = release.validate_public_references(output, manifest)
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn("must use manifest URL", errors[0])
 
     def test_unversioned_css_manifest_and_header_references_fail(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -714,6 +722,16 @@ class ReleaseManifestContractTests(unittest.TestCase):
             errors = release.validate_public_references(output, manifest)
         self.assertEqual(len(errors), 3, errors)
         self.assertTrue(all("must use manifest URL" in error for error in errors), errors)
+
+    def test_webmanifest_color_is_not_a_self_resource_reference(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "site.webmanifest").write_text(
+                '{"name":"fixture","theme_color":"#F7F3E8"}\n'
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(errors, [])
 
     def test_json_ld_manifest_references_require_exact_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -735,6 +753,26 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 "dot-segment alias": exact.replace(
                     "/files/report.pdf", "/files/../files/report.pdf"
                 ),
+                "root-relative backslash alias": report["request_url"].replace(
+                    "/files/", "/files\\"
+                ),
+                "absolute backslash alias": exact.replace(
+                    "/files/", "/files\\"
+                ),
+                "encoded backslash alias": exact.replace(
+                    "/files/", "/files%5c"
+                ),
+                "trailing browser whitespace": f"{BASE_URL}/files/report.pdf ",
+                "excess authority separators": "///ardent.tools/files/report.pdf",
+                "excess scheme separators": "https:///ardent.tools/files/report.pdf",
+                "double path separator": "https://ardent.tools//files/report.pdf",
+                "IDNA host alias": "https://ＡＲＤＥＮＴ.ＴＯＯＬＳ/files/report.pdf",
+                "Unicode dot host alias": "https://ardent。tools/files/report.pdf",
+                "percent-encoded host alias": "https://%61rdent.tools/files/report.pdf",
+                "percent-encoded dot host alias": "https://ardent%2etools/files/report.pdf",
+                "CSP-upgraded HTTP": "http://ardent.tools/files/report.pdf",
+                "CSP-upgraded explicit port": "http://ardent.tools:80/files/report.pdf",
+                "CSP-upgraded HTTPS-default port": "http://ardent.tools:443/files/report.pdf",
                 "relative exact query": report["request_url"].lstrip("/"),
                 "protocol-relative": exact.replace("https:", ""),
                 "raw-script HTML entity": exact.replace("&v=", "&amp;v="),
@@ -743,7 +781,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 with self.subTest(label=label):
                     (output / "index.html").write_text(
                         '<script type="application/ld+json">'
-                        f'{{"image":"{reference}"}}'
+                        f'{json.dumps({"image": reference})}'
                         "</script>"
                     )
                     errors = release.validate_public_references(output, manifest)
@@ -762,6 +800,210 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 "</script>"
             )
             self.assertEqual(release.validate_public_references(output, manifest), [])
+
+    def test_css_url_escapes_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "app.css").write_text(
+                r"body { background: url('/files/\72 eport.pdf'); }" + "\n"
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("CSS source contains a forbidden escape or backslash", errors[0])
+
+    def test_css_comment_delimiters_inside_url_strings_remain_literal(self) -> None:
+        references = (
+            'url("https://ardent.tools/files/**/../report.pdf")',
+            "url(https://ardent.tools/files/**/../report.pdf)",
+        )
+        for reference in references:
+            with self.subTest(reference=reference), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                _contract, manifest, _raw = self.make_fixture(output)
+                (output / "app.css").write_text(
+                    f".sample {{ background: {reference}; }}\n"
+                )
+                errors = release.validate_public_references(output, manifest)
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("must use manifest URL", errors[0])
+
+    def test_css_unicode_comments_do_not_shift_scanner_offsets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "app.css").write_text(
+                "/* İ */ .sample { background: url(/files/report.pdf); }\n"
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("must use manifest URL", errors[0])
+
+    def test_compound_html_url_grammars_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "index.html").write_text(
+                '<img srcset="/files/report.pdf 1x, /files/report.pdf 2x">'
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("compound URL attribute 'srcset' is forbidden", errors[0])
+
+    def test_embedded_and_ambiguous_html_fail_closed(self) -> None:
+        cases = {
+            "srcdoc": (
+                '<iframe srcdoc="&lt;img src=\'/files/report.pdf\'&gt;"></iframe>',
+                "compound URL attribute 'srcdoc' is forbidden",
+            ),
+            "attribution registration": (
+                '<img src="/img/other.png" attributionsrc="/files/report.pdf">',
+                "compound URL attribute 'attributionsrc' is forbidden",
+            ),
+            "inline foreign content": (
+                '<svg><image href="/files/report.pdf"></image></svg>',
+                "inline svg foreign content is forbidden",
+            ),
+            "duplicate refresh discriminator": (
+                '<meta http-equiv="refresh" http-equiv="x" '
+                'content="0; url=/files/report.pdf">',
+                "duplicate HTML attributes are forbidden",
+            ),
+            "duplicate script type": (
+                '<script type="application/ld+json" type="text/javascript">'
+                '{"image":"/files/report.pdf"}</script>',
+                "duplicate HTML attributes are forbidden",
+            ),
+        }
+        for label, (markup, expected) in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                _contract, manifest, _raw = self.make_fixture(output)
+                (output / "index.html").write_text(markup)
+                errors = release.validate_public_references(output, manifest)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_css_quoted_url_and_actual_stylesheet_base_are_inspected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, _manifest, _raw = self.make_fixture(output)
+            (output / "css").mkdir()
+            (output / "css/font.woff2").write_bytes(b"font bytes\n")
+            manifest = release.build_manifest(
+                output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            )
+            (output / "css/app.css").write_text(
+                "/* a maintainer's note */\n"
+                '.sample { background: url("font.woff2"); }\n'
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("path-relative CSS url() is forbidden", errors[0])
+
+    def test_css_complex_resource_grammars_and_bad_strings_fail_closed(self) -> None:
+        cases = {
+            "image-set": (
+                '.sample { background: image-set("/files/report.pdf" 1x); }\n',
+                "CSS image-set() is forbidden",
+            ),
+            "bad-string recovery": (
+                '.a { content: "\n;\nbackground-image: '
+                'url(https://ardent.tools/files/report.pdf);\nx: "foo";\n/* " */\n}\n',
+                "CSS contains an invalid or unterminated string",
+            ),
+        }
+        for label, (css, expected) in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                _contract, manifest, _raw = self.make_fixture(output)
+                (output / "app.css").write_text(css)
+                errors = release.validate_public_references(output, manifest)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(expected, errors[0])
+
+    def test_query_only_css_url_cannot_refetch_stylesheet_without_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, _manifest, _raw = self.make_fixture(output)
+            (output / "css").mkdir()
+            (output / "css/app.css").write_text(
+                ".sample { background-image: url(?stale); }\n"
+            )
+            manifest = release.build_manifest(
+                output, EXPECTED_REVISION, ASSET_EPOCH, contract
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("must use manifest URL", errors[0])
+
+    def test_retained_svg_must_be_strict_and_self_contained(self) -> None:
+        cases = {
+            "external href": (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<image href="/files/report.pdf"/></svg>',
+                "attribute 'href' must be a local fragment",
+            ),
+            "external style URL": (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<style>path{fill:url(/files/report.pdf)}</style></svg>',
+                "SVG styles must not load external resource",
+            ),
+            "style child tail": (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<style><g/>path{fill:url(/files/report.pdf)}</style></svg>',
+                "SVG style elements must not have children",
+            ),
+            "active content": (
+                '<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',
+                "SVG element 'script' is forbidden",
+            ),
+            "stylesheet processing instruction": (
+                '<?xml-stylesheet type="text/css" href="/files/report.pdf"?>'
+                '<svg xmlns="http://www.w3.org/2000/svg"/>',
+                "SVG processing instructions are forbidden",
+            ),
+            "presentation escape": (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<path fill="u\\72l(/files/report.pdf#x)"/></svg>',
+                "contains a forbidden escape or backslash",
+            ),
+            "foreign namespace fetch": (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<img xmlns="http://www.w3.org/1999/xhtml" '
+                'src="/files/report.pdf"/></svg>',
+                "foreign-namespace SVG elements are forbidden",
+            ),
+        }
+        for label, (document, expected) in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                _contract, manifest, _raw = self.make_fixture(output)
+                (output / "image.svg").write_text(document)
+                errors = release.validate_public_references(output, manifest)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(expected, errors[0])
+
+    def test_retained_svg_local_fragments_are_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "image.svg").write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<style>path{filter:url(#grain)}</style>'
+                '<defs><filter id="grain"/></defs><use href="#grain"/></svg>'
+            )
+            errors = release.validate_public_references(output, manifest)
+        self.assertEqual(errors, [])
+
+    def test_browser_url_resolver_failure_is_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            _contract, manifest, _raw = self.make_fixture(output)
+            (output / "index.html").write_text('<img src="/files/report.pdf">')
+            with mock.patch.object(release.subprocess, "run", side_effect=OSError("absent")):
+                errors = release.validate_public_references(output, manifest)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("browser URL resolution failed closed", errors[0])
 
     def test_json_ld_is_strict_and_complete(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -22,7 +22,7 @@ RESOLVED_REVISION=$(git rev-parse --verify "${BUILD_REVISION}^{commit}" 2>/dev/n
 }
 readonly BUILD_REVISION
 
-for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext pdffonts; do
+for tool in git python3 zola node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext pdffonts; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "ERROR: required tool is missing: $tool" >&2
     exit 1
