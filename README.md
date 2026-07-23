@@ -40,11 +40,13 @@ and `playwright.config.ts` are unchanged. CI alone sets
 `ARDENT_RETAIN_VALIDATED_PUBLIC=1`; that mode refuses to replace an existing
 `public/` and moves the already validated production tree there for Wrangler.
 The validated tree carries `build-revision.txt`; CI supplies the exact GitHub
-revision and the post-deploy verifier refuses a different live sentinel.
+revision. The post-deploy verifier refuses a different live sentinel, fetches
+the exact hashed CSS and JavaScript URLs authored by the live HTML, and checks
+their bodies and effective revalidation policy at the CDN boundary.
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages, then verifies that revision at the live sentinel. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages, then verifies the revision sentinel and authored hashed assets at the live boundary. See `.github/workflows/deploy.yml`.
 
 ## License
 
