@@ -32,8 +32,8 @@
 {% endblock player_js %}
 
 {% block content %}
-<header class="dossier-header">
-  <h1>{{ page.title }}</h1>
+<header class="dossier-header reveal">
+  <h1 class="vtn-{{ page.slug }}">{{ page.title }}</h1>
   {%- if page.description %}
   <p class="page-lede">{{ page.description }}</p>
   {%- endif %}
