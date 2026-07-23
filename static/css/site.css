@@ -2176,16 +2176,40 @@ a.proof-record:focus-visible {
   margin-block: var(--space-xl);
 }
 
+/* Index regrid (§4.3) — row index / name / receipt summary / status,
+   the register's own column set. .evidence-index-head supplies the
+   column labels and the opening 3px double rule beneath them;
+   .evidence-index carries the rows, one hairline between each; no
+   bottom rule of its own — .evidence-index-close supplies the closing
+   double rule instead, so the two ends of the register read
+   differently (open thin, close heavy) the way a real ledger does. */
+.evidence-index-head {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(9rem, 0.3fr) 1fr minmax(7rem, auto);
+  gap: var(--space-m);
+  padding-bottom: var(--space-xs);
+  margin-top: var(--space-m);
+  border-bottom: 3px double var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+}
+
+.evidence-index-head span:last-child {
+  text-align: right;
+}
+
 .evidence-index {
   list-style: none;
   padding: 0;
-  margin-top: var(--space-m);
-  border-bottom: 1px solid var(--rule);
 }
 
 .evidence-index a {
   display: grid;
-  grid-template-columns: minmax(10rem, 0.4fr) minmax(0, 1fr);
+  grid-template-columns: 2.5rem minmax(9rem, 0.3fr) 1fr minmax(7rem, auto);
+  align-items: baseline;
   gap: var(--space-m);
   padding-block: var(--space-m);
   border-top: 1px solid var(--rule);
@@ -2196,6 +2220,48 @@ a.proof-record:focus-visible {
 .evidence-index a:hover strong,
 .evidence-index a:focus-visible strong {
   color: var(--accent);
+}
+
+.evidence-index-n {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.evidence-index a strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.evidence-index-summary {
+  font-family: var(--font-body);
+  color: var(--text-mid);
+}
+
+.evidence-index-status {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+  text-align: right;
+}
+
+/* Closing rule (§4.3) — the register visibly ends rather than trailing
+   off; the entry count sits at the same right edge the status column
+   above it holds. */
+.evidence-index-close {
+  margin: 0;
+  padding-top: var(--space-xs);
+  border-top: 3px double var(--text);
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
 }
 
 .recording-status {
@@ -2240,6 +2306,16 @@ a.proof-record:focus-visible {
   .evidence-index span {
     display: block;
     margin-top: var(--space-xs);
+  }
+
+  /* A column-header row is meaningless once the columns below it
+     collapse to stacked blocks. */
+  .evidence-index-head {
+    display: none;
+  }
+
+  .evidence-index-status {
+    text-align: left;
   }
 
   /* Fleet map mobile composition — a deliberate narrow-width anatomy,
