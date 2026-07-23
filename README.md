@@ -99,10 +99,13 @@ symlinked, or digest-mismatched members.
 
 The post-deploy verifier refuses a different live sentinel or manifest, fetches
 every retained HTML route, probes the custom 404, and requests every exact
-resource URL without redirects, and proves each removed logical asset URL now
-returns the retained 404 authority. It compares full response-body digests and
-the complete configured direct-response header boundary, including the derived
-physical `Speculation-Rules` URL and its media type. Before upload, the deploy job
+resource URL without redirects. On the immutable deployment origin it also
+proves each removed logical asset URL returns the retained 404 authority. The
+custom-domain pass does not make that claim because an earlier immutable edge
+object can outlive the deployment that removed its path. Both passes compare
+full response-body digests and the complete configured direct-response header
+boundary, including the derived physical `Speculation-Rules` URL and its media
+type. Before upload, the deploy job
 revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
 Repository-owned Wrangler config makes the project name, validated output
@@ -147,7 +150,7 @@ domain.
 
 ## Deploy
 
-GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision, release-resource and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages. Wrangler is given the full commit SHA; its bounded strict JSONL receipt must identify one matching production deployment and immutable `*.ardent-tools.pages.dev` origin. The verifier then proves the sentinel, manifest, canonical pages, custom 404, tombstones, physical resources, removed logical aliases, direct headers, and Cloudflare colo receipt first at that immutable origin and then at `ardent.tools`. See `.github/workflows/deploy.yml`.
+GitHub Actions runs the full strict gate (schema validation, generator and résumé reproducibility, Zola check/build, revision, release-resource and cache contracts, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys the exact retained tree to Cloudflare Pages. Wrangler is given the full commit SHA; its bounded strict JSONL receipt must identify one matching production deployment and immutable `*.ardent-tools.pages.dev` origin. The verifier then proves the sentinel, manifest, canonical pages, custom 404, tombstones, physical resources, direct headers, and Cloudflare colo receipt at both that immutable origin and `ardent.tools`; the immutable origin additionally proves removed logical paths resolve to the retained 404. See `.github/workflows/deploy.yml`.
 
 Cloudflare documents that a custom-domain cache can preserve an earlier static
 asset even after a Pages deployment. The release therefore never relies on a
@@ -156,8 +159,11 @@ new physical full-digest path, including dependencies inside CSS and the Web
 App Manifest and list-source URLs in speculation rules. URLPattern fields remain
 route patterns. Already-held responses at legacy logical paths
 cannot be revoked by repository code, so current HTML never references those
-paths; the guarded Function converts a stale logical success into the
-deployment-local 404. The release
+paths. They can remain externally retrievable until their old freshness lifetime
+ends, but they are not members of or dependencies of the current release. The
+pre-upload manifest validation proves the uploaded tree contains no logical
+aliases; the immutable-origin tombstone pass separately proves fresh
+deployment-origin behavior. The release
 tombstone keeps `/tapes/aletheia-memory.tape` absent through 2026-08-21. See
 [Cloudflare Pages serving behavior](https://developers.cloudflare.com/pages/configuration/serving-pages/).
 

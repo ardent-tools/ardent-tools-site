@@ -198,6 +198,7 @@ jobs:
             --base-url "$ARDENT_IMMUTABLE_URL" \
             --canonical-origin https://ardent.tools \
             --require-cf-ray \
+            --require-logical-alias-tombstones \
             --attempts 5 --delay 5 \
             --expected-revision "$GITHUB_SHA" \
             --artifact-root public

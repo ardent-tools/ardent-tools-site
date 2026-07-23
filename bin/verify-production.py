@@ -419,6 +419,7 @@ def verify(
     canonical_origin: str = CANONICAL_ORIGIN,
     require_cf_ray: bool = False,
     observed_colos: set[str] | None = None,
+    require_logical_alias_tombstones: bool = False,
 ) -> list[str]:
     errors: list[str] = []
     site_root = base_url.rstrip("/") + "/"
@@ -644,28 +645,29 @@ def verify(
             )
         )
 
-    custom_authority = html_authority.get("custom_404", {})
-    custom_digest = custom_authority.get("sha256")
-    for item in release_manifest.get("resources", []):
-        if item.get("cache_class") != "addressed":
-            continue
-        logical_path = item["logical_path"]
-        alias_url = urljoin(site_root, logical_path)
-        alias_status, alias_headers, alias_bytes = fetch_exact(alias_url)
-        alias_body = alias_bytes.decode("utf-8", errors="replace")
-        label = f"logical asset alias /{logical_path}"
-        if alias_status != 404:
-            errors.append(f"{label} returned {alias_status}, expected exact 404")
-        validate_html_boundary(
-            errors, label, alias_headers, alias_body, header_contract
-        )
-        validate_html_content_type(errors, label, alias_headers)
-        alias_digest = hashlib.sha256(alias_bytes).hexdigest()
-        if alias_digest != custom_digest:
-            errors.append(
-                f"{label} body differs from retained custom-404 authority: "
-                f"expected {custom_digest!r}, SHA-256={alias_digest}"
+    if require_logical_alias_tombstones:
+        custom_authority = html_authority.get("custom_404", {})
+        custom_digest = custom_authority.get("sha256")
+        for item in release_manifest.get("resources", []):
+            if item.get("cache_class") != "addressed":
+                continue
+            logical_path = item["logical_path"]
+            alias_url = urljoin(site_root, logical_path)
+            alias_status, alias_headers, alias_bytes = fetch_exact(alias_url)
+            alias_body = alias_bytes.decode("utf-8", errors="replace")
+            label = f"logical asset alias /{logical_path}"
+            if alias_status != 404:
+                errors.append(f"{label} returned {alias_status}, expected exact 404")
+            validate_html_boundary(
+                errors, label, alias_headers, alias_body, header_contract
             )
+            validate_html_content_type(errors, label, alias_headers)
+            alias_digest = hashlib.sha256(alias_bytes).hexdigest()
+            if alias_digest != custom_digest:
+                errors.append(
+                    f"{label} body differs from retained custom-404 authority: "
+                    f"expected {custom_digest!r}, SHA-256={alias_digest}"
+                )
 
     evidence_body = pages.get("/evidence/", "")
     for marker in (
@@ -772,6 +774,14 @@ def main() -> int:
         action="store_true",
         help="require every response to carry one exact Cloudflare colo receipt",
     )
+    parser.add_argument(
+        "--require-logical-alias-tombstones",
+        action="store_true",
+        help=(
+            "require retired logical asset paths to resolve to the retained 404; "
+            "use only on an origin that cannot hold pre-deployment edge objects"
+        ),
+    )
     parser.add_argument("--expected-revision", required=True)
     parser.add_argument(
         "--artifact-root",
@@ -855,6 +865,7 @@ def main() -> int:
                 args.canonical_origin,
                 args.require_cf_ray,
                 attempt_colos,
+                args.require_logical_alias_tombstones,
             )
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]
