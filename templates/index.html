@@ -4,6 +4,7 @@
 {% extends "base.html" %}
 {% import "partials/catalog-row.html" as catalog_row %}
 {% import "partials/asset-url.html" as asset_url %}
+{% import "partials/feature-block.html" as feature_block %}
 
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
@@ -19,29 +20,32 @@
   <p class="home-lede">{{ section.extra.lede }}</p>
   <div class="home-ctas" aria-label="Ways to work together">
     <a href="/consulting/" class="button">Discuss a consulting engagement</a>
-    <a href="{{ asset_url::hashed(path="files/cody-kickertz-resume.pdf") | safe }}" download="cody-kickertz-resume.pdf" class="text-action">Hiring for a role? Read the resume&nbsp;&rarr;</a>
+    <a href="{{ asset_url::hashed(path="files/cody-kickertz-resume.pdf") | safe }}" download="cody-kickertz-resume.pdf" class="text-action">Hiring for a role? Read the resume&nbsp;<span class="arrow">&rarr;</span></a>
   </div>
 </header>
 
 <section class="proof-surface" aria-labelledby="proof-heading">
   <div class="proof-intro">
-    <p class="section-label">Published receipt</p>
+    <p class="section-label"><span class="section-label-index">01</span> &middot; Published receipt</p>
     <h2 id="proof-heading">The rule is only real where the mechanism enforces it.</h2>
     <p>Kanon is the private standards and dispatch control plane behind this practice. Its public receipt is deliberately narrower than its source.</p>
   </div>
   {%- for p in systems.pages %}
     {%- if p.slug == section.extra.proof_system %}
   <div class="proof-record">
+    <div class="proof-record-strip">
+      <span>RECORD &mdash; {{ p.title }}</span>
+      {%- if p.extra.badge %}<span class="badge">{{ p.extra.badge }}</span>{%- endif %}
+    </div>
     <div>
-      <span class="badge">{{ p.extra.badge }}</span>
       <h3><a href="{{ p.permalink | safe }}">{{ p.title }}</a></h3>
-      <p>{{ p.extra.headline_claim.claim }}</p>
+      <p class="proof-claim">{{ p.extra.headline_claim.claim }}</p>
     </div>
     <dl class="proof-receipt">
       <div><dt>Mechanism</dt><dd>{{ p.extra.headline_claim.receipt }}</dd></div>
       <div><dt>Boundary</dt><dd>Private source; public configurations and a case-study receipt.</dd></div>
     </dl>
-    <p class="proof-links"><a href="{{ p.permalink | safe }}">Inspect the case study&nbsp;&rarr;</a> <a href="/writing/hardest-honest-rung/">Read the enforcement method&nbsp;&rarr;</a></p>
+    <p class="proof-links"><a href="{{ p.permalink | safe }}">Inspect the case study&nbsp;<span class="arrow">&rarr;</span></a> <a href="/writing/hardest-honest-rung/">Read the enforcement method&nbsp;<span class="arrow">&rarr;</span></a></p>
   </div>
     {%- endif %}
   {%- endfor %}
@@ -50,33 +54,49 @@
 <section class="home-section" aria-labelledby="selected-heading">
   <div class="section-heading-row">
     <div>
-      <p class="section-label">Selected systems</p>
+      <p class="section-label"><span class="section-label-index">02</span> &middot; Selected systems</p>
       <h2 id="selected-heading">Different work, one receipt discipline.</h2>
     </div>
-    <a href="/systems/">Open the full catalog&nbsp;&rarr;</a>
+    <a href="/systems/">Open the full catalog&nbsp;<span class="arrow">&rarr;</span></a>
   </div>
-  <ul class="catalog selected-catalog">
-    {%- for p in systems.pages %}
-      {%- if p.slug in selected %}
-        {{ catalog_row::row(page=p) }}
+  {#- Featured-system blocks (DESIGN-v2 §3.3) — ordered by weight, not
+     by selected_work's own array order: filtering systems.pages (already
+     weight-sorted via content/systems/_index.md's sort_by) yields
+     thumos, aletheia, harmonia regardless of how selected_work is
+     written. Layout per block is the spec's own composition (lead,
+     mirror, stack) keyed to those three specific slugs. #}
+  {%- set_global feature_i = 0 %}
+  {%- for p in systems.pages %}
+    {%- if p.slug in selected %}
+      {%- set_global feature_i = feature_i + 1 %}
+      {%- set feature_idx = "0" ~ feature_i %}
+      {%- if p.slug == "thumos" %}
+  {{ feature_block::block(page=p, index=feature_idx, layout="lead") }}
+      {%- elif p.slug == "aletheia" %}
+  {{ feature_block::block(page=p, index=feature_idx, layout="mirror") }}
+      {%- else %}
+  {{ feature_block::block(page=p, index=feature_idx, layout="stack") }}
       {%- endif %}
-    {%- endfor %}
-  </ul>
+    {%- endif %}
+  {%- endfor %}
 </section>
 
 <section class="home-section fleet-map-section" aria-labelledby="map-heading">
   <div class="section-heading-row">
     <div>
-      <p class="section-label">Fleet map</p>
+      <p class="section-label"><span class="section-label-index">03</span> &middot; Fleet map</p>
       <h2 id="map-heading">Standards travel through repository-owned configuration.</h2>
     </div>
   </div>
   <figure class="fleet-map">
     <div class="fleet-map-source">
       <strong>Kanon</strong>
-      <span>rules · gates · dispatch</span>
+      <span>rules &middot; gates &middot; dispatch</span>
     </div>
-    <div class="fleet-map-link" aria-hidden="true"><span>.kanon-ci.toml</span></div>
+    <div class="fleet-map-drop" aria-hidden="true"></div>
+    <div class="fleet-map-rail" aria-hidden="true">
+      <span class="fleet-map-chip">.kanon-ci.toml</span>
+    </div>
     <ul class="fleet-map-nodes">
       {%- for p in systems.pages %}
         {%- if p.extra.kanon_ci %}
@@ -91,10 +111,10 @@
 <section class="home-section" aria-labelledby="writing-heading">
   <div class="section-heading-row">
     <div>
-      <p class="section-label">Recent writing</p>
+      <p class="section-label"><span class="section-label-index">04</span> &middot; Recent writing</p>
       <h2 id="writing-heading">Methods behind the systems.</h2>
     </div>
-    <a href="/writing/">All essays&nbsp;&rarr;</a>
+    <a href="/writing/">All essays&nbsp;<span class="arrow">&rarr;</span></a>
   </div>
   <ol class="home-writing-list">
     {%- for entry in writing.pages | slice(end=3) %}
@@ -108,9 +128,9 @@
 </section>
 
 <section class="consulting-close" aria-labelledby="consulting-close-heading">
-  <p class="section-label">Consulting</p>
+  <p class="section-label"><span class="section-label-index">05</span> &middot; Consulting</p>
   <h2 id="consulting-close-heading">Make the operating evidence part of the system.</h2>
-  <p>{{ section.extra.consulting_line }}</p>
+  <p class="consulting-line">{{ section.extra.consulting_line }}</p>
   <p><a href="/consulting/" class="button">See fit, process, and deliverables</a></p>
 </section>
 
