@@ -3,7 +3,8 @@
 #
 # Shot:         a fresh disposable clone is pinned to aletheia
 #               `1a0ee8a29cb2`; kanon lint finds a seeded, labeled
-#               violation, fixes that mechanical class, then runs the gate.
+#               TOML violation, fixes that mechanical class, then runs the
+#               non-mutating lint and configured gate.
 # Publish gate: requires the real cast and a reviewed transcript.
 # Duration:     planned cap <=75s.
 # Poster frame: the violation table.
@@ -48,6 +49,8 @@ Type "git clone --quiet https://github.com/forkwright/aletheia.git \"$KANON_TAPE
 Enter
 Type "ALETHEIA=\"$KANON_TAPE_ROOT/aletheia\""
 Enter
+Type "PROOF_FILE=\"$ALETHEIA/scripts/release-feature-policy.toml\""
+Enter
 Type "git -C \"$ALETHEIA\" switch --detach 1a0ee8a29cb2"
 Enter
 Type "test -z \"$(git -C \"$ALETHEIA\" status --porcelain)\""
@@ -58,29 +61,32 @@ Type "# kanon -- six featured repos carry Kanon config; enforcement is repositor
 Enter
 Sleep 1s
 
-# A single mechanical violation staged for this recording only -- a
-# freeform (non-structured-tag) comment, a real kanon comment-standard
-# lint class -- never a finding manufactured to look worse or better than
-# reality. The disposable clone is removed by the scoped EXIT trap.
-Type "echo '// TODO fix this later' >> \"$ALETHEIA/crates/mneme/src/lib.rs\""
+# A single mechanical violation staged for this recording only -- a missing
+# trailing comma in a TOML array, a real fixable Kanon lint class -- never a
+# finding manufactured to look worse or better than reality. The disposable
+# clone is removed by the scoped EXIT trap.
+Type "printf '\nkanon_recording_proof = [\n  \"seed\"\n]\n' >> \"$PROOF_FILE\""
 Enter
 Sleep 500ms
-Type "# SEEDED VIOLATION -- LABELED IN-CAST (a freeform-comment violation staged for this recording; not present on aletheia's actual HEAD)"
+Type "# SEEDED VIOLATION -- LABELED IN-CAST (a missing TOML trailing comma staged for this recording; not present on aletheia's actual HEAD)"
 Enter
 Sleep 1s
 
-Type "kanon lint --diff-base main \"$ALETHEIA\""
+Type "kanon lint \"$PROOF_FILE\" || test \"$?\" -eq 1"
 Enter
-Wait+Screen /violation|error|comment-standard/
+Wait+Screen /missing-trailing-comma|violation/
 Sleep 2s
 
-Type "kanon lint --fix \"$ALETHEIA\""
+Type "kanon lint --fix \"$PROOF_FILE\""
 Enter
-Wait+Screen /fixed|clean|0 violations/
+Wait+Screen /Applied 1 fix|fixed/
 Sleep 1s
 
-Type "test -z \"$(git -C \"$ALETHEIA\" status --porcelain)\""
+Type "kanon lint \"$PROOF_FILE\" && echo '0 violations - lint clean'"
 Enter
+Wait+Screen /0 violations - lint clean/
+Sleep 1s
+
 Type "kanon gate \"$ALETHEIA\""
 Enter
 Wait+Screen /pass|PASS|gate/

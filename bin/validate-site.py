@@ -288,10 +288,34 @@ def main() -> int:
     ):
         if required not in kanon_tape:
             fail(errors, f"Kanon tape lacks disposable-clone contract: {required}")
-    seed_at = kanon_tape.find("echo '// TODO fix this later'")
-    clean_at = kanon_tape.find("status --porcelain")
-    if clean_at < 0 or seed_at < 0 or clean_at > seed_at:
-        fail(errors, "Kanon tape must assert clone cleanliness before seeding")
+    seed_at = kanon_tape.find("kanon_recording_proof = [")
+    clean_assertions = [match.start() for match in re.finditer(r"status --porcelain", kanon_tape)]
+    if seed_at < 0 or len(clean_assertions) != 1 or clean_assertions[0] > seed_at:
+        fail(errors, "Kanon tape must contain exactly one clean-tree assertion before seeding")
+    initial_lint_at = kanon_tape.find(
+        'kanon lint \\"$PROOF_FILE\\" || test \\"$?\\" -eq 1', seed_at
+    )
+    initial_result_at = kanon_tape.find(
+        "Wait+Screen /missing-trailing-comma|violation/", initial_lint_at
+    )
+    fix_at = kanon_tape.find('kanon lint --fix \\"$PROOF_FILE\\"', initial_result_at)
+    post_fix_lint_at = kanon_tape.find(
+        'kanon lint \\"$PROOF_FILE\\" && echo \'0 violations - lint clean\'', fix_at + 1
+    )
+    post_fix_result_at = kanon_tape.find(
+        "Wait+Screen /0 violations - lint clean/", post_fix_lint_at
+    )
+    gate_at = kanon_tape.find('kanon gate \\"$ALETHEIA\\"', post_fix_result_at)
+    if not (
+        seed_at
+        < initial_lint_at
+        < initial_result_at
+        < fix_at
+        < post_fix_lint_at
+        < post_fix_result_at
+        < gate_at
+    ):
+        fail(errors, "Kanon tape must re-run non-mutating lint cleanly after --fix and before gate")
     for dangerous in ("git checkout --", "git reset", "$HOME/dev", "every public repo"):
         if dangerous in kanon_tape:
             fail(errors, f"Kanon tape retains dangerous or stale form: {dangerous!r}")

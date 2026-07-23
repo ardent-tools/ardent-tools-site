@@ -83,97 +83,11 @@ jobs:
 
       # ── Strict gate ────────────────────────────────────────────
       - name: Repository-owned isolated strict gate
-        run: bin/check-site.sh
-
-      # The deploy artifact is rebuilt below after the isolated gate. These
-      # explicit steps also keep the individual CI receipts easy to inspect.
-      - name: typikon-validate (frontmatter schemas)
-        run: themes/typikon/bin/typikon-validate .
-
-      - name: zola check (internal links + assets)
-        run: zola check
-
-      - name: Generate systems.json from content frontmatter
-        # DESIGN-v1.3 §4 item 5 — derived from the same content/systems/*.md
-        # frontmatter systems.html/catalog-ledger.html already render; must
-        # run before zola build so static/systems.json copies through.
-        run: |
-          python3 bin/generate-systems-json.py
-          git diff --exit-code -- static/systems.json
-
-      - name: zola build
-        run: zola build
-
-      - name: Copy _headers + _redirects + 404 into public/
-        # Cloudflare Pages reads _headers and _redirects from the deploy
-        # root. wrangler ships public/, so the files at repo root never
-        # get applied. Copy them in (idempotent — overwrites if present).
-        # CF Pages also serves public/404.html for any 404, but Zola
-        # generates content/404.md as public/404/index.html — copy it to
-        # the expected name so the consumer's branded 404 page wins over
-        # CF's generic one.
-        run: |
-          [ -f _headers ] && cp _headers public/_headers
-          [ -f _redirects ] && cp _redirects public/_redirects
-          [ -f public/404/index.html ] && cp public/404/index.html public/404.html
-          true
-
-      - name: csp-enforce (no inline script/style/handlers)
-        run: themes/typikon/ci/csp-enforce.sh public/
-
-      - name: Strict XML, feed, structured-data, and evidence contracts
-        run: python3 bin/validate-site.py public
-
-      - name: lychee (external links)
-        # Self-host absolute URLs (the site's own base_url) get excluded
-        # at link-check time, otherwise lychee checks the LIVE site for
-        # pages this very build is trying to deploy — a chicken-and-egg
-        # that bricks every PR that adds a new page. zola check covers
-        # internal-link integrity at source-tree level, so we don't lose
-        # coverage by skipping them here.
-        run: |
-          BASE_URL=$(grep -E '^base_url\s*=' config.toml | head -1 | sed -E 's/^base_url\s*=\s*"([^"]+)".*/\1/' | sed 's:/$::')
-          BASE_HOST=$(printf '%s' "$BASE_URL" | sed -E 's|^https?://||' | sed -E 's|/.*$||')
-          ESCAPED_HOST=$(printf '%s' "$BASE_HOST" | sed 's/\./\\./g')
-          echo "Excluding self-host links: ^https?://${ESCAPED_HOST}/"
-          lychee --config themes/typikon/ci/lychee.toml \
-            --root-dir "$GITHUB_WORKSPACE/public" \
-            --exclude "^https?://${ESCAPED_HOST}/" \
-            public/
-
-      - name: Serve site for browser-based gates
-        run: |
-          # WHY: the deploy build uses the production base_url, so its HTML
-          # references assets at absolute https URLs. Serving that build would
-          # make pa11y + the prose-measure playwright gate load the ALREADY-
-          # DEPLOYED css/js instead of this commit's — a gate that can never
-          # pass a css change before it ships. Build a throwaway local-URL copy
-          # for the browser gates; public/ (prod) stays intact for deploy.
-          # (substrate gap — filed on typikon.)
-          zola build --base-url http://127.0.0.1:8080 --output-dir public-local
-          [ -f public-local/404/index.html ] && cp public-local/404/index.html public-local/404.html
-          cd public-local && python3 -m http.server 8080 &
-          echo $! > /tmp/server.pid
-          sleep 2
-
-      - name: pa11y (WCAG 2.1 AA)
         env:
-          SITE_OUTPUT_DIR: public-local
-        run: pa11y-ci --config tests/pa11y.config.cjs
-
-      - name: playwright (per-route smoke)
-        if: ${{ hashFiles('tests/smoke/**/*.spec.ts') != '' }}
-        run: |
-          # The consumer config owns its all-route viewport matrix. NODE_PATH
-          # lets the root config resolve the pinned global CI install.
-          export NODE_PATH="$(npm root -g)"
-          export SITE_OUTPUT_DIR=public-local
-          npx playwright test
-
-      - name: Tear down static server
-        if: always()
-        run: |
-          kill "$(cat /tmp/server.pid 2>/dev/null)" 2>/dev/null || true
+          # Retain the exact production tree the helper validates; normal
+          # local runs remain temporary and leave the worktree unchanged.
+          ARDENT_RETAIN_VALIDATED_PUBLIC: '1'
+        run: bin/check-site.sh
 
       # ── Deploy on green pushes to main only ───────────────────
       - name: Deploy to Cloudflare Pages
@@ -187,4 +101,4 @@ jobs:
 
       - name: Verify live authored/runtime boundary
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 8 --delay 5
+        run: python3 bin/verify-production.py --base-url https://ardent.tools --attempts 13 --delay 10

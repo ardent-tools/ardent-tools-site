@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Repository-owned, CI-equivalent site gate. All build and test artifacts live
-# outside the worktree; tracked consumer configuration is hashed before/after.
+# Repository-owned, CI-equivalent site gate. By default all build and test
+# artifacts live outside the worktree. CI may set ARDENT_RETAIN_VALIDATED_PUBLIC=1
+# to move the already validated production artifact to an absent public/ path.
 set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
@@ -13,7 +14,23 @@ for tool in git python3 zola jq rg node npm npx pa11y-ci lychee curl sha256sum c
   }
 done
 
+RETAIN_VALIDATED_PUBLIC=${ARDENT_RETAIN_VALIDATED_PUBLIC:-0}
+case "$RETAIN_VALIDATED_PUBLIC" in
+  0) ;;
+  1)
+    [[ ! -e "$ROOT/public" ]] || {
+      echo "ERROR: retained-output mode refuses to replace existing public/" >&2
+      exit 1
+    }
+    ;;
+  *)
+    echo "ERROR: ARDENT_RETAIN_VALIDATED_PUBLIC must be 0 or 1" >&2
+    exit 1
+    ;;
+esac
+
 CHECK_ROOT=$(mktemp -d -t ardent-site-check.XXXXXX)
+readonly CHECK_ROOT
 PROD_OUTPUT="$CHECK_ROOT/public"
 LOCAL_OUTPUT="$CHECK_ROOT/public-local"
 SERVER_PID=""
@@ -21,20 +38,27 @@ LOCAL_PORT=$((18000 + $$ % 20000))
 LOCAL_BASE_URL="http://127.0.0.1:${LOCAL_PORT}"
 
 cleanup() {
+  local exit_status=$?
   if [[ -n "$SERVER_PID" ]]; then
     kill "$SERVER_PID" 2>/dev/null || true # WHY: the server may have exited after a failed gate.
     wait "$SERVER_PID" 2>/dev/null || true # WHY: cleanup must continue when no child remains.
   fi
-  case "$CHECK_ROOT" in
-    */ardent-site-check.*)
-      rm -rf -- "$CHECK_ROOT"
-      ;;
-    *)
-      echo "ERROR: refusing to remove unexpected gate path: $CHECK_ROOT" >&2
-      ;;
-  esac
+  # CHECK_ROOT is the readonly path returned by this process's mktemp call.
+  rm -rf -- "$CHECK_ROOT" || {
+    echo "ERROR: failed to remove gate directory: $CHECK_ROOT" >&2
+    return 1
+  }
+  return "$exit_status"
 }
-trap cleanup EXIT INT TERM
+interrupt_gate() {
+  exit 130
+}
+terminate_gate() {
+  exit 143
+}
+trap cleanup EXIT
+trap interrupt_gate INT
+trap terminate_gate TERM
 
 INITIAL_STATUS=$(git status --porcelain=v1 --untracked-files=all)
 PLAYWRIGHT_CONFIG_BEFORE=$(sha256sum playwright.config.ts)
@@ -119,4 +143,9 @@ FINAL_STATUS=$(git status --porcelain=v1 --untracked-files=all)
   exit 1
 }
 
-echo "PASS: strict site gate; playwright.config.ts preserved; worktree state unchanged"
+if [[ "$RETAIN_VALIDATED_PUBLIC" == 1 ]]; then
+  mv -- "$PROD_OUTPUT" "$ROOT/public"
+  echo "==> retained the validated production artifact at public/"
+fi
+
+echo "PASS: strict site gate; playwright.config.ts preserved; pre-retention worktree state unchanged"

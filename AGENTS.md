@@ -69,6 +69,9 @@ Runs the CI-equivalent gate against isolated production and local-base-url
 outputs and fails closed when required tools are missing. It preserves tracked
 consumer configuration, including `playwright.config.ts`; the pinned Typikon
 runner does not, and its owning defect is tracked upstream as typikon#39.
+Normal runs remove their exact `mktemp` output and preserve worktree state. CI
+sets `ARDENT_RETAIN_VALIDATED_PUBLIC=1` to move the already validated production
+tree into an initially absent, ignored `public/` directory for deployment.
 
 ## Remotes
 

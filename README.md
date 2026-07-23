@@ -34,6 +34,12 @@ bin/check-site.sh                       # isolated CI-equivalent strict gate;
                                         # fails closed if required tools are absent
 ```
 
+The default helper keeps every generated artifact in its `mktemp` directory,
+removes that exact directory on exit or signal, and verifies that the worktree
+and `playwright.config.ts` are unchanged. CI alone sets
+`ARDENT_RETAIN_VALIDATED_PUBLIC=1`; that mode refuses to replace an existing
+`public/` and moves the already validated production tree there for Wrangler.
+
 ## Deploy
 
 GitHub Actions runs the full strict gate (schema validation, generator cleanliness, Zola check/build, CSP enforcement, link checks, strict XML/content checks, all-route WCAG AA, and Playwright browser assertions at desktop and narrow widths) on pushes to `main` and pull requests targeting `main`. Only a green push to `main` deploys to Cloudflare Pages. See `.github/workflows/deploy.yml`.
