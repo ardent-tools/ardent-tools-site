@@ -211,7 +211,17 @@ def build_routes(output: Path) -> tuple[dict, list[str]]:
     errors.extend(redirect_errors)
 
     raw_excludes = sorted(resources | pages | {rule.source for rule in redirects})
-    excludes, _collapse_notes = collapse_route_families(raw_excludes)
+    # WHY: keep exact per-path exclude rules while they fit under the cap.
+    # Collapsing a route family to a wildcard hands unknown descendants
+    # (/systems/not-a-real-system/, /writing/missing/) Cloudflare's native
+    # 404 instead of this repo's authoritative one - the boundary the whole
+    # error-boundary Function exists to hold. That trade is only worth making
+    # when the exact rule set would otherwise exceed Cloudflare's limit, so
+    # collapse solely then, not unconditionally.
+    if len(raw_excludes) + 1 <= MAX_ROUTE_RULES:
+        excludes, _collapse_notes = raw_excludes, []
+    else:
+        excludes, _collapse_notes = collapse_route_families(raw_excludes)
     for index, route in enumerate(excludes):
         errors.extend(validate_route(route, f"{ROUTES_NAME}: exclude[{index}]"))
     errors.extend(validate_overlapping_rules(["/*"], "include"))

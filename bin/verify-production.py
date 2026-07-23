@@ -55,21 +55,6 @@ CUSTOM_404_MARKERS = ("404: no such path", "Return home")
 # construction, so they carry the long-lived immutable policy rather than
 # the root no-store default (see release_manifest.py's cache_class values).
 ADDRESSED_ASSET_CACHE_CLASSES = frozenset({"addressed", "retained"})
-STRICT_ZERO_CAST_CSP = {
-    "default-src": ("'self'",),
-    "img-src": ("'self'",),
-    "style-src": ("'self'",),
-    "script-src": ("'self'",),
-    "font-src": ("'self'",),
-    "connect-src": ("'self'",),
-    "form-action": ("'self'",),
-    "base-uri": ("'self'",),
-    "frame-ancestors": ("'none'",),
-    "object-src": ("'none'",),
-    "manifest-src": ("'self'",),
-    "worker-src": ("'none'",),
-    "upgrade-insecure-requests": (),
-}
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -177,8 +162,7 @@ def validate_immutable_cache(
         )
 
 
-def validate_strict_csp(errors: list[str], label: str, headers: dict[str, str]) -> None:
-    raw = header(headers, "Content-Security-Policy")
+def parse_csp(raw: str) -> tuple[dict[str, tuple[str, ...]], list[str]]:
     parsed: dict[str, tuple[str, ...]] = {}
     duplicates: list[str] = []
     for segment in raw.split(";"):
@@ -189,8 +173,28 @@ def validate_strict_csp(errors: list[str], label: str, headers: dict[str, str]) 
         if name in parsed:
             duplicates.append(name)
         parsed[name] = tuple(tokens[1:])
-    if duplicates or parsed != STRICT_ZERO_CAST_CSP:
-        errors.append(f"{label} strict zero-cast CSP differs: {raw!r}")
+    return parsed, duplicates
+
+
+def validate_strict_csp(
+    errors: list[str],
+    label: str,
+    headers: dict[str, str],
+    header_contract: HeaderContract,
+) -> None:
+    # WHY: the expected CSP is DERIVED from the header contract (the same
+    # _headers source that the deploy serves), not a hardcoded zero-cast
+    # dict. When a real cast ships and _headers gains wasm-unsafe-eval, the
+    # contract carries it and this check stays in agreement automatically -
+    # closing the fail-only-on-main gap where the PR gate accepted the
+    # cast-state CSP but production verification rejected it against a stale
+    # constant. The cast/CSP consistency itself is enforced at gate time in
+    # bin/validate-site.py.
+    raw = header(headers, "Content-Security-Policy")
+    live, duplicates = parse_csp(raw)
+    expected, _ = parse_csp(header_contract.direct_response["content-security-policy"])
+    if duplicates or live != expected:
+        errors.append(f"{label} CSP differs from the header contract: {raw!r}")
 
 
 def validate_html_content_type(
@@ -210,7 +214,7 @@ def validate_html_boundary(
     header_contract: HeaderContract,
 ) -> None:
     validate_no_store_cache(errors, label, headers)
-    validate_strict_csp(errors, label, headers)
+    validate_strict_csp(errors, label, headers, header_contract)
     validate_live_direct_headers(
         errors,
         label,

@@ -710,7 +710,8 @@ class ProductionRouteContractTests(unittest.TestCase):
             any("Cache-Control must be exactly" in error for error in errors), errors
         )
         self.assertTrue(
-            any("strict zero-cast CSP differs" in error for error in errors), errors
+            any("CSP differs from the header contract" in error for error in errors),
+            errors,
         )
         self.assertTrue(
             any("Cloudflare email-protection" in error for error in errors), errors
@@ -3446,7 +3447,38 @@ class PagesRuntimeContractTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_same_prefix_route_family_collapses_to_one_safe_wildcard(self) -> None:
+    def test_same_prefix_route_family_collapses_only_when_over_the_rule_cap(
+        self,
+    ) -> None:
+        # Collapse is now conditional: it triggers solely when the exact rule
+        # set would exceed Cloudflare's limit. Force that here with enough
+        # siblings, then verify the family collapses to one safe wildcard and
+        # subsumes the hand-authored redirect wildcards for the same prefix.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            many = ["/systems/"] + [
+                f"/systems/s{index}/"
+                for index in range(pages_runtime.MAX_ROUTE_RULES + 10)
+            ]
+            self.make_fixture_with_extra_routes(output, many)
+            include_count, exclude_count = pages_runtime.write_runtime(output)
+            routes = json.loads((output / pages_runtime.ROUTES_NAME).read_text())
+            errors = pages_runtime.validate_runtime(output)
+        self.assertEqual(errors, [])
+        self.assertEqual(include_count, 1)
+        self.assertEqual(exclude_count, len(routes["exclude"]))
+        self.assertIn("/systems/*", routes["exclude"])
+        for member in ("/systems/", "/systems/s0/", "/systems/s5/"):
+            self.assertNotIn(member, routes["exclude"])
+        self.assertNotIn("/systems/ergon-tools/*", routes["exclude"])
+        self.assertNotIn("/systems/nosologia/*", routes["exclude"])
+        self.assertNotIn("/about/*", routes["exclude"])
+        self.assertIn("/about/", routes["exclude"])
+
+    def test_family_stays_exact_while_under_the_rule_cap(self) -> None:
+        # The new default: while the exact rule set fits under the cap, keep
+        # per-path excludes so an unknown descendant (/systems/typo/) reaches
+        # the authoritative-404 Function instead of Cloudflare's native 404.
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             self.make_fixture_with_extra_routes(
@@ -3458,27 +3490,16 @@ class PagesRuntimeContractTests(unittest.TestCase):
                     "/systems/kanon/",
                 ],
             )
-            include_count, exclude_count = pages_runtime.write_runtime(output)
-            routes = json.loads((output / pages_runtime.ROUTES_NAME).read_text())
-            errors = pages_runtime.validate_runtime(output)
+            routes, errors = pages_runtime.build_routes(output)
         self.assertEqual(errors, [])
-        self.assertEqual(include_count, 1)
-        self.assertEqual(exclude_count, len(routes["exclude"]))
-        self.assertIn("/systems/*", routes["exclude"])
+        self.assertNotIn("/systems/*", routes["exclude"])
         for member in (
             "/systems/",
             "/systems/akroasis/",
             "/systems/aletheia/",
             "/systems/kanon/",
         ):
-            self.assertNotIn(member, routes["exclude"])
-        # The pre-existing hand-authored redirect wildcards for these two
-        # slugs are subsumed by the broader family wildcard rather than left
-        # behind as a separate, now-redundant, overlapping rule.
-        self.assertNotIn("/systems/ergon-tools/*", routes["exclude"])
-        self.assertNotIn("/systems/nosologia/*", routes["exclude"])
-        self.assertNotIn("/about/*", routes["exclude"])
-        self.assertIn("/about/", routes["exclude"])
+            self.assertIn(member, routes["exclude"])
 
     def test_single_member_prefix_is_left_uncollapsed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
