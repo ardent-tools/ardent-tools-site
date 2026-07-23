@@ -7,7 +7,8 @@
    Usage: {{ term_panel::panel(demo=page.extra.demo, label=page.title ~ " demo") }}
    `demo` fields (see schemas note in system.html / evidence.html):
      system, action, target, commit (optional), duration,
-     cast (optional), tape (optional), poster (optional, npt:MM:SS),
+     cast (optional), recipe (optional, the script that produced the cast),
+     poster (optional, npt:MM:SS),
      cols (default 80), rows (default 24), fallback (array of strings,
      optional), shows, not_shows, transcript (optional).
  #}
@@ -16,7 +17,7 @@
 <figure class="term-panel">
   <div class="term-meta">
     <span>{{ demo.system }} &middot; {{ demo.action }}{% if demo.target %} &middot; {{ demo.target }}{% endif %}{% if demo.commit %} &middot; {{ demo.commit }}{% endif %}</span>
-    <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ asset_url::hashed(path=demo.cast) | safe }}">.cast</a>{% endif %}{% if demo.tape %} &middot; <a href="{{ asset_url::hashed(path=demo.tape) | safe }}">.tape</a>{% endif %}</span>
+    <span>{% if demo.duration %}{{ demo.duration }}{% endif %}{% if demo.cast %} &middot; <a href="{{ asset_url::hashed(path=demo.cast) | safe }}">.cast</a>{% endif %}{% if demo.recipe %} &middot; <a href="{{ asset_url::hashed(path=demo.recipe) | safe }}">recipe</a>{% endif %}</span>
   </div>
   <div class="term-mat">
     <div class="term-screen"

@@ -1,8 +1,9 @@
-# Cloudflare Pages headers. The authored site has no published casts, so no
-# page requests the vendored player and script-src needs no WebAssembly
-# exception. bin/validate-site.py keeps that relationship fail-closed: a
-# future `cast` requires both conditional player markup and an explicit CSP
-# disposition before the build can pass. Pages itself replaces Cache-Control
+# Cloudflare Pages headers. The kanon system page publishes a real cast and
+# requests the vendored asciinema player, whose v3 runtime is WebAssembly, so
+# script-src carries an explicit 'wasm-unsafe-eval' exception and nothing
+# broader. bin/validate-site.py keeps cast, conditional player markup, and this
+# CSP disposition fail-closed together: dropping every cast must drop the
+# exception, and adding one requires both. Pages itself replaces Cache-Control
 # on generated 404 responses; the narrowly-routed Function applies this exact
 # policy to missing paths, retained tombstones, and Function-routed HTML aliases.
 #
@@ -21,7 +22,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()
-  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
   Speculation-Rules: "/speculation-rules.json"
 
 /a/*

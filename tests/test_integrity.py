@@ -76,7 +76,8 @@ ASSET_MARKUP = (
 GOOD_CACHE = "no-store, no-transform"
 GOOD_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 GOOD_CSP = (
-    "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
+    "default-src 'self'; img-src 'self'; style-src 'self'; "
+    "script-src 'self' 'wasm-unsafe-eval'; "
     "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
     "frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; "
     "worker-src 'none'; upgrade-insecure-requests"

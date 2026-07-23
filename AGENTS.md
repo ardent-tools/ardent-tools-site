@@ -15,8 +15,8 @@ Authoring rules live in typikon's `docs/AGENTIC.md`. Read those before editing c
 ## Locked decisions
 
 - **Theme**: `forkwright/typikon` via git submodule under `themes/typikon/`, pinned by commit (same SHA `ardent-site` pins as of this repo's scaffold — re-diff on refresh, don't assume the two stay in lockstep).
-- **Strict CSP**: enforced via `_headers`. No inline scripts/styles anywhere. With zero published casts, `script-src` is `'self'` and carries no `wasm-unsafe-eval`; `bin/validate-site.py` fails if cast, player, and CSP state diverge.
-- **Self-hosted application assets**: fonts live under `/fonts/`; the future recording player is vendored under `/vendor/asciinema/` and requested only when a real `cast` exists. Cloudflare Pages is the disclosed edge-delivery boundary.
+- **Strict CSP**: enforced via `_headers` and mirrored in `bin/header_contract.py` and the error-boundary Function. No inline scripts/styles anywhere. The kanon system page publishes a cast, so `script-src` is `'self' 'wasm-unsafe-eval'` for the vendored WebAssembly player and nothing broader; `bin/validate-site.py` fails if cast, player, and CSP state diverge (drop every cast and the exception must drop with it).
+- **Self-hosted application assets**: fonts live under `/fonts/`; the recording player is vendored under `/vendor/asciinema/` and requested only on a page whose system has a real `cast`. Cloudflare Pages is the disclosed edge-delivery boundary.
 - **No contact form, no newsletter**: `_headers`' `form-action` carries no third-party entry — unlike the sibling site's Buttondown allowlist, this site has no form at all.
 - **Class-based syntax highlighting**: `config.toml [markdown.highlighting] style = "class"` (not the flat `highlight_code`/`highlight_theme` keys some design docs reference — those were Zola's pre-0.22 syntect config; Zola 0.22 moved to the Giallo highlighter under `[markdown.highlighting]`. See the comment in `config.toml` for the full note).
 - **Deploy**: Cloudflare Pages via GitHub Actions on green `main` pushes. Cloudflare Pages project name: `ardent-tools`.
@@ -138,7 +138,7 @@ must report only embedded/subsetted Nimbus Sans Regular and Bold.
 
 ## Open items from the build pass
 
-- No casts are published. The evidence register shows recording targets as backlog prose; no player request, panel, WATCH link, or WebAssembly CSP exception exists until a real cast lands and the contract gate is updated.
+- The kanon cast is published - the first. Its player, panel, WATCH link, recipe link, and the `wasm-unsafe-eval` CSP exception are live and gate-enforced; the reproduction recipe is `static/tapes/kanon-gate.driver.sh` (asciinema, not VHS - VHS cannot emit `.cast`), validated by `validate-site.py`. The remaining systems show recording targets as backlog prose (their `.tape` files are planned VHS storyboards) until their casts land.
 - The résumé PDF source is `static/files/cody-kickertz-resume.pdf`, linked from `/hire/` (its home page — `/resume/` 301s there) and `/about/`; the home hero links to `/hire/` rather than triggering the download directly. Finalization emits a physical full-digest URL with the stable download filename `cody-kickertz-resume.pdf`.
 - `about.md` carries no `## Influences` section (removed in v1.1 phase A pending the operator's actual 5-8 entries; add it back only with real content).
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared. No build-pass report exists in this repo; check `kanon planning` for each repo's current gate status.

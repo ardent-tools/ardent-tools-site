@@ -839,53 +839,47 @@ def main() -> int:
     ):
         fail(errors, "Thumos tape retains the stale repo-root runner path")
 
-    kanon_tape = Path("static/tapes/kanon-gate.tape").read_text()
+    # The kanon cast is published; its reproduction recipe is the asciinema
+    # driver, not a VHS tape. The recipe must reproduce the cast against a
+    # managed public clone pinned to the same commit the cast's rev-parse beat
+    # shows, seed a labeled violation into a clean tree, then lint -> fix ->
+    # re-lint clean -> gate, in that order.
+    kanon_recipe = Path("static/tapes/kanon-gate.driver.sh").read_text()
     for required in (
-        "mktemp -d -t kanon-gate-tape.XXXXXX",
-        "trap cleanup_kanon_tape EXIT",
-        "switch --detach 1a0ee8a29cb2",
-        "status --porcelain",
-        "six featured repos carry Kanon config; enforcement is repository-specific",
+        "PIN=05b699215dd4",
+        "ALETHEIA_CLONE",
+        'git switch --detach --quiet "$PIN"',
+        "ok VIOLATION_OK",
+        "ok FIX_OK",
+        "ok LINT_CLEAN_OK",
+        "ok GATE_OK",
+        "not shown: kanon's own source",
     ):
-        if required not in kanon_tape:
-            fail(errors, f"Kanon tape lacks disposable-clone contract: {required}")
-    seed_at = kanon_tape.find("kanon_recording_proof = [")
+        if required not in kanon_recipe:
+            fail(errors, f"Kanon recipe lacks reproduction contract: {required}")
+    seed_at = kanon_recipe.find("seed $PROOF_FILE")
     clean_assertions = [
-        match.start() for match in re.finditer(r"status --porcelain", kanon_tape)
+        match.start() for match in re.finditer(r"git status --porcelain", kanon_recipe)
     ]
     if seed_at < 0 or len(clean_assertions) != 1 or clean_assertions[0] > seed_at:
         fail(
             errors,
-            "Kanon tape must contain exactly one clean-tree assertion before seeding",
+            "Kanon recipe must assert a clean tree exactly once before seeding",
         )
-    initial_lint_at = kanon_tape.find(
-        'kanon lint \\"$PROOF_FILE\\"; rc=$?; test \\"$rc\\" -eq 1', seed_at
+    violation_at = kanon_recipe.find("test $rc -eq 1 && ok VIOLATION_OK", seed_at)
+    fix_at = kanon_recipe.find("kanon lint --fix $PROOF_FILE && ok FIX_OK", violation_at)
+    clean_lint_at = kanon_recipe.find(
+        "kanon lint $PROOF_FILE && ok LINT_CLEAN_OK", fix_at
     )
-    initial_result_at = kanon_tape.find(
-        "Wait+Screen /KANON_VIOLATION_OK/", initial_lint_at
-    )
-    fix_at = kanon_tape.find('kanon lint --fix \\"$PROOF_FILE\\"', initial_result_at)
-    post_fix_lint_at = kanon_tape.find('kanon lint \\"$PROOF_FILE\\"', fix_at + 1)
-    post_fix_result_at = kanon_tape.find(
-        "Wait+Screen /KANON_LINT_CLEAN_OK/", post_fix_lint_at
-    )
-    gate_at = kanon_tape.find('kanon gate \\"$ALETHEIA\\"', post_fix_result_at)
-    if not (
-        seed_at
-        < initial_lint_at
-        < initial_result_at
-        < fix_at
-        < post_fix_lint_at
-        < post_fix_result_at
-        < gate_at
-    ):
+    gate_at = kanon_recipe.find("kanon gate . && ok GATE_OK", clean_lint_at)
+    if not (0 <= seed_at < violation_at < fix_at < clean_lint_at < gate_at):
         fail(
             errors,
-            "Kanon tape must re-run non-mutating lint cleanly after --fix and before gate",
+            "Kanon recipe must re-run non-mutating lint cleanly after --fix and before gate",
         )
-    for dangerous in ("git checkout --", "git reset", "$HOME/dev", "every public repo"):
-        if dangerous in kanon_tape:
-            fail(errors, f"Kanon tape retains dangerous or stale form: {dangerous!r}")
+    for dangerous in ("git checkout --", "$HOME/dev", "every public repo"):
+        if dangerous in kanon_recipe:
+            fail(errors, f"Kanon recipe retains dangerous or stale form: {dangerous!r}")
 
     harmonia_tape = Path("static/tapes/harmonia-serve.tape").read_text()
     for stale in ("/api/library/scan", "import queue", "populat"):
@@ -920,6 +914,7 @@ def main() -> int:
         path.read_text()
         for path in list(Path("content").rglob("*.md"))
         + list(Path("static/tapes").glob("*.tape"))
+        + list(Path("static/tapes").glob("*.sh"))
         + [Path(".kanon-ci.toml")]
     )
     discredited = (
