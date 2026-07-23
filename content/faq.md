@@ -30,7 +30,7 @@ anchor = "why-many-systems"
 
 [[extra.questions]]
 q = "Is the site readable by an AI agent?"
-a = "Yes, for live retrieval on a visitor's behalf. [llms.txt](/llms.txt) indexes the structured surfaces - the [machine-readable systems catalog](/systems.json), the [career-claims receipt](/career-claims.json), and this repository's own AGENTS.md - all derived from the same frontmatter the human pages render from. The [content license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE-DOCS) draws the line at bulk collection into a training corpus, which stays prohibited without written consent."
+a = "Yes, for live retrieval on a visitor's behalf. [llms.txt](/llms.txt) indexes the structured surfaces - the [machine-readable systems catalog](/systems.json), the [career-claims receipt](/career-claims.json), and this repository's own AGENTS.md - all derived from the same frontmatter the human pages render from. The [AI use policy](https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md) draws the line at bulk collection into a training corpus, which stays prohibited without written consent."
 anchor = "agent-readable"
 +++
 

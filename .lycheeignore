@@ -1,1 +1,3 @@
 https://www\.linkedin\.com/.*
+# Self-referential: this file is added by the same PR, so its blob URL 404s until merge; resolves once on main.
+https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md

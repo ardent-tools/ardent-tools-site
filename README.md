@@ -169,4 +169,4 @@ tombstone keeps `/tapes/aletheia-memory.tape` absent through 2026-08-21. See
 
 ## License
 
-Original site code: [PolyForm Shield 1.0.0](LICENSE), with an AI-training-prohibition addendum. Original content and copy: [CC BY-NC-ND 4.0](LICENSE-DOCS), same addendum. Third-party assets retain their own terms; the vendored résumé fonts and complete notices are documented under [`resume/fonts/`](resume/fonts/README.md).
+Original site code: [PolyForm Shield 1.0.0](LICENSE), unmodified (`LicenseRef-PolyForm-Shield-1.0.0` — not yet on the SPDX License List). Original content and copy: [CC BY-NC-ND 4.0](LICENSE-DOCS), unmodified (`SPDX-License-Identifier: CC-BY-NC-ND-4.0`). The AI-training stance for both is a separate [AI Use Policy](AI-USE-POLICY.md), not a license term. Third-party assets retain their own terms; the vendored résumé fonts and complete notices are documented under [`resume/fonts/`](resume/fonts/README.md).
