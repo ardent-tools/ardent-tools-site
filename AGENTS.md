@@ -83,7 +83,9 @@ Non-canonical resource references carry a content digest plus the central
 `extra.asset_epoch`. The verifier requires `no-store, no-transform` on
 non-redirect HTML, the custom 404, resources, the manifest, tombstones, and the
 revision sentinel. `_redirects` responses are checked only for status and
-location because Cloudflare Pages resolves redirects before `_headers`.
+location because Cloudflare Pages resolves redirects before `_headers`; the
+complete four-rule file is validated locally, and production probes a
+revision-specific representative for every declaration without following it.
 The résumé compiles twice with only the pinned, licensed inputs under
 `resume/fonts/`; system and Typst-embedded fonts are disabled, and `pdffonts`
 must report only embedded/subsetted Nimbus Sans Regular and Bold.

@@ -27,6 +27,7 @@ def load_script(name: str, filename: str):
 
 site = load_script("ardent_validate_site", "validate-site.py")
 production = load_script("ardent_verify_production", "verify-production.py")
+redirects = load_script("ardent_redirect_contract", "redirect_contract.py")
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
@@ -77,6 +78,8 @@ def run_production_fixture(
     tombstone_cache: str = GOOD_CACHE,
     live_manifest_body: bytes | None = None,
     resource_overrides: dict[str, tuple[int, str, bytes]] | None = None,
+    redirect_statuses: dict[str, int] | None = None,
+    redirect_targets: dict[str, str] | None = None,
 ) -> list[str]:
     assets = ASSET_MARKUP
     sitemap_body = (
@@ -182,11 +185,15 @@ def run_production_fixture(
                 {"Cache-Control": tombstone_cache},
                 b"not found\n",
             )
-        responses[(f"{BASE_URL}/demos/", False)] = (
-            301,
-            {"Location": "/evidence/"},
-            b"",
-        )
+        redirect_rules, redirect_errors = redirects.load_redirects(ROOT / "_redirects")
+        test.assertEqual(redirect_errors, [])
+        for rule in redirect_rules:
+            probe_path = redirects.redirect_probe_path(rule, EXPECTED_REVISION)
+            responses[(f"{BASE_URL}{probe_path}", False)] = (
+                (redirect_statuses or {}).get(rule.source, rule.status),
+                {"Location": (redirect_targets or {}).get(rule.source, rule.target)},
+                b"",
+            )
         calls: list[tuple[str, bool]] = []
         expected_calls = len(responses)
 
@@ -205,6 +212,7 @@ def run_production_fixture(
                 manifest,
                 manifest_bytes,
                 contract["manifest_name"],
+                redirect_rules,
             )
         test.assertEqual(responses, {}, f"required URLs were not requested: {responses!r}")
         test.assertEqual(len(calls), expected_calls)
@@ -412,6 +420,133 @@ class ProductionRouteContractTests(unittest.TestCase):
         ).encode()
         errors = run_production_fixture(self, about_body=root_body)
         self.assertTrue(any("canonical resolves" in error and "/about/" in error for error in errors), errors)
+
+
+class RedirectContractTests(unittest.TestCase):
+    def test_repository_redirect_contract_is_exact(self) -> None:
+        rules, errors = redirects.load_redirects(ROOT / "_redirects")
+        self.assertEqual(errors, [])
+        self.assertEqual(tuple(rules), redirects.SUPPORTED_REDIRECTS)
+
+    def test_live_probe_set_covers_exact_and_revision_safe_paths(self) -> None:
+        probes = {
+            rule.source: redirects.redirect_probe_path(rule, EXPECTED_REVISION)
+            for rule in redirects.SUPPORTED_REDIRECTS
+        }
+        self.assertEqual(probes["/demos"], "/demos")
+        self.assertEqual(probes["/demos/*"], "/demos/")
+        self.assertRegex(
+            probes["/systems/ergon-tools/*"],
+            r"^/systems/ergon-tools/__ardent-probe-[0-9a-f]{24}$",
+        )
+        self.assertRegex(
+            probes["/systems/nosologia/*"],
+            r"^/systems/nosologia/__ardent-probe-[0-9a-f]{24}$",
+        )
+        alternate = redirects.redirect_probe_path(
+            redirects.SUPPORTED_REDIRECTS[0],
+            "3" * 40,
+        )
+        self.assertNotEqual(probes["/systems/ergon-tools/*"], alternate)
+
+    def test_each_supported_declaration_omission_fails(self) -> None:
+        declarations = [
+            rule.declaration for rule in redirects.SUPPORTED_REDIRECTS
+        ]
+        for omitted in declarations:
+            with self.subTest(omitted=omitted):
+                raw = "\n".join(
+                    declaration
+                    for declaration in declarations
+                    if declaration != omitted
+                )
+                _, errors = redirects.parse_redirects(raw)
+                self.assertTrue(
+                    any(
+                        "missing supported redirect declaration" in error
+                        and omitted in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+
+    def test_extra_duplicate_malformed_external_ambiguous_and_loop_fail(self) -> None:
+        base = "\n".join(
+            rule.declaration for rule in redirects.SUPPORTED_REDIRECTS
+        )
+        cases = {
+            "extra": (base + "\n/extra /evidence/ 301", "unsupported extra"),
+            "duplicate": (
+                base + "\n/demos /evidence/ 301",
+                "duplicate redirect declaration",
+            ),
+            "malformed": (base + "\n/broken /evidence/", "malformed redirect declaration"),
+            "external": (
+                base.replace(
+                    "/demos /evidence/ 301",
+                    "/demos https://example.com/ 301",
+                ),
+                "same-origin path",
+            ),
+            "ambiguous": (
+                base + "\n/systems/* /evidence/ 301",
+                "ambiguous redirect sources",
+            ),
+            "loop": (
+                base.replace(
+                    "/demos /evidence/ 301",
+                    "/demos /demos 301",
+                ),
+                "redirect loops",
+            ),
+        }
+        for label, (raw, expected) in cases.items():
+            with self.subTest(label=label):
+                _, errors = redirects.parse_redirects(raw)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_every_live_redirect_probe_requires_exact_status(self) -> None:
+        for rule in redirects.SUPPORTED_REDIRECTS:
+            with self.subTest(source=rule.source):
+                errors = run_production_fixture(
+                    self,
+                    redirect_statuses={rule.source: 302},
+                )
+                probe_path = redirects.redirect_probe_path(rule, EXPECTED_REVISION)
+                self.assertTrue(
+                    any(
+                        f"redirect probe {probe_path} returned 302" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+
+    def test_every_live_redirect_probe_requires_exact_destination(self) -> None:
+        for rule in redirects.SUPPORTED_REDIRECTS:
+            with self.subTest(source=rule.source):
+                errors = run_production_fixture(
+                    self,
+                    redirect_targets={rule.source: "/wrong/"},
+                )
+                probe_path = redirects.redirect_probe_path(rule, EXPECTED_REVISION)
+                self.assertTrue(
+                    any(
+                        f"redirect probe {probe_path} resolves to" in error
+                        and "expected 'https://ardent.tools/" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+
+    def test_live_redirect_external_destination_fails_same_origin(self) -> None:
+        errors = run_production_fixture(
+            self,
+            redirect_targets={"/demos": "https://example.com/evidence/"},
+        )
+        self.assertTrue(
+            any("resolves outside the site" in error for error in errors),
+            errors,
+        )
 
 
 class ReleaseManifestContractTests(unittest.TestCase):

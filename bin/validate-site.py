@@ -21,6 +21,7 @@ from release_manifest import (
     validate_manifest,
     validate_public_references,
 )
+from redirect_contract import load_redirects
 
 BASE_URL = "https://ardent.tools"
 ATOM = "{http://www.w3.org/2005/Atom}"
@@ -583,14 +584,9 @@ def main() -> int:
     if demos_path.exists():
         fail(errors, "compatibility-only /demos/ was generated as a canonical page")
 
-    redirect_lines = {
-        line.strip()
-        for line in Path("_redirects").read_text().splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    }
-    for declaration in ("/demos /evidence/ 301", "/demos/* /evidence/ 301"):
-        if declaration not in redirect_lines:
-            fail(errors, f"_redirects: missing permanent compatibility declaration {declaration!r}")
+    _, redirect_errors = load_redirects(output / "_redirects")
+    for error in redirect_errors:
+        fail(errors, error)
 
     if not re.search(r"^\s*Cache-Control:\s*[^\n]*\bno-transform\b", headers, re.MULTILINE | re.I):
         fail(errors, "_headers: root HTML policy must include Cache-Control no-transform")

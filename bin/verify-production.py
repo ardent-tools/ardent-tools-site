@@ -18,6 +18,7 @@ from urllib.parse import parse_qsl, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from release_manifest import read_contract, validate_manifest
+from redirect_contract import RedirectRule, load_redirects, redirect_probe_path
 
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 ASSET_HASH_RE = re.compile(r"^[0-9a-f]{20}$")
@@ -333,6 +334,7 @@ def verify(
     release_manifest: dict,
     local_manifest_bytes: bytes,
     manifest_name: str,
+    redirect_rules: list[RedirectRule],
 ) -> list[str]:
     errors: list[str] = []
     site_root = base_url.rstrip("/") + "/"
@@ -433,7 +435,6 @@ def verify(
             collect_hashed_assets(errors, site_root, missing_url, missing_body, asset_epoch)
         )
 
-    evidence_url = urljoin(site_root, "evidence/")
     evidence_body = pages.get("/evidence/", "")
     for marker in (
         'href="https://ardent.tools/evidence/"',
@@ -476,13 +477,36 @@ def verify(
             errors.append(f"tombstone {path} returned {status}, expected direct 404 or 410")
         validate_no_store_cache(errors, f"tombstone {path}", tombstone_headers)
 
-    demos_url = urljoin(site_root, "demos/")
-    redirect_status, redirect_headers, _ = fetch_exact(demos_url)
-    location = header(redirect_headers, "Location")
-    if redirect_status not in (301, 308):
-        errors.append(f"/demos/ returned {redirect_status}, expected permanent redirect")
-    if urljoin(demos_url, location) != evidence_url:
-        errors.append(f"/demos/ redirects to {location!r}, expected /evidence/")
+    for rule in redirect_rules:
+        probe_path = redirect_probe_path(rule, expected_revision)
+        probe_url = urljoin(site_root, probe_path.lstrip("/"))
+        redirect_status, redirect_headers, _ = fetch_exact(probe_url)
+        if redirect_status != rule.status:
+            errors.append(
+                f"redirect probe {probe_path} returned {redirect_status}, "
+                f"expected exact {rule.status}"
+            )
+        location = header(redirect_headers, "Location")
+        if not location:
+            errors.append(f"redirect probe {probe_path} lacks Location")
+            continue
+        try:
+            resolved = urljoin(probe_url, location)
+        except ValueError:
+            errors.append(
+                f"redirect probe {probe_path} has malformed Location {location!r}"
+            )
+            continue
+        expected_destination = urljoin(site_root, rule.target.lstrip("/"))
+        if not same_origin(site_root, resolved):
+            errors.append(
+                f"redirect probe {probe_path} resolves outside the site: {resolved!r}"
+            )
+        if resolved != expected_destination:
+            errors.append(
+                f"redirect probe {probe_path} resolves to {resolved!r}, "
+                f"expected {expected_destination!r}"
+            )
 
     return errors
 
@@ -530,6 +554,9 @@ def main() -> int:
     )
     if manifest_errors:
         parser.error("invalid retained release manifest: " + "; ".join(manifest_errors))
+    redirect_rules, redirect_errors = load_redirects(artifact_root / "_redirects")
+    if redirect_errors:
+        parser.error("invalid retained redirect contract: " + "; ".join(redirect_errors))
 
     last_errors: list[str] = []
     for attempt in range(1, args.attempts + 1):
@@ -542,6 +569,7 @@ def main() -> int:
                 release_manifest,
                 local_manifest_bytes,
                 contract["manifest_name"],
+                redirect_rules,
             )
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]

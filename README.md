@@ -48,8 +48,14 @@ The post-deploy verifier refuses a different live sentinel, loads its authority
 from the retained local manifest, derives canonical HTML routes from the
 sitemap, and separately probes the custom 404. It fetches every exact resource
 URL without redirects and checks full response-body digests plus the effective
-`no-store, no-transform` policy. Compatibility redirects remain status/location
-checks because Cloudflare Pages applies `_redirects` before `_headers`.
+`no-store, no-transform` policy.
+
+The complete four-rule `_redirects` file is a strict local contract. The live
+verifier requests a revision-specific
+representative for every declaration without following it and requires the
+declared permanent status and exact same-origin destination. Redirect responses
+are not assigned cache-header claims because Cloudflare Pages applies
+`_redirects` before `_headers`.
 
 ## Deploy
 
