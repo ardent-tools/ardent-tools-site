@@ -1851,6 +1851,94 @@ class AssetRetentionLifetimeContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "nothing to compact"):
                 asset_retention.record_checkpoint(ledger, assets)
 
+    @staticmethod
+    def v1_entry(sequence: int, previous_digest: str | None, resources: list[dict]) -> dict:
+        """A schema-v1 entry: same shape as v2's snapshot kind, minus the
+        "kind" field that didn't exist yet."""
+        return {
+            "sequence": sequence,
+            "previous_entry_sha256": previous_digest,
+            "resource_count": len(resources),
+            "resources": resources,
+        }
+
+    def test_validate_history_prefix_accepts_a_migrated_v1_prior(self) -> None:
+        # Every prior ledger CI selects comes from an independently earlier
+        # commit; today that commit's ledger is still schema v1 (this
+        # repository's own migration to v2 lives only on this branch), so
+        # this is not a hypothetical — it is the actual first-run shape.
+        first, _first_body = self.resource_for("css/old.css", b"old\n")
+        second, _second_body = self.resource_for("css/new.css", b"new\n")
+        entry1 = self.v1_entry(1, None, [first])
+        entry2 = self.v1_entry(
+            2, asset_retention.entry_digest(entry1), [first, second]
+        )
+        v1_document = {
+            "schema_version": 1,
+            "entry_count": 2,
+            "entries": [entry1, entry2],
+        }
+        migrated_entries = asset_retention.migrate_v1_entries([entry1, entry2])
+        current = {
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
+            "entry_count": len(migrated_entries),
+            "entries": migrated_entries,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            prior_path = Path(directory) / "prior-asset-retention.json"
+            prior_path.write_text(json.dumps(v1_document))
+            asset_retention.validate_history_prefix(current, prior_path)
+
+    def test_validate_history_prefix_rejects_a_tampered_v1_prior(self) -> None:
+        first, _first_body = self.resource_for("css/old.css", b"old\n")
+        second, _second_body = self.resource_for("css/new.css", b"new\n")
+        entry1 = self.v1_entry(1, None, [first])
+        entry2 = self.v1_entry(
+            2, asset_retention.entry_digest(entry1), [first, second]
+        )
+        migrated_entries = asset_retention.migrate_v1_entries([entry1, entry2])
+        current = {
+            "schema_version": asset_retention.LEDGER_SCHEMA_VERSION,
+            "entry_count": len(migrated_entries),
+            "entries": migrated_entries,
+        }
+
+        tampered_second = copy.deepcopy(entry2)
+        tampered_resource = tampered_second["resources"][1]
+        tampered_resource["sha256"] = "0" * 64
+        tampered_resource["output_path"] = "a/" + "0" * 64 + ".css"
+        tampered_document = {
+            "schema_version": 1,
+            "entry_count": 2,
+            "entries": [entry1, tampered_second],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            prior_path = Path(directory) / "prior-asset-retention.json"
+            prior_path.write_text(json.dumps(tampered_document))
+            # Normalization must not launder a tampered prior into a match:
+            # current was migrated from the ORIGINAL entry2, so it cannot
+            # literal-match a prior whose migrated entry2 now differs.
+            with self.assertRaisesRegex(ValueError, "append-only base prefix"):
+                asset_retention.validate_history_prefix(current, prior_path)
+
+    def test_migrate_v1_entries_matches_the_checked_in_migration(self) -> None:
+        # This is the exact correctness property CI depends on: normalizing
+        # ANY real, unmodified v1 prior must reproduce byte-for-byte what
+        # this repository's own v1-to-v2 migration produced, or literal
+        # prefix-equality against a real historical base would false-fail.
+        v1_ledger = json.loads((ROOT / "asset-retention.json").read_text())
+        v1_ledger = copy.deepcopy(v1_ledger)
+        # Reproduce the pre-migration (schema 1, no "kind") shape from the
+        # currently-checked-in v2 ledger by stripping exactly what
+        # migrate_v1_entries() adds, so this test stays correct even after
+        # the real repository ledger no longer has a v1 predecessor on disk.
+        for entry in v1_ledger["entries"]:
+            del entry["kind"]
+        v1_ledger["schema_version"] = 1
+        migrated = asset_retention.migrate_v1_entries(v1_ledger["entries"])
+        current_ledger = json.loads((ROOT / "asset-retention.json").read_text())
+        self.assertEqual(migrated, current_ledger["entries"])
+
     def test_validate_history_prefix_accepts_a_faithful_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

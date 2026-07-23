@@ -42,6 +42,16 @@ sanity bound against a corrupted or hostile ledger, not a routine operational
 limit — which, if ever actually reached, names the exact remediation
 (`python3 bin/asset_retention.py compact`) rather than dead-ending the
 repository.
+
+The checked-in ledger under review is always exactly `LEDGER_SCHEMA_VERSION`,
+but the trusted BASE ledger `verify` compares it against comes from an
+independently selected, arbitrarily older commit — recovery dispatch
+validates against `HEAD^`, and any later re-validation may select a base
+that predates the current schema again. `validate_history_prefix()`
+therefore normalizes an older-but-still-`SUPPORTED_PRIOR_SCHEMA_VERSIONS`
+base (`migrate_v1_entries()`) before comparing it — a standing capability
+of this module, not a one-time migration window, since the base can cross
+that boundary at any future point.
 """
 
 from __future__ import annotations
@@ -59,6 +69,13 @@ from pathlib import Path, PurePosixPath
 from pages_limits import require_static_file_size
 
 LEDGER_SCHEMA_VERSION = 2
+# The checked-in ledger is always exactly LEDGER_SCHEMA_VERSION, but a prior
+# (trusted-base) ledger is read from an arbitrarily earlier commit — possibly
+# one that predates a schema bump, permanently, since recovery dispatch
+# validates against HEAD^ and any later re-validation may cross that
+# boundary again. validate_history_prefix() normalizes an older-but-still-
+# supported prior before comparing it.
+SUPPORTED_PRIOR_SCHEMA_VERSIONS = frozenset({1, 2})
 RETENTION_HISTORY_SOFT_WARN_ENTRIES = 128
 RETENTION_HISTORY_HARD_LIMIT_ENTRIES = 4096
 MAX_SNAPSHOT_RESOURCES = 960
@@ -402,6 +419,41 @@ def record_snapshot(
     return document
 
 
+def migrate_v1_entries(entries: list) -> list[dict]:
+    """Normalize schema-v1 ledger entries (no "kind" field) to the v2
+    snapshot shape.
+
+    A trusted-base prior ledger may be read from any earlier commit,
+    permanently — recovery dispatch validates against HEAD^, and any later
+    re-validation may cross the schema-v2 boundary again — so this
+    normalization is a standing capability, not a one-time migration
+    window. v1 entries are always ordinary snapshots (the checkpoint kind
+    did not exist before v2), so each becomes "kind": "snapshot". Adding
+    that key changes an entry's own canonical JSON bytes, which changes its
+    entry_digest(), so previous_entry_sha256 is recomputed across the whole
+    chain here rather than copied from the source. This MUST stay
+    byte-for-byte identical to the transform used to migrate the checked-in
+    ledger from v1 to v2 (add "kind", then recompute the hash chain in
+    order) — literal prefix-equality against a normalized v1 prior depends
+    on producing exactly the same bytes that migration produced.
+    """
+    migrated: list[dict] = []
+    previous_digest: str | None = None
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"prior asset-retention ledger entries[{index}] is not an object"
+            )
+        upgraded = {
+            **entry,
+            "kind": "snapshot",
+            "previous_entry_sha256": previous_digest,
+        }
+        previous_digest = entry_digest(upgraded)
+        migrated.append(upgraded)
+    return migrated
+
+
 def resource_union(entries: list) -> dict[str, str]:
     """Union of retained (output_path -> sha256) obligations across entries.
 
@@ -485,17 +537,35 @@ def record_checkpoint(ledger_path: Path, asset_root: Path) -> dict:
 def validate_history_prefix(current: dict, prior_path: Path) -> None:
     """Bind the checked-in ledger to an independently selected prior revision.
 
+    `current` (the checked-in ledger under review) is always exactly
+    LEDGER_SCHEMA_VERSION — validate_ledger() already enforced that before
+    this runs. `prior` (the trusted base, read from an independently
+    selected earlier commit) may carry any schema version this module has
+    ever supported: the base may be arbitrarily old, permanently, since
+    recovery dispatch validates against HEAD^ and any later re-validation
+    may again select a base that predates the current schema. A prior at an
+    older-but-still-supported version is normalized (migrate_v1_entries())
+    to the current shape before every check below — that normalization
+    reproduces exactly the same transform this repository's checked-in
+    ledger was migrated through, so a genuinely unmodified older prior
+    normalizes to byte-identical entries and the append-only proof below
+    still holds across the schema boundary; everything else about prior
+    (its top-level shape, entry_count consistency) stays strictly required
+    regardless of which supported version it declares.
+
     Ordinarily this requires literal equality: current's entries must begin
-    with every entry prior's did, in the same order — an append-only,
-    never-edited history. The sole exception is a compaction commit, and it
-    is checked in two independent parts, because neither alone is sufficient:
+    with every entry prior's (normalized) did, in the same order — an
+    append-only, never-edited history. The sole exception is a compaction
+    commit, and it is checked in two independent parts, because neither
+    alone is sufficient:
 
     1. checkpoint_root_sha256 must equal the canonical digest of prior's own
-       last entry. Prior is a checked-in file, so this digest is trivially
-       *computable* by anyone — it proves nothing about what produced the
-       checkpoint. What it proves is BINDING: this checkpoint claims to
-       summarize exactly prior's history and no other, so it cannot be a
-       checkpoint minted for an unrelated ledger and replayed here.
+       last (normalized) entry. Prior is a checked-in file, so this digest
+       is trivially *computable* by anyone — it proves nothing about what
+       produced the checkpoint. What it proves is BINDING: this checkpoint
+       claims to summarize exactly prior's history and no other, so it
+       cannot be a checkpoint minted for an unrelated ledger and replayed
+       here.
     2. The checkpoint's resources must be a SUPERSET of resource_union(prior
        entries) — every (output_path, sha256) obligation prior's full history
        held must still appear in the checkpoint, identically. This is the
@@ -521,16 +591,19 @@ def validate_history_prefix(current: dict, prior_path: Path) -> None:
     }:
         raise ValueError("prior asset-retention ledger has an invalid shape")
     prior_entries = prior.get("entries")
+    prior_schema_version = prior.get("schema_version")
     if (
-        not isinstance(prior.get("schema_version"), int)
-        or isinstance(prior.get("schema_version"), bool)
-        or prior.get("schema_version") != LEDGER_SCHEMA_VERSION
+        not isinstance(prior_schema_version, int)
+        or isinstance(prior_schema_version, bool)
+        or prior_schema_version not in SUPPORTED_PRIOR_SCHEMA_VERSIONS
         or not isinstance(prior_entries, list)
         or not isinstance(prior.get("entry_count"), int)
         or isinstance(prior.get("entry_count"), bool)
         or prior.get("entry_count") != len(prior_entries)
     ):
         raise ValueError("prior asset-retention ledger metadata is invalid")
+    if prior_schema_version == 1:
+        prior_entries = migrate_v1_entries(prior_entries)
     current_entries = current["entries"]
     checkpoint = current_entries[0] if current_entries else None
     if (
