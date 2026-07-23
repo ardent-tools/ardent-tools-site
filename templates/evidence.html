@@ -27,22 +27,39 @@
 
 <section class="evidence-section" aria-labelledby="available-evidence">
   <h2 id="available-evidence">Inspectable now</h2>
+  {#- Index regrid (§4.3) — row index, name, receipt summary, status, one
+     shared row anatomy reused by both lists in this file (see
+     .published-casts below). No reveals anywhere on this page: an
+     evidence register that animates undermines itself. #}
+  <div class="evidence-index-head" aria-hidden="true">
+    <span>#</span><span>Entry</span><span>Receipt</span><span>Status</span>
+  </div>
   <ul class="evidence-index">
-    <li><a href="/systems/"><strong>{{ systems.pages | length }} system dossiers</strong><span>Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</span></a></li>
-    <li><a href="/systems.json"><strong>Machine-readable catalog</strong><span>Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span></a></li>
-    <li><a href="/writing/"><strong>{{ writing.pages | length }} dated essays</strong><span>Methods and operating judgments behind the systems, also published in the Atom feed.</span></a></li>
+    <li><a href="/systems/"><span class="evidence-index-n">01</span><strong>{{ systems.pages | length }} system dossiers</strong><span class="evidence-index-summary">Current lifecycle labels, decisions, open limits, measurement methods, and source paths.</span><span class="evidence-index-status">Current</span></a></li>
+    <li><a href="/systems.json"><span class="evidence-index-n">02</span><strong>Machine-readable catalog</strong><span class="evidence-index-summary">Generated from the same system frontmatter as the human catalog and checked for a clean diff.</span><span class="evidence-index-status">Current</span></a></li>
+    <li><a href="/writing/"><span class="evidence-index-n">03</span><strong>{{ writing.pages | length }} dated essays</strong><span class="evidence-index-summary">Methods and operating judgments behind the systems, also published in the Atom feed.</span><span class="evidence-index-status">Current</span></a></li>
   </ul>
+  {#- Closing rule (§4.3) — a ledger that visibly closes reads as
+     maintained, not generated. The count is the 3 entries listed above,
+     hand-counted here rather than computed because the list itself is
+     hand-authored (three fixed inspection routes, not a data loop). #}
+  <p class="evidence-index-close">register &middot; 3 entries</p>
 </section>
 
 <section class="evidence-section" aria-labelledby="recording-register">
   <h2 id="recording-register">Recording register</h2>
-  <p class="recording-status"><strong>{{ cast_count }} published casts.</strong> A recording plan stays backlog until a real <code>.cast</code> artifact exists. The entries below are plans, not players — they make no claim the session ran.</p>
+  <p class="recording-status"><strong>{{ cast_count }} published casts so far.</strong> A recording plan stays backlog until a real <code>.cast</code> artifact exists, and the entries below are plans, not players - they don't claim a session ran that didn't happen.</p>
 
   {%- if cast_count > 0 %}
+  <div class="evidence-index-head" aria-hidden="true">
+    <span>#</span><span>Entry</span><span>Receipt</span><span>Status</span>
+  </div>
   <ul class="evidence-index published-casts">
+    {%- set_global cast_i = 0 %}
     {%- for system in systems.pages %}
       {%- if system.extra.demo and system.extra.demo.cast %}
-    <li><a href="{{ system.permalink | safe }}"><strong>{{ system.title }} recording</strong><span>{{ system.extra.demo.shows }}</span></a></li>
+        {%- set_global cast_i = cast_i + 1 %}
+    <li><a href="{{ system.permalink | safe }}"><span class="evidence-index-n">{% if cast_i < 10 %}0{% endif %}{{ cast_i }}</span><strong>{{ system.title }} recording</strong><span class="evidence-index-summary">{{ system.extra.demo.shows }}</span><span class="evidence-index-status">Published</span></a></li>
       {%- endif %}
     {%- endfor %}
   </ul>

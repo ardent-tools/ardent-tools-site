@@ -44,7 +44,7 @@ Everything under `templates/` here is either a full shadow of a typikon template
 | `templates/partials/ld-product.html` | Shadow | Preserves typikon's Product JSON-LD while giving an optional image the exact raw-JSON resource identity. |
 | `templates/partials/term-panel.html` | New | Terminal-player macro guarded by a real `demo.cast`; absent casts render nothing. |
 | `templates/partials/asset-url.html` | New | Single logical public-resource URL constructor; `bin/content_address.py` rewrites its output to a full-SHA-256 physical path after dependencies are finalized. Separate HTML-attribute and raw-JSON call sites remain explicit. |
-| `templates/partials/catalog-row.html` | New | The Tier-1 flagship ledger-row macro `systems.html` and `index.html`'s selected-work block both call. |
+| `templates/partials/catalog-row.html` | New | The Tier-1 flagship ledger-row macro `systems.html`'s flagship zone calls; home's own selected-work block renders through `partials/feature-block.html` instead (DESIGN-v2 §3.3). |
 | `templates/partials/catalog-ledger.html` | New | Tier-2 (`grid()`, Libraries/Web) and Tier-3 (`register()`, In-design) ledger-row macros, both data-driven from `content/systems/_index.md`'s `[[extra.ledger]]` array — no hand-authored per-repo HTML. |
 | `templates/atom.xml` | Shadow | Makes `/atom.xml` the canonical writing feed by deriving entries from the writing section. |
 | `templates/sitemap.xml` | Shadow | Consumer mitigation for typikon#38: XML declaration at byte zero while preserving `skip_sitemap`. |
@@ -52,6 +52,12 @@ Everything under `templates/` here is either a full shadow of a typikon template
 `templates/section.html` is NOT shadowed — every current `_index.md` in this repo sets an explicit `template =` (`systems.html`, `journal-section.html`) or is the root home (`index.html`); nothing renders through typikon's generic `section.html` today, so there is nothing for a `.prose` wrap to affect. Add the shadow if a future section index needs one.
 
 **No `partials/assert.html` import anywhere.** The pinned typikon commit predates that macro (added later in typikon's history); templates here that extend typikon's `page.html`/`section.html`/etc. still work fine without it — those theme templates skip the extra required-field assertions at this pin. Importing it from a consumer template would break the build outright (the file doesn't exist at this pin). Check this again before bumping the submodule.
+
+### Template-review checklist
+
+- No `.plate` treatment (`.spec-plate`, `.proof-record`, `.term-mat`, `.engagement-shape`, ...) on non-evidence content — plates are reserved for evidence artifacts, never prose or navigation (§1.3).
+- No two consecutive feature-block grid mirrorings (`.feature-lead` directly followed by another `.feature-lead`, or `.feature-mirror` by another `.feature-mirror`) without a deliberate break in the sequence.
+- At most one element per rendered page carries a given `view-transition-name` (the `.vtn-*` classes) — check every page a system's row/title/h1 could appear on together before adding a new call site.
 
 ## Refreshing the typikon theme
 

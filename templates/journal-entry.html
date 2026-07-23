@@ -26,7 +26,7 @@
    no-preference gate proves the browser can render it (site.css). #}
 <div class="essay-progress" aria-hidden="true"></div>
 <article class="journal-entry-page">
-  <header class="entry-header">
+  <header class="entry-header reveal">
     <h1>{{ page.title }}</h1>
     <p class="entry-date"><time datetime="{{ page.date }}">{{ page.date | date(format="%Y-%m-%d") }}</time></p>
     {%- if page.extra.components %}
@@ -41,6 +41,9 @@
   {%- if page.extra.words %}
   <p class="specs">{{ page.extra.words }}</p>
   {%- endif %}
+
+  {#- End mark (§4.4) — the tick that opens sections closes essays. #}
+  <div class="essay-end" aria-hidden="true"></div>
 
   {%- if page.lower or page.higher %}
   <nav class="entry-nav" aria-label="Journal navigation">

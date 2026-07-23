@@ -2,10 +2,11 @@
    page.html (open `page` schema is legal today per typikon-capabilities
    §3 — extra.additionalProperties is true; a strict `system` content
    schema is the documented v2 upgrade path, not required to build this).
-   Order is the thesis: fact row, then the demo (or the ergon-tools/
-   nosologia SVG-diagram variant, §4.2), then the markdown body carries
-   "What it is" through "Where to look," then the mechanical prev/next
-   footer row.
+   Order is the thesis: fact row, then the demo (or the no-demo/employer-
+   diagram variant — a static architecture plate for systems that are
+   employer property with no cast to publish, §4.2), then the markdown
+   body carries "What it is" through "Where to look," then the mechanical
+   prev/next footer row.
 #}
 {% extends "page.html" %}
 {% import "partials/term-panel.html" as term_panel %}
@@ -31,8 +32,8 @@
 {% endblock player_js %}
 
 {% block content %}
-<header class="dossier-header">
-  <h1>{{ page.title }}</h1>
+<header class="dossier-header reveal">
+  <h1 class="vtn-{{ page.slug }}">{{ page.title }}</h1>
   {%- if page.description %}
   <p class="page-lede">{{ page.description }}</p>
   {%- endif %}

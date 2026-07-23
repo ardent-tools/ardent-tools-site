@@ -38,7 +38,7 @@ BASE_URL = "https://ardent.tools"
 EVIDENCE_PAGE_DEPLOYMENT_MARKERS = (
     'href="https://ardent.tools/evidence/"',
     "Would show:",
-    "0 published casts.",
+    "published casts so far.",
 )
 ATOM = "{http://www.w3.org/2005/Atom}"
 SITEMAP = "{http://www.sitemaps.org/schemas/sitemap/0.9}"

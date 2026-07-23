@@ -1,10 +1,11 @@
-{# Catalog row (DESIGN §3.2) — a typographic ledger row, not a card.
-   Data-driven from a page's own frontmatter; adding a system is one
-   frontmatter edit, no hand-authored HTML. Used by systems.html (loops
-   every page in content/systems/) and index.html's "selected work"
-   block (a filtered subset of the same section, same macro).
+{# Catalog row (DESIGN §3.2, §4.1) — a typographic ledger row, not a
+   card. Data-driven from a page's own frontmatter; adding a system is
+   one frontmatter edit, no hand-authored HTML. Used by systems.html's
+   flagship zone (loops every page in content/systems/); index.html's
+   home page renders the same systems through partials/feature-block.html
+   instead (DESIGN-v2 §3.3), not this macro.
 
-   Reads from `page`: title, description, permalink, and:
+   Reads from `page`: title, slug, description, permalink, and:
      extra.badge       — maturity stamp text (§3.3), derived from pinned
                           repository evidence and bounded by the dossier
      extra.repo        — public repo URL, when one exists
@@ -12,10 +13,17 @@
                           "PRIVATE · CASE STUDY" in its place)
      extra.demo.cast   — a published cast path; WATCH never derives from
                           a duration or recording plan
+
+   The name link carries vtn-<slug> (DESIGN-v2 §2.3) — the view-transition
+   morph target a matching dossier h1 glides to on click. site.css's
+   two-register regrid (§4.1, >=900px) relies on the four children below
+   staying in this exact DOM order (name, desc, claim, meta) and being
+   placed purely via CSS grid-area, not reordered — the same order is
+   what the <900px stacked layout renders as plain block flow.
 #}
 {% macro row(page) %}
 <li class="catalog-row">
-  <h3 class="catalog-row-name"><a href="{{ page.permalink | safe }}">{{ page.title }}</a></h3>
+  <h3 class="catalog-row-name"><a href="{{ page.permalink | safe }}" class="vtn-{{ page.slug }}">{{ page.title }}</a></h3>
   {%- if page.description %}
   <p class="catalog-row-desc">{{ page.description }}</p>
   {%- endif %}

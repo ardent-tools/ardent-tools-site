@@ -127,7 +127,7 @@ def run_production_fixture(
     ).encode()
     evidence_body = (
         f'<link rel="canonical" href="{BASE_URL}/evidence/">'
-        "Would show: 0 published casts."
+        "Would show: 0 published casts so far."
         f"{assets}"
     ).encode()
     default_404 = (
@@ -290,7 +290,7 @@ def run_production_fixture(
             page_headers,
             (
                 f'<link rel="canonical" href="{BASE_URL}/evidence/">'
-                "Would show: 0 published casts."
+                "Would show: 0 published casts so far."
                 f"{assets}"
             ).encode(),
         )
@@ -3757,7 +3757,7 @@ class EvidencePageMarkerGateContractTests(unittest.TestCase):
             self.write_evidence_page(
                 output,
                 '<link rel="canonical" href="https://ardent.tools/evidence/">'
-                "Would show: 0 published casts.",
+                "Would show: 0 published casts so far.",
             )
             errors: list[str] = []
             site.validate_evidence_page_markers(errors, output)
@@ -3766,7 +3766,7 @@ class EvidencePageMarkerGateContractTests(unittest.TestCase):
     def test_each_missing_marker_fails_closed(self) -> None:
         complete = (
             '<link rel="canonical" href="https://ardent.tools/evidence/">'
-            "Would show: 0 published casts."
+            "Would show: 0 published casts so far."
         )
         for marker in site.EVIDENCE_PAGE_DEPLOYMENT_MARKERS:
             with self.subTest(marker=marker):
