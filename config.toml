@@ -1,4 +1,4 @@
-# Ardent Tools — site config (Zola + typikon).
+# Ardent Tools - site config (Zola + typikon).
 title = "Ardent Tools"
 description = "Agent infrastructure engineering, documented with source-linked system receipts and candid lifecycle boundaries."
 base_url = "https://ardent.tools"
@@ -16,7 +16,7 @@ smart_punctuation = true
 # emits style="color:#xxxxxx" per token, which ci/csp-enforce.sh
 # hard-fails (strict CSP carries no style-src 'unsafe-inline'). NOTE:
 # DESIGN.md and typikon-capabilities.md both name this as a flat
-# `[markdown] highlight_code = true, highlight_theme = "css"` pair —
+# `[markdown] highlight_code = true, highlight_theme = "css"` pair  -
 # that was Zola's pre-0.22 syntect-based config. Zola 0.22 replaced the
 # highlighter with Giallo (VSCode TextMate grammars) and moved
 # everything under this nested [markdown.highlighting] table with
@@ -24,18 +24,18 @@ smart_punctuation = true
 # binary, which rejects the old flat keys outright. `theme` is required
 # by Zola even in class mode (it still auto-generates a same-named
 # giallo.css into the build output) but this site never links that
-# file — static/css/syntax.css supplies its own three-ink pass (§3.5)
+# file - static/css/syntax.css supplies its own three-ink pass (§3.5)
 # over the emitted `z-*` classes instead of any stock theme's colors.
 style = "class"
 theme = "github-light"
 
 [extra]
-# Brand strings — read by typikon's base.html / nav.html / footer.html.
+# Brand strings - read by typikon's base.html / nav.html / footer.html.
 # No brand_greek, no triad, no home_logo: plain-English register, no
 # Greek-branch templates activated (every Greek path in typikon is
 # {% if %}-gated on a config field this site never sets).
 brand_name = "ardent.tools"
-# The flame mark (§5.2) — replaces the old accent-block favicon.svg
+# The flame mark (§5.2) - replaces the old accent-block favicon.svg
 # placeholder as both the Organization JSON-LD logo and (via base.html's
 # shadow) the SVG favicon href. Safari desktop/iOS don't render SVG
 # favicons; base.html links a raster set alongside this (favicon-32.png,
@@ -43,13 +43,13 @@ brand_name = "ardent.tools"
 logo_path = "img/logo-flame.svg"
 theme_color = "#F7F3E8"
 og_locale = "en_US"
-# PNG, not the source SVG (img/og-card.svg) — Twitter/LinkedIn/Slack
+# PNG, not the source SVG (img/og-card.svg) - Twitter/LinkedIn/Slack
 # unfurlers don't render SVG og:image; twitter:card is
 # summary_large_image, which requires a raster image. Rendered from the
 # SVG at 1200x630 with the site's own vendored fonts (T3).
 og_image = "img/og-card.png"
 
-# Self-hosted font preload — the two highest-frequency files. Plex Mono
+# Self-hosted font preload - the two highest-frequency files. Plex Mono
 # 400 and Spectral 400 are typikon-vendored already; Plex Mono 600 (the
 # one new file this site adds) preloads too since it carries every
 # headline on the site.
@@ -72,21 +72,21 @@ nav_items = [
   { url = "/contact/",    label = "Contact" },
 ]
 
-# typikon's stock ld-organization.html partial (kept, unshadowed — see
+# typikon's stock ld-organization.html partial (kept, unshadowed - see
 # partials/ld-person.html for the added Person JSON-LD) reads this key
 # for Organization.sameAs. This site's footer is a consumer shadow using
-# [extra.footer] instead (below), so this stays empty — sameAs lives on
+# [extra.footer] instead (below), so this stays empty - sameAs lives on
 # the Person entity via [extra.person] instead, per DESIGN §1.
 footer_links = []
 
-# Author — used by typikon's Article JSON-LD (journal entries) and the
+# Author - used by typikon's Article JSON-LD (journal entries) and the
 # atom feed's <author>.
 [extra.author]
 name = "Cody Kickertz"
 uri = "https://ardent.tools/about/"
 
 # Person JSON-LD (partials/ld-person.html, consumer-added) + the
-# footer's reach cluster both read this one table — one source, two
+# footer's reach cluster both read this one table - one source, two
 # renderings, per the fleet's centralized-config rule.
 [extra.person]
 name = "Cody Kickertz"
@@ -96,9 +96,15 @@ email = "cody@ardent.tools"
 github = "https://github.com/forkwright"
 linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
 
-# Footer (partials/footer.html, consumer-shadowed — three mono clusters
+# Footer (partials/footer.html, consumer-shadowed - three mono clusters
 # per DESIGN §3.7, more structure than typikon's stock flat footer_links
 # list can carry).
+#
+# legal_owner: UNSET until the Secretary of State confirms the entity
+# registration (alternates filed; exact name pending). Setting it to the
+# registered name (e.g. "Ardent Works LLC") activates the footer © line
+# and the Organization JSON-LD legalName in one change; add the matching
+# Ownership row to content/colophon.md in the same commit.
 [extra.footer]
 colophon_summary = "Static Zola site. No site-authored analytics, cookies, or remote third-party runtime/application requests in authored output."
 sibling_url = "https://ardentleatherworks.com"
@@ -119,7 +125,7 @@ label = "Atom"
 [link_checker]
 # LinkedIn returns a fake "999" status to automated HEAD/GET requests
 # regardless of cadence (same class of false positive as lychee.toml's
-# existing Instagram skip, kept there for the CI-side lychee pass — this
+# existing Instagram skip, kept there for the CI-side lychee pass - this
 # is the equivalent for zola's own built-in `zola check` external-link
 # validation, a Zola capability newer than what DESIGN.md/
 # typikon-capabilities.md describe zola check as covering; verified by

@@ -5,12 +5,12 @@ template = "faq.html"
 
 [[extra.questions]]
 q = "Why are some repos private?"
-a = "Two different reasons. kanon is private by choice because it is not yet hardened for public traffic; the six featured public system repositories carry .kanon-ci.toml, but each repository declares its own enforcement scope. Its case-study page makes that narrower relationship inspectable without exposing the source. Systems I built in employment belong to that employer and are described only as professional experience, never presented as portfolio."
+a = "Two different reasons. kanon is private by choice because it is not yet hardened for public traffic. The six featured public system repositories carry .kanon-ci.toml, but each repository declares its own enforcement scope. Its case-study page makes that narrower relationship inspectable without exposing the source. Systems I built in employment belong to that employer and are described only as professional experience, never presented as portfolio."
 anchor = "private-repos"
 
 [[extra.questions]]
 q = "What does a label like 'pre-alpha' or 'Phase 4 blocked on hardware' actually mean?"
-a = "It is a derived summary of pinned repository evidence, not a verbatim status-line quote. Each label is bounded by the source, revision, and open limits published on that system page; it is never rounded up."
+a = "It is a derived summary of pinned repository evidence, not a verbatim status-line quote. Each label is bounded by the source, revision, and open limits published on that system page - it is never rounded up."
 anchor = "labeling"
 
 [[extra.questions]]

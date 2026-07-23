@@ -10,7 +10,5 @@ For a consulting conversation, include the system boundary, the decision you nee
 - Email: [cody@ardent.tools](mailto:cody@ardent.tools)
 - GitHub: [github.com/forkwright](https://github.com/forkwright)
 - LinkedIn: [linkedin.com/in/Cody-Kickertz](https://www.linkedin.com/in/Cody-Kickertz/)
-- Resume: {{ resource_link(path="files/cody-kickertz-resume.pdf", label="PDF", download="cody-kickertz-resume.pdf") }}
-- Remote-first, based in Austin, TX
 
 The site uses direct links instead of a form and introduces no third-party form processor. Consulting fit, process, and likely deliverables are described on [consulting](/consulting/).

@@ -35,4 +35,13 @@
   {%- if config.extra.footer.colophon_summary %}
   <p class="site-footer-colophon">{{ config.extra.footer.colophon_summary }} <a href="/colophon/">Full colophon <span class="arrow">&rarr;</span></a></p>
   {%- endif %}
+
+  {#- Legal-owner line. Renders ONLY when config [extra.footer] legal_owner
+     is set — the value is the entity's exact registered name, and it is
+     set only once the Secretary of State confirms the registration
+     (same rule as casts: no claim before the artifact exists). The one
+     config value also drives ld-organization.html's legalName. -#}
+  {%- if config.extra.footer.legal_owner %}
+  <p class="site-footer-legal">&copy; {{ now() | date(format="%Y") }} {{ config.extra.footer.legal_owner }}</p>
+  {%- endif %}
 </footer>

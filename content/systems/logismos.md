@@ -11,7 +11,7 @@ stack = "Rust · HIP/hipBLASLt · AMD gfx1100"
 kanon_ci = true
 
 [extra.headline_claim]
-claim = "Phases 0-3 complete — Stella 1.5B v5 runs end-to-end on CPU with golden-fixture parity"
+claim = "Phases 0-3 complete - Stella 1.5B v5 runs end-to-end on CPU with golden-fixture parity"
 receipt = "logismos/README.md status line; crates/logismos/tests/phase_3_stella_parity.rs"
 
 [extra.demo]
@@ -25,24 +25,24 @@ not_shows = "Any GPU run. Phase 4 remains hardware-blocked."
 
 ## What it is
 
-Candle has no ROCm backend. AMD deprecated ONNX Runtime's ROCm support. For transformer embeddings on AMD hardware, the stack that should exist doesn't — so logismos builds it from the device upward in Rust and HIP, targeting the gfx1100 architecture (the W7900).
+Candle has no ROCm backend. AMD deprecated ONNX Runtime's ROCm support. For transformer embeddings on AMD hardware, the stack that should exist doesn't - so logismos builds it from the device upward in Rust and HIP, targeting the gfx1100 architecture (the W7900).
 
 ## Decisions and trade-offs
 
 ### Build the correctness harness before the GPU is available to prove performance
 
-Phases 0 through 3 are complete and CPU-verified: Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware — the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first.
+Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware - the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns. Rather than treat that as a reason to stop, the project used the wait to build and lock in a CPU correctness harness first.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
-| Scope boundary | Tensor ops on HIP, transformer inference, Stella 1.5B end to end, the `EmbeddingModel` contract — named explicitly | Growing into training, non-AMD GPUs, runtime graph optimization, multi-GPU | Real capabilities left out on purpose, keeping a 27-crate, ~11K-line project that small by choice |
+| Scope boundary | Tensor ops on HIP, transformer inference, Stella 1.5B end to end, the `EmbeddingModel` contract - named explicitly | Growing into training, non-AMD GPUs, runtime graph optimization, multi-GPU | Real capabilities left out on purpose, keeping a 27-crate, ~11K-line project that small by choice |
 | Framework scope | Scoped exactly to the knowledge substrate's actual consumer need | Building a general-purpose inference framework | Less reusable for a different model or a different GPU vendor |
 
 ## What's solid / what's open
 
-**Solid:** Phases 0 through 3 — the full CPU inference path for Stella 1.5B, verified against a committed golden fixture. The parity test is marked `#[ignore]`; the proof command must include `-- --ignored`, and it requires the Stella model at `/models/stella-1.5b-v5`. A green run that executes zero tests is not evidence.
+**Solid:** Phases 0 through 3 - the full CPU inference path for Stella 1.5B, verified against a committed golden fixture. The parity test is marked `#[ignore]`. The proof command must include `-- --ignored`, and it requires the Stella model at `/models/stella-1.5b-v5`. A green run that executes zero tests is not evidence.
 
-**Open:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery; GPU-specific code paths exist but are unverified until it's back.
+**Open:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery. GPU-specific code paths exist but are unverified until it's back.
 
 ## Numbers, and how they were measured
 
