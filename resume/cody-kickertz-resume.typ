@@ -104,7 +104,7 @@
 
 #text(weight: "bold")[Travel Section Officer-in-Charge · Dec 2018–Aug 2021]
 
-- Led a 62-person travel-claims section supporting 60,000+ service members, civilians, and dependents across the eastern United States and Europe.
+- Led a 62-person travel-claims section supporting service members, civilians, and dependents across the eastern United States and Europe.
 - Reduced claim backlogs 30% through workload triage, process redesign, and production tracking.
 
 #v(0.35em)

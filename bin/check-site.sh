@@ -97,18 +97,14 @@ PLAYWRIGHT_CONFIG_BEFORE=$(sha256sum playwright.config.ts)
 echo "==> frontmatter"
 themes/typikon/bin/typikon-validate .
 
-echo "==> zola check"
-zola check
-
-echo "==> generated catalog cleanliness"
-python3 bin/generate-systems-json.py --output "$CHECK_ROOT/systems.json"
-cmp static/systems.json "$CHECK_ROOT/systems.json"
+echo "==> canonical derivations and zola check"
+python3 bin/site.py check
 
 echo "==> integrity regression tests"
 python3 -m unittest discover -s tests -p 'test_*.py'
 node --test tests/smoke/pages-error-boundary.node.mjs
 
-echo "==> resume reproducibility and factual manifest"
+echo "==> resume reproducibility and factual authorities"
 python3 bin/validate-resume-fonts.py --font-dir resume/fonts
 typst compile --root "$ROOT" --font-path resume/fonts --ignore-system-fonts \
   --ignore-embedded-fonts resume/cody-kickertz-resume.typ "$CHECK_ROOT/cody-kickertz-resume-a.pdf"
@@ -121,9 +117,12 @@ python3 bin/validate-resume-fonts.py --font-dir resume/fonts \
   --pdffonts "$CHECK_ROOT/cody-kickertz-resume-fonts.txt"
 pdftotext "$CHECK_ROOT/cody-kickertz-resume-a.pdf" "$CHECK_ROOT/cody-kickertz-resume.txt"
 python3 bin/validate-resume.py "$CHECK_ROOT/cody-kickertz-resume.txt"
+python3 bin/validate-career-claims.py \
+  --pdf "$CHECK_ROOT/cody-kickertz-resume-a.pdf" \
+  --output static/career-claims.json --check
 
 echo "==> production build, CSP, and strict contracts"
-zola build --output-dir "$PROD_OUTPUT"
+python3 bin/site.py build --output-dir "$PROD_OUTPUT"
 cp _headers "$PROD_OUTPUT/_headers"
 cp _redirects "$PROD_OUTPUT/_redirects"
 # Zola copies three theme directory placeholders. They are repository
@@ -162,7 +161,7 @@ lychee --config themes/typikon/ci/lychee.toml \
   "$PROD_OUTPUT"
 
 echo "==> local browser build"
-zola build --base-url "$LOCAL_BASE_URL" --output-dir "$LOCAL_OUTPUT"
+python3 bin/site.py build --base-url "$LOCAL_BASE_URL" --output-dir "$LOCAL_OUTPUT"
 if [[ -f "$LOCAL_OUTPUT/404/index.html" ]]; then
   cp "$LOCAL_OUTPUT/404/index.html" "$LOCAL_OUTPUT/404.html"
 fi

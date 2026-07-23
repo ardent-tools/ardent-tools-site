@@ -36,6 +36,7 @@ MAX_SITEMAP_HTML_ROUTES = 256
 REQUIRED_RELEASE_PATHS = (
     "/atom.xml",
     "/build-revision.txt",
+    "/career-claims.json",
     "/llms.txt",
     f"/{AUTHORITY_NAME}",
     f"/{BOUNDARY_NAME}",
@@ -79,9 +80,15 @@ class AssetParser(HTMLParser):
         attributes = dict(attrs)
         if tag == "script" and "src" in attributes:
             self.references.append(("JavaScript", attributes.get("src") or ""))
-        if tag == "link" and "stylesheet" in (attributes.get("rel") or "").lower().split():
+        if (
+            tag == "link"
+            and "stylesheet" in (attributes.get("rel") or "").lower().split()
+        ):
             self.references.append(("CSS", attributes.get("href") or ""))
-        if tag == "link" and "canonical" in (attributes.get("rel") or "").lower().split():
+        if (
+            tag == "link"
+            and "canonical" in (attributes.get("rel") or "").lower().split()
+        ):
             self.canonicals.append(attributes.get("href") or "")
 
 
@@ -94,12 +101,18 @@ def merge_headers(items: list[tuple[str, str]]) -> dict[str, str]:
     return merged
 
 
-def request(url: str, timeout: float, follow: bool = True) -> tuple[int, dict[str, str], bytes]:
+def request(
+    url: str, timeout: float, follow: bool = True
+) -> tuple[int, dict[str, str], bytes]:
     opener = build_opener() if follow else build_opener(NoRedirect())
     req = Request(url, headers={"User-Agent": "ardent-tools-production-verifier/1"})
     try:
         with opener.open(req, timeout=timeout) as response:
-            return response.status, merge_headers(list(response.headers.items())), response.read()
+            return (
+                response.status,
+                merge_headers(list(response.headers.items())),
+                response.read(),
+            )
     except HTTPError as exc:
         return exc.code, merge_headers(list(exc.headers.items())), exc.read()
 
@@ -283,7 +296,9 @@ def collect_hashed_assets(
     kinds = {kind for kind, _ in parser.references}
     for required_kind in ("CSS", "JavaScript"):
         if required_kind not in kinds:
-            errors.append(f"{page_url}: no authored {required_kind} asset reference found")
+            errors.append(
+                f"{page_url}: no authored {required_kind} asset reference found"
+            )
     for kind, reference in parser.references:
         try:
             resolved = urljoin(page_url, reference)
@@ -291,7 +306,9 @@ def collect_hashed_assets(
             errors.append(f"{page_url}: malformed {kind} asset URL: {reference!r}")
             continue
         if not same_origin(base_url, resolved):
-            errors.append(f"{page_url}: external {kind} asset is not allowed: {reference!r}")
+            errors.append(
+                f"{page_url}: external {kind} asset is not allowed: {reference!r}"
+            )
             continue
         parsed = urlparse(resolved)
         pairs = parse_qsl(parsed.query, keep_blank_values=True)
@@ -319,9 +336,7 @@ def collect_hashed_assets(
     return assets
 
 
-def sitemap_html_paths(
-    errors: list[str], site_root: str, body: bytes
-) -> list[str]:
+def sitemap_html_paths(errors: list[str], site_root: str, body: bytes) -> list[str]:
     try:
         root = ET.fromstring(body)
     except ET.ParseError as exc:
@@ -366,7 +381,9 @@ def distinct_assets(
     errors: list[str], references: list[tuple[str, str, str]]
 ) -> dict[str, tuple[str, str]]:
     assets: dict[str, tuple[str, str]] = {}
-    identities: dict[tuple[str, str, str, tuple[tuple[str, str], ...]], tuple[str, str]] = {}
+    identities: dict[
+        tuple[str, str, str, tuple[tuple[str, str], ...]], tuple[str, str]
+    ] = {}
     for asset_url, authored_hash, kind in references:
         identity = asset_identity(asset_url)
         prior = identities.get(identity)
@@ -379,7 +396,9 @@ def distinct_assets(
             identities[identity] = (authored_hash, asset_url)
         prior_asset = assets.get(asset_url)
         if prior_asset and prior_asset != (authored_hash, kind):
-            errors.append(f"conflicting duplicate authored asset reference: {asset_url!r}")
+            errors.append(
+                f"conflicting duplicate authored asset reference: {asset_url!r}"
+            )
         else:
             assets[asset_url] = (authored_hash, kind)
     return assets
@@ -420,7 +439,9 @@ def verify(
     revision_url = urljoin(site_root, "build-revision.txt")
     revision_status, revision_headers, revision_body = fetch_exact(revision_url)
     if revision_status != 200:
-        errors.append(f"/build-revision.txt returned {revision_status}, expected direct 200")
+        errors.append(
+            f"/build-revision.txt returned {revision_status}, expected direct 200"
+        )
     expected_body = f"{expected_revision}\n".encode()
     if revision_body != expected_body:
         errors.append(
@@ -439,7 +460,9 @@ def verify(
     manifest_url = urljoin(site_root, manifest_name)
     manifest_status, manifest_headers, manifest_body = fetch_exact(manifest_url)
     if manifest_status != 200:
-        errors.append(f"/{manifest_name} returned {manifest_status}, expected direct 200")
+        errors.append(
+            f"/{manifest_name} returned {manifest_status}, expected direct 200"
+        )
     validate_no_store_cache(errors, f"/{manifest_name}", manifest_headers)
     validate_live_direct_headers(
         errors,
@@ -449,7 +472,9 @@ def verify(
         exclude=frozenset({"cache-control"}),
     )
     if manifest_body != local_manifest_bytes:
-        errors.append(f"live /{manifest_name} bytes differ from retained local artifact")
+        errors.append(
+            f"live /{manifest_name} bytes differ from retained local artifact"
+        )
 
     sitemap_url = urljoin(site_root, "sitemap.xml")
     sitemap_status, sitemap_headers, sitemap_body = fetch_exact(sitemap_url)
@@ -486,15 +511,24 @@ def verify(
         relative_url = item["request_url"]
         resource_url = urljoin(site_root, relative_url.lstrip("/"))
         if not same_origin(site_root, resource_url):
-            errors.append(f"release manifest resource is not same-origin: {relative_url!r}")
+            errors.append(
+                f"release manifest resource is not same-origin: {relative_url!r}"
+            )
             continue
         status, resource_headers, body = fetch_exact(resource_url)
-        directly_validated = item["output_path"] in {"build-revision.txt", "sitemap.xml"}
+        directly_validated = item["output_path"] in {
+            "build-revision.txt",
+            "sitemap.xml",
+        }
         if status != 200 and not directly_validated:
-            errors.append(f"release resource {relative_url!r} returned {status}, expected direct 200")
+            errors.append(
+                f"release resource {relative_url!r} returned {status}, expected direct 200"
+            )
             continue
         if not directly_validated:
-            validate_no_store_cache(errors, f"release resource {relative_url!r}", resource_headers)
+            validate_no_store_cache(
+                errors, f"release resource {relative_url!r}", resource_headers
+            )
         validate_live_direct_headers(
             errors,
             f"release resource {relative_url!r}",
@@ -573,7 +607,9 @@ def verify(
         missing_status, missing_headers, missing_bytes = fetch_exact(missing_url)
         missing_body = missing_bytes.decode("utf-8", errors="replace")
         if missing_status != 404:
-            errors.append(f"{missing_path} returned {missing_status}, expected exact 404")
+            errors.append(
+                f"{missing_path} returned {missing_status}, expected exact 404"
+            )
         validate_html_boundary(
             errors, missing_path, missing_headers, missing_body, header_contract
         )
@@ -589,7 +625,9 @@ def verify(
             if marker not in missing_body:
                 errors.append(f"{missing_path} lacks custom 404 marker {marker!r}")
         asset_references.extend(
-            collect_hashed_assets(errors, site_root, missing_url, missing_body, asset_epoch)
+            collect_hashed_assets(
+                errors, site_root, missing_url, missing_body, asset_epoch
+            )
         )
 
     evidence_body = pages.get("/evidence/", "")
@@ -609,11 +647,15 @@ def verify(
     for asset_url, (authored_hash, kind) in assets.items():
         in_manifest = asset_url in manifest_urls
         if not in_manifest:
-            errors.append(f"authored {kind} asset is absent from local release manifest: {asset_url!r}")
+            errors.append(
+                f"authored {kind} asset is absent from local release manifest: {asset_url!r}"
+            )
         asset_status, asset_headers, asset_body = fetch_exact(asset_url)
         if asset_status != 200:
             if not in_manifest:
-                errors.append(f"authored {kind} asset {asset_url!r} returned {asset_status}, expected direct 200")
+                errors.append(
+                    f"authored {kind} asset {asset_url!r} returned {asset_status}, expected direct 200"
+                )
             continue
         if not in_manifest:
             validate_no_store_cache(
@@ -631,7 +673,9 @@ def verify(
         tombstone_url = urljoin(site_root, path.lstrip("/"))
         status, tombstone_headers, _ = fetch_exact(tombstone_url)
         if status not in (404, 410):
-            errors.append(f"tombstone {path} returned {status}, expected direct 404 or 410")
+            errors.append(
+                f"tombstone {path} returned {status}, expected direct 404 or 410"
+            )
         validate_no_store_cache(errors, f"tombstone {path}", tombstone_headers)
         validate_live_direct_headers(
             errors,
@@ -692,7 +736,9 @@ def main() -> int:
     if args.attempts < 1:
         parser.error("--attempts must be at least 1")
     if not REVISION_RE.fullmatch(args.expected_revision):
-        parser.error("--expected-revision must be exactly one lowercase 40-hex revision")
+        parser.error(
+            "--expected-revision must be exactly one lowercase 40-hex revision"
+        )
     try:
         config = tomllib.loads(Path("config.toml").read_text())
     except (OSError, tomllib.TOMLDecodeError) as exc:
@@ -720,7 +766,9 @@ def main() -> int:
         parser.error("invalid retained release manifest: " + "; ".join(manifest_errors))
     runtime_errors = validate_runtime(artifact_root)
     if runtime_errors:
-        parser.error("invalid retained Pages runtime boundary: " + "; ".join(runtime_errors))
+        parser.error(
+            "invalid retained Pages runtime boundary: " + "; ".join(runtime_errors)
+        )
     authority_path = artifact_root / AUTHORITY_NAME
     try:
         authority_bytes = authority_path.read_bytes()
@@ -741,7 +789,9 @@ def main() -> int:
         parser.error("invalid retained header contract: " + "; ".join(header_errors))
     redirect_rules, redirect_errors = load_redirects(artifact_root / "_redirects")
     if redirect_errors:
-        parser.error("invalid retained redirect contract: " + "; ".join(redirect_errors))
+        parser.error(
+            "invalid retained redirect contract: " + "; ".join(redirect_errors)
+        )
 
     last_errors: list[str] = []
     for attempt in range(1, args.attempts + 1):
@@ -761,7 +811,9 @@ def main() -> int:
         except (OSError, URLError) as exc:
             last_errors = [f"request failed: {exc}"]
         if not last_errors:
-            sys.stdout.write(f"PASS: production boundary verified on attempt {attempt}\n")
+            sys.stdout.write(
+                f"PASS: production boundary verified on attempt {attempt}\n"
+            )
             return 0
         if attempt < args.attempts:
             sys.stderr.write(

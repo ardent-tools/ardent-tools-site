@@ -5,7 +5,7 @@
 # Dormant local Kanon pipeline configuration. This direct-GitHub repository is
 # not forge-onboarded, so no Kanon post-receive hook consumes this file today.
 #
-# The full strict gate (typikon-validate + zola check + zola build +
+# The full strict gate (derivation verification + typikon-validate + zola check + zola build +
 # csp-enforce + lychee + pa11y + playwright + Cloudflare Pages deploy)
 # lives in .github/workflows/deploy.yml — that's where the real CI runs
 # in the authoritative GitHub repository, since Wrangler is the only tested Cloudflare
@@ -17,11 +17,15 @@
 # gated independently) via a git-ls-files exclusion piped into --paths-from.
 
 [pipeline]
-stages = ["kanon-lint"]
+stages = ["kanon-lint", "site-gate"]
 
 [stages."kanon-lint"]
 cmd = "sh -c 'f=$(mktemp) && git ls-files -- . \":!themes/typikon\" > \"$f\" && kanon lint --paths-from \"$f\" .; rc=$?; rm -f \"$f\"; exit $rc'"
 timeout_secs = 120
+
+[stages."site-gate"]
+cmd = "python3 bin/site.py gate"
+timeout_secs = 1200
 
 [verifier]
 enabled = false
