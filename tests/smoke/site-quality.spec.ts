@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 const path = require('node:path');
-const { deriveRoutes } = require('./routes.cjs');
+const { deriveRoutes, deriveCastRoutes } = require('./routes.cjs');
 const outputDir = process.env.SITE_OUTPUT_DIR || 'public-local';
 const routes: string[] = deriveRoutes(path.resolve(outputDir));
+const castRoutes: Set<string> = deriveCastRoutes(path.resolve(__dirname, '../../content/systems'));
 const viewports = [
   { width: 320, height: 900 },
   { width: 375, height: 900 },
@@ -60,7 +61,7 @@ for (const viewport of viewports) {
       expect(structure.missingAlt).toBe(0);
       expect(structure.overflow, `${route} overflows by ${structure.overflow}px`).toBeLessThanOrEqual(0);
       expect(structure.opacity).toBe('1');
-      expect(structure.playerMarkup).toBe(0);
+      expect(structure.playerMarkup, `${route} player-markup count`).toBe(castRoutes.has(route) ? 1 : 0);
       expect(playerRequests).toEqual([]);
       expect(consoleErrors).toEqual([]);
       expect(pageErrors).toEqual([]);
