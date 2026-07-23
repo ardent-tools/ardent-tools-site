@@ -1,0 +1,2146 @@
+/*
+ * ardent.tools — consumer-side token override + component CSS.
+ *
+ * Loaded after typikon's static/css/style.css (templates/base.html shadow
+ * adds this <link> — the documented AGENTIC.md override path; typikon's
+ * config.toml `consumer_css` hook is referenced in a stale comment but not
+ * actually wired, per typikon-capabilities.md §2). Two jobs:
+ *   1. Redeclare the :root tokens this site's visual system changes
+ *      (palette, fonts, radius) — everything else (--step-*, --space-*,
+ *      --max-width) is typikon's scale, kept verbatim.
+ *   2. New component CSS this site's markup needs that typikon has no
+ *      convention for: terminal panels, catalog rows, maturity badges,
+ *      claim/receipt pairs, the two-cluster+sibling footer.
+ *
+ * WHY: equal-specificity selectors here beat style.css's because this
+ * stylesheet loads second — most overrides below reuse style.css's own
+ * selectors rather than adding !important.
+ */
+
+:root {
+  color-scheme: light;
+  /* === Width tiers (§1.2, DESIGN-v1.3) — three-tier shell: prose keeps a
+     narrow, larger-set reading measure; display claims a considered middle
+     column for short editorial text; everything structural gets structural
+     room. Replaces typikon's single 780px --max-width for nav/main/footer
+     (see the shell rule + .prose below); --max-width itself is left
+     untouched so any un-shadowed typikon partial that still reads it
+     doesn't break. */
+  --width-prose:   clamp(40rem, 52vw, 50rem);  /* FLUID reading measure (operator: dynamic, not a fixed
+                                                   column): ~640px floor → ~750px @1440px → 800px cap */
+  --width-display: clamp(48rem, 64vw, 60rem);  /* ledes / short editorial — fluid, a step above prose */
+  --width-wide:    clamp(60rem, 92vw, 80rem);  /* nav, footer, shell, catalog, panels, bands — fluid;
+                                                   steps to 1360px at >=1680px (below) */
+
+  /* === Palette — light ("bond paper") === Leatherworks family stock,
+     worn professionally (DESIGN-v1.1 §5.1). --accent/--accent-aged/--warn
+     unchanged from the pre-v1.1 palette (already the family's russet/ember
+     thread); --bg/--bg-accent/--text-mid/--text-light/--rule/--ok are the
+     resolved values from §5.1 + design-delta-dye.md §5. */
+  --bg: #F7F3E8;
+  --bg-accent: #F0EBE0;   /* Leatherworks-exact "shadow on rag paper" — was #EDE7D8, a tan step that read as dark yellow on the section bands */
+  --text: #1C1917;
+  --text-mid: #44403C;
+  --text-light: #6B6661;
+  --rule: #DDD7C8;
+
+  --accent: #9E4A1E;
+  --accent-aged: #7C3A18;
+  --ok: #49704E;
+  --warn: #7C5514;   /* darkened from #8A6318 — WCAG-formula-verified 5.38:1 on
+                        --bg-accent (was 4.39:1, failing AA's 4.5:1 floor);
+                        same amber hue family, distinct from --accent-aged's
+                        rust so syntax.css's three-ink pass stays three inks */
+
+  /* Catalog zone inks. Backgrounds only, never text, borders, or badges. */
+  --zone-systems-ink:   #7C3A18;   /* = --accent-aged: the flagship zone wears the brand ink */
+  --zone-libraries-ink: #4A4055;   /* muted violet, family nod to thanatochromia-aged */
+  --zone-web-ink:       #4A7A5A;   /* sage, family nod to aporia-aged */
+
+  /* Paper grain (§W7) — the kill switch: 0 removes the texture entirely. */
+  --grain-opacity: 0.05;
+
+  /* Terminal plate reserved for a future published cast. */
+  --term-bg: #16181A;
+  --term-text: #D6D4CC;
+  --term-dim: #8B8D8A;
+  --panel-edge: var(--text);
+
+  /* ANSI palette reserved for a future published cast. */
+  --ansi-0: #16181A;  --ansi-8:  #191B1D;
+  --ansi-1: #C96A55;  --ansi-9:  #D1816F;
+  --ansi-2: #82A578;  --ansi-10: #95B38D;
+  --ansi-3: #C9A44C;  --ansi-11: #D1B166;
+  --ansi-4: #7A9BB8;  --ansi-12: #92ADC5;
+  --ansi-5: #A98BA5;  --ansi-13: #B9A0B5;
+  --ansi-6: #7FA8A0;  --ansi-14: #94B6B0;
+  --ansi-7: #D6D4CC;  --ansi-15: #ECEBE8;
+
+  /* Fonts — Cormorant Garamond dropped entirely; two families, hard
+     split (§2.4). --font-display is re-pointed at --font-mono (not left
+     at typikon's Cormorant default) so a future theme partial that
+     reads var(--font-display) can't silently resurrect the third
+     family this site never ships a rendered use for. */
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-body: 'Spectral', Georgia, serif;
+  --font-display: var(--font-mono);
+
+  /* Type-scale ceiling — extends typikon's 1.2-ratio scale one step past
+     its own --step-4, home only. Interior h1 moves to --step-4 (typikon's
+     prior ceiling); nothing below step-4 moves. */
+  --step-5: 2.488rem;
+
+  /* === Display register (DESIGN-v2 §1.1) — extended ratio steps feeding
+     three fluid display tokens. The only places type goes past --step-5.
+     --display-1 retires the old hero clamp(2.25rem, 6vw, 4.75rem); the
+     other two give interior h1s and featured-title moments their own
+     ceiling instead of sharing --step-4/-5 with body-adjacent text.
+     WHY these three clamp ranges: each is typikon's own 1.2-ratio scale
+     extended past --step-5 (--step-6/-7 above), not a perceptually
+     measured optimum — a specified design value, kept exact from the
+     accepted spec rather than re-derived here.
+     DELTA from the spec's literal --display-1 clamp(2.6rem, 1.2rem +
+     4.6vw, 5.375rem): the spec's own floor and slope render the hero h1
+     ("Agent systems you can inspect.", max-width 16ch) at three lines
+     at 375px and other common mobile widths — measured via rendered
+     line-box count, not assumed — breaking §3.1's own "breaks to two
+     lines at all widths" requirement. The ceiling (5.375rem) and the
+     token's role are unchanged; only the floor and slope are retuned
+     (2.6rem/4.6vw -> 2rem/5vw, intercept 1.2rem -> 0.9rem) so the
+     rendered box actually fits 17ch ("you can inspect.", the longer of
+     the two lines) at mobile widths instead of only appearing to via
+     the max-width alone. */
+  --step-6: 2.986rem;
+  --step-7: 3.583rem;
+
+  --display-1: clamp(2rem, 0.9rem + 5vw, 5.375rem);  /* home hero h1 only */
+  --display-2: clamp(2.074rem, 1.1rem + 2.6vw, 3.583rem);  /* interior h1s; home statement h2; consulting close h2 */
+  --display-3: clamp(1.728rem, 1rem + 1.6vw,   2.488rem);  /* featured-system titles; home section statements */
+
+  /* === Spacing rhythm (DESIGN-v2 §1.2) — two fluid steps above typikon's
+     --space-xl, replacing the site's former uniform section padding with
+     a graded scale keyed to rank (hero/major-section vs. header/body).
+     WHY these two clamp ranges: exact multiples of typikon's own
+     --space-unit (1.625rem × 3 and × 4.5), continuing the existing
+     scale rather than a new one — a specified value, not measured. */
+  --space-2xl: clamp(4.875rem, 3.25rem + 5vw, 7.3125rem);   /* 78px -> 117px */
+  --space-3xl: clamp(7.3125rem, 4.5rem + 8vw, 11.375rem);   /* 117px -> 182px */
+
+  /* === Motion tokens (DESIGN-v2 §2.1) — declared now so Phase 2 wires
+     choreography against a stable vocabulary; --t-micro re-points every
+     existing 120ms transition literal below. No new animation ships in
+     this pass — see §6 Phase 1 vs. Phase 2. */
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-cross:  cubic-bezier(0.65, 0, 0.35, 1);
+  --t-micro: 120ms;
+  --t-small: 240ms;
+  --t-cross: 200ms;
+
+  /* Featured-system ink aliases (DESIGN-v2 §3.3) — the wash-tint mapping
+     stated as data, not coincidence. Each featured block wears its
+     zone's own ink so the home page previews the catalog's own grammar. */
+  --feat-thumos-ink:   var(--zone-systems-ink);
+  --feat-aletheia-ink: var(--zone-libraries-ink);
+  --feat-harmonia-ink: var(--zone-web-ink);
+}
+
+/* Plex Mono 600 — the one new vendored font file (§2.4). Latin subset
+   only (typikon's 400/500 cuts carry the Greek range for nav-hover
+   mechanics this site never activates; this weight only ever renders
+   English headlines). */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/a/bcc2e809c6adce034b1de8baebf38dfeea8952d9754060ecf7f8f1419906e7b8.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF;
+}
+
+
+
+/* Explicit canvas layer (W7 grain sits above this) + overshoot clip for
+   the full-bleed band/zone ::before layers below (W6) — each overshoots
+   by half a scrollbar width via 50vw math; this trims it flush. */
+html {
+  background: var(--bg);
+  overflow-x: clip;
+}
+
+/* isolation: isolate establishes body's own stacking context so its
+   z-index: -1 children (body::before, the grain layer below) stay
+   contained within it, painted above body's own background — without
+   this, a negative-z-index descendant of an otherwise unstacked
+   ancestor escapes to the nearest stacking context that DOES exist
+   (the root), where it paints BEHIND body's own opaque background
+   instead of above it, rendering invisible. Same fix is applied to
+   every other position:relative + ::before/::after z-index:-1 full-
+   bleed pattern below (band/zone/wash surfaces, the hero emboss). */
+body {
+  animation: none;
+  opacity: 1;
+  isolation: isolate;
+}
+
+.prose,
+.prose > *,
+.faq-answer,
+.catalog-row,
+.ledger-cell {
+  min-width: 0;
+}
+
+.prose table:not(.receipt-table-wrap table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Tables keep their semantics and readable cells while the table region,
+   never the page, owns narrow-screen overflow. */
+.prose table th,
+.prose table td {
+  min-width: 9rem;
+}
+
+.prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.prose :not(pre) > code,
+.recording-status code,
+.fleet-map code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Paper grain (§W7) — felt, not seen: 5% over the light paper is below
+   deliberate-perception threshold at reading distance. File-based (CSP-
+   clean by construction: img-src 'self', no data: URI), fixed + z-index:
+   -1 so every opaque evidence surface (terminal, plate, band fill) sits
+   above it automatically. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/a/ce8b1b44003fee7e991fef48691388ec2b9ac94686cc7af4b121a221f332f2b9.svg');
+  background-size: 240px 240px;
+  opacity: var(--grain-opacity);
+}
+
+@media print {
+  body::before {
+    display: none;   /* typikon's print pass whitens body; this layer follows */
+  }
+}
+
+/* === Width tiers (§1.2) — two-tier shell replacing typikon's single
+   780px --max-width. nav/main/footer (typikon's own selectors, equal
+   specificity, this stylesheet loads second so it wins the cascade) move
+   to the wide shell; below 1248px the shell is fluid (100% - gutters). */
+nav,
+main,
+footer {
+  max-width: min(var(--width-wide), 100% - 2 * var(--space-s));
+}
+
+/* Query container for the .prose > .receipt-table-wrap breakout below —
+   lets a wide element nested inside a narrowed .prose column size itself
+   against main's own resolved width via cqw units, without needing to
+   know main's width in advance (it's fluid below 1248px). */
+main {
+  container-type: inline-size;
+}
+
+/* Prose blocks (§1.2) — markdown-body containers: system-page prose,
+   about, colophon, contact, resume, writing, faq answers, consulting.
+   Catalog, evidence stack, home composition, and terminal panels stay
+   unwrapped at shell width (DESIGN-v1.1 §1.2's own width-wide list). */
+.prose {
+  font-size: 1.1875rem;     /* 19px — load-bearing: 680px @ 16px is 95 real
+                               chars, back past every guideline. Width and
+                               size move together or the fix doesn't hold. */
+  max-width: var(--width-prose);
+  /* Left-aligned, not centered: every header above .prose (h1, fact
+     row, catalog intro) sits flush against the shell's own left edge;
+     centering the narrower prose column under it left a large,
+     asymmetric dead margin on the left that read as arbitrary rather
+     than composed. Left-aligning shares one left line across header,
+     prose column, and the shell-width receipt-table breakout below. */
+  margin-inline: 0;
+}
+
+/* Receipt tables run full shell width even though they're markdown-body
+   content nested inside .prose (§1.2: "the receipt-table drift —
+   .receipt-table-wrap gets shell width, keeps its overflow-x: auto").
+   100cqw resolves against main's own inline size (the container above),
+   not .prose's — so this reaches main's width regardless of viewport.
+   .prose is left-aligned (flush with main's own left edge), so no
+   compensating offset is needed: margin-inline: 0 keeps the breakout's
+   left edge flush with .prose's own left edge too, all three (header,
+   prose, breakout) sharing one left line. Browsers without container
+   query units support fall back to .prose's own width — narrower than
+   intended but not broken (overflow-x: auto still works). */
+.prose > .receipt-table-wrap {
+  width: 100cqw;
+  margin-inline: 0;
+}
+
+/* Display tier (§1.2, §1.3) — short editorial text that claims a
+   considered middle column: home/system-page ledes, the consulting line,
+   evidence intro paragraph. Replaces each class's own scattered 60ch cap
+   with the one shared token. */
+.home-lede, .page-lede, .consulting-line, .evidence-intro, .consulting-header, .systems-intro {
+  max-width: var(--width-display);
+}
+
+/* Shell ceiling step (§1.2) — the viewport band where dead margin is
+   worst gains real room; the ledger grid gains a real column rather than
+   the shell just growing its margins. */
+@media (min-width: 1680px) {
+  :root { --width-wide: 1360px; }
+  .ledger-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* === Cross-document view transitions (§2.1, DESIGN-v1.3) — pure CSS,
+   no JS, same-origin navigation only. Default cross-fade only, no
+   slide/morph choreography (§2.5 rejects bespoke transition libraries).
+   Unsupported browsers navigate normally — total degradation. */
+@view-transition {
+  navigation: auto;
+}
+
+/* typikon's blanket reduced-motion sweep (style.css) zeroes
+   animation-duration/transition-duration on every element; it has no
+   reach into the @view-transition at-rule, which needs its own
+   opt-out. Both the outgoing and incoming document need this present —
+   site.css loads on every page, so one rule covers the whole site. */
+@media (prefers-reduced-motion) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
+/* Persistent chrome gets its own transition group so it doesn't
+   visually flicker inside the whole-page cross-fade. This site's nav
+   partial carries both the wordmark and the links in one <nav> (no
+   separate masthead element) — the aria-label is the stable, unique
+   selector; .entry-nav (system-page prev/next footer) carries a
+   different aria-label and is unaffected. */
+nav[aria-label="Main navigation"] {
+  view-transition-name: chrome;
+}
+
+/* === Essay progress gnomon (§4.4) — a 2px reading-position line, CSS
+   scroll-driven, essay pages only. Base state is display: none (the
+   inverse of a reveal's hidden-by-default: an unsupported browser gets
+   no static bar rather than a full-width accent stripe that never
+   moves); the @supports block is the only path to display: block.
+   INVARIANT: this line indicates scroll position and nothing else —
+   no percentage, no time-remaining label, no completion state, ever.
+   It is a gnomon, not a progress meter: it never asserts progress
+   toward a finish, only where the reader currently is. */
+.essay-progress {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    .essay-progress {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: 2px;
+      background: var(--accent);
+      transform-origin: 0 50%;
+      animation: measure linear both;
+      animation-timeline: scroll(root);
+    }
+
+    @keyframes measure {
+      from {
+        scale: 0 1;
+      }
+      to {
+        scale: 1 1;
+      }
+    }
+  }
+}
+
+/* === Radius discipline: 0 everywhere except badges (2px) === */
+.ap-player,
+div.ap-wrapper div.ap-player,
+:focus-visible {
+  border-radius: 0;
+}
+
+/* === Headings: mono 600, sentence case, never uppercase at display size === */
+h1 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-4);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+/* h2 hierarchy repair (§1.3) — typikon's default renders h2 at
+   --step--1 (13.3px) uppercase-tracked, smaller than the 16px body it
+   introduces and its own 19.2px h3 children. Restored to the v1 table
+   that never reached CSS: step-2 (23px), sentence case, mono 600. The
+   top hairline + spacing (border-top/padding-top/margin) are already
+   correct in typikon's own rule — only size/case/tracking override here. */
+h2 {
+  font-size: var(--step-2);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  position: relative;
+}
+
+/* h2 ink tick (§W5) — the two-tier hierarchy applied within one rule:
+   typikon's full-width content hairline stays; a short chrome-ink tick
+   anchors the section start on top of it. Same weight as the hairline,
+   darker ink - hierarchy from ink, not thickness. */
+h2::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 2.5rem;
+  border-top: 1px solid var(--text);
+}
+
+/* Inside a band/zone the band edge already carries a hairline (W6); the
+   first h2 drops its own top rule and keeps only the tick. */
+.section-band > h2:first-child,
+.catalog-group > h2:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* === Typographic craft (progressive enhancements) === Free browser
+   craft: balanced/pretty wrapping, hanging punctuation (Safari-only,
+   ignored elsewhere), and the accent's wash tier doing selection work. */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+.prose p, .page-lede, .catalog-row-desc, .term-caption {
+  text-wrap: pretty;
+}
+
+.prose {
+  hanging-punctuation: first allow-end;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, var(--bg));
+}
+
+/* === Section band (§1.4) — a zone-shift primitive: --bg-accent spanning
+   the wide shell, radius 0, no border, --space-l padding-block. Max 2-3
+   per page; never nested, never two adjacent (DESIGN-v1.1 §1.4). Fill
+   moves to the ::before layer below (full-bleed, no layout math); this
+   rule keeps only the padding. */
+.section-band {
+  background: none;
+  padding-block: var(--space-l);
+}
+
+/* Two bands placed back to back (home's Selected-work + Consulting
+   bands, §2) would otherwise share one identical --bg-accent fill with
+   no visible seam — the same color abutting itself reads as one merged
+   band, not two (§1.4's "never two adjacent" rule). A plain-paper gap
+   between them keeps each band legible as its own zone. */
+.section-band + .section-band {
+  margin-top: var(--space-l);
+}
+
+/* === Full-bleed band/zone fill (W6) — a background layer instead of
+   layout padding: zone color runs to the viewport edge, content stays
+   shell-aligned, no padding rebalancing or scrollbar-width risk.
+   isolation: isolate gives each of these its own stacking context (see
+   the WHY note on body, above) so its z-index: -1 ::before paints above
+   this element's own background/the paper behind it, instead of
+   escaping to the root context and losing to body's own opaque
+   background — the bug a same-value "both sit at z-index: -1 in the
+   root stacking context" theory here previously assumed away without
+   a rendered check. */
+.section-band,
+.catalog-group {
+  position: relative;
+  isolation: isolate;
+}
+
+.section-band::before,
+.catalog-group[class*="zone-"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+}
+
+.section-band::before {
+  background: var(--bg-accent);
+  border-block: 1px solid var(--rule);   /* the recessed panel's hairline edge */
+}
+
+/* Seam only where two dyed zones abut directly (the /systems/ catalog). */
+.catalog-group[class*="zone-"] + .catalog-group[class*="zone-"]::before {
+  border-top: 1px solid var(--rule);
+}
+
+/* Flat washes separate archival shelves without decorative gradients. */
+.zone-systems::before {
+  background: color-mix(in oklab, var(--zone-systems-ink) 5%, var(--bg));
+}
+
+.zone-libraries::before {
+  background: color-mix(in oklab, var(--zone-libraries-ink) 5%, var(--bg));
+}
+
+.zone-web::before {
+  background: color-mix(in oklab, var(--zone-web-ink) 5%, var(--bg));
+}
+/* In-design zone: no class, no ::before — plain --bg is the treatment. */
+
+/* === Catalog groups (§3.2) — the /systems/ zone wrapper. Shared
+   padding-block regardless of tint; .zone-* above supplies the
+   background (or nothing, for the deliberately-undyed In-design zone —
+   see design-delta-dye.md §4, distinct from --bg-accent bands elsewhere:
+   this zone is plain paper, not the recessed neutral). Full shell width
+   comes free from being a block child of main (§1.4). */
+.catalog-group {
+  padding-block: var(--space-l);
+}
+
+.catalog-group:target h2 {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+/* Zone group count register (§4.1) — "01 — Systems · 7": index and
+   count in a quieter tabular ink, the label itself staying the h2's own
+   mono-600 weight. Counts are computed in-template, never hand-typed. */
+.catalog-group h2 .group-index,
+.catalog-group h2 .group-count {
+  font-weight: 400;
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-index,
+.catalog-footnote,
+.catalog-ownership {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+}
+
+.catalog-index {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.catalog-footnote {
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.catalog-index a,
+.catalog-footnote a,
+.catalog-ownership a {
+  color: var(--text-light);
+}
+
+.group-caption {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  max-width: 70ch;
+  margin-top: var(--space-3xs);
+}
+
+/* === Ledger rows (§3.2 tiers 2-3) — Libraries/Web (grid) and In-design
+   (register). Shares .catalog-row-desc / .catalog-row-meta with the
+   flagship rows above (same one-liner and meta-line treatment; no reason
+   to duplicate the rule). */
+.ledger-grid {
+  display: grid;
+  gap: var(--space-s);
+}
+
+@media (min-width: 1024px) {
+  .ledger-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ledger-cell {
+  position: relative;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-xs);
+  transition: background-color var(--t-micro) ease-out, box-shadow var(--t-micro) ease-out;
+}
+
+.ledger-cell:has(a:hover),
+.ledger-cell:has(a:focus-visible) {
+  background: color-mix(in oklab, var(--accent) 4%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.ledger-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-0);
+  margin: 0;
+}
+
+.ledger-name a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.ledger-name a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.ledger-gloss {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: var(--step--1);
+  color: var(--text-mid);
+  margin: var(--space-3xs) 0;
+}
+
+h3 {
+  font-family: var(--font-mono);
+  font-size: var(--step-1);
+  font-weight: 600;
+}
+
+/* === Links + focus: --accent is the only interactive color === */
+a:hover {
+  text-decoration-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Nav hover: kill the Leatherworks per-item dye-color cycle; one accent,
+   underline offset 3px, 120ms (§3.7, §5.2). Matches style.css's
+   `.nav-links a:nth-child(N):hover` specificity so the later stylesheet
+   wins on the tie rather than needing !important. */
+.nav-links a:nth-child(1):hover,
+.nav-links a:nth-child(2):hover,
+.nav-links a:nth-child(3):hover,
+.nav-links a:nth-child(4):hover,
+.nav-links a:nth-child(5):hover,
+.nav-links a:nth-child(6):hover,
+.nav-links a:hover,
+.nav-links a:focus-visible {
+  color: var(--text);
+}
+
+.nav-links a {
+  transition: color var(--t-micro) ease-out;
+  text-underline-offset: 3px;
+}
+
+/* Current-page indicator (§1.6) — the nav item whose URL prefixes the
+   current path, per the shadowed partials/nav.html. --text color, no
+   underline (v1 §3.7 specified this; it never shipped until now). */
+.nav-links a[aria-current="page"] {
+  color: var(--text);
+}
+
+/* The one button style. Consulting is explicit; list order is irrelevant. */
+.nav-links a.nav-primary,
+.button {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bg);
+  background: var(--text);
+  padding: var(--space-3xs) var(--space-s);
+  text-decoration: none;
+  border-radius: 0;
+}
+
+.nav-links a.nav-primary:hover,
+.nav-links a.nav-primary:focus-visible,
+.button:hover,
+.button:focus-visible {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* journal-list / faq accent fixes (style.css defaults to Leatherworks --aima) */
+.products-list a:hover,
+.journal-list a:hover,
+.faq-anchor:hover {
+  color: var(--accent);
+}
+
+.faq-anchor:hover {
+  border-bottom-color: var(--accent);
+}
+
+.faq-question {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-1);
+}
+
+/* === Up-link (§1.6) — system pages, above the prev/next row. Mono
+   --step--1, same treatment as the rest of the site's small nav links. */
+.up-link {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
+}
+
+/* === Wordmark: lowercase mono 600 + the flame mark (§5.2) ===
+   config.extra.logo_path stays set (partials/ld-organization.html needs
+   it — unconditional concat, errors the whole build if unset) but the
+   nav's auto-rendered <img class="logo-mark"> is suppressed: DESIGN
+   wants no crest, no icon system, mono wordmark + flame only. */
+.logo {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-1);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+/* The flame mark replaces the block-cursor ▌ as the site's one flourish
+   (§5.2 — v1's §2.6 cursor language is retired: two flourishes is one
+   too many now that the shared family mark carries the brand signal).
+   mask-image + a solid background-color renders the multi-path source
+   artwork (static/img/logo-flame.svg, fill:none/stroke-only) as a single
+   --accent silhouette, ignoring its own internal stroke color entirely —
+   the only reliable way to recolor an <img>-external SVG to one flat ink
+   without touching the shared asset file. ~1em beside the wordmark, no
+   animation. */
+.logo::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-left: 0.05em;
+  order: 2;
+  background-color: var(--accent);
+  -webkit-mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* === Maturity badge (§3.3) — neutral ink always, never traffic-lit === */
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 2px 8px;
+  color: var(--text-mid);
+  text-decoration: none;
+}
+
+a.badge:hover,
+a.badge:focus-visible {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+/* === Claim / receipt (§3.4) === */
+.claim {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.receipt {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+}
+
+/* Wraps every receipt table's rendered <table> (§6: "own overflow-x:
+   auto; the page body never scrolls horizontally"). Markdown tables have
+   no attribute syntax to put a class directly on <table>, so every rule
+   below is scoped through this wrapper div instead.
+
+   Receipt plate (§W5) — the matted-frame treatment extended to the
+   third evidence artifact: terminal = screen under mat, diagram = paper
+   plate, receipts = ledger plate. Reserved for terminal panels, diagram
+   plates, and receipt tables only - never prose, catalogs, or FAQ items. */
+.receipt-table-wrap {
+  background: var(--bg-accent);
+  border: 1px solid var(--panel-edge);
+  padding: var(--space-s);
+  overflow-x: auto;
+}
+
+.receipt-table-wrap table {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;   /* the plate owns the spacing now */
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.receipt-table-wrap th,
+.receipt-table-wrap td {
+  min-width: 10rem;
+}
+
+.receipt-table-wrap th:first-child,
+.receipt-table-wrap td:first-child {
+  min-width: 11.5rem;
+}
+
+.receipt-table-wrap thead th {
+  border-bottom: 3px double var(--text-mid);   /* the ledger's double rule; 3px is the minimum that renders as two lines */
+}
+
+.receipt-table-wrap .ok::before {
+  content: "✓ "; /* check glyph, --ok — the one call site outside terminal content */
+  color: var(--ok);
+}
+
+/* === Fact strip (§4.2) — evolves the former bare fact row: a bordered
+   instrument data-line. Reused on system dossiers, the harmonia feature
+   block, and about. Bottom spacing comes from each container's own
+   padding/margin now, not a fixed margin here, since the strip is a
+   different element in each of those three contexts. */
+.fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3xs) var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;   /* mono is inherently tabular; covers any serif span landing in a fact row */
+  color: var(--text-light);
+  border-block: 1px solid var(--rule);
+  padding-block: var(--space-xs);
+}
+
+.fact-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fact-row .private-chip {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+}
+
+.page-lede {
+  font-family: var(--font-body);
+  font-size: var(--step-1);
+  color: var(--text-mid);
+}
+
+/* === Interior page headers (§1.1, §4.1, §4.2, §4.3, §4.5, §4.6) ===
+   Five named contexts share the --display-2 h1 duty: systems catalog,
+   dossier, evidence, consulting, about. Rhythm law's "header -> body"
+   gap (--space-xl) is shared too; adjacent margins collapse where a
+   header's own bottom padding (dossier's wash) already supplies room,
+   so this never double-spaces. */
+.dossier-header h1,
+.catalog-header h1,
+.evidence-header h1,
+.consulting-header h1,
+.about-header h1 {
+  font-size: var(--display-2);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+
+.dossier-header,
+.catalog-header,
+.evidence-header,
+.consulting-header,
+.about-header {
+  margin-bottom: var(--space-xl);
+}
+
+/* Dossier header wash (§4.2) — the one wash a system page carries: a
+   full-bleed zone-ink tint behind the title group, closed with a
+   hairline rather than the wash's usual full plate edge. isolation:
+   isolate — see the WHY note on body, above: without its own stacking
+   context, the ::before's z-index: -1 escapes to the root and loses to
+   body's own opaque background instead of painting above this header. */
+.dossier-header {
+  position: relative;
+  isolation: isolate;
+  border-bottom: 1px solid var(--rule);
+  padding-block: var(--space-l);
+}
+
+.dossier-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+  /* WHY 4%: a specified value (DESIGN-v2 §1.3's Wash tier), one point
+     lighter than the existing 5% catalog-zone tint (.zone-systems etc.
+     above) so these newer wash moments read as a distinct, quieter
+     register from the established zone dye baths rather than competing
+     with them — a judgment call, not a measured contrast target. Every
+     other 4% wash below (feature blocks, consulting close) follows the
+     same rationale. */
+  background: color-mix(in oklab, var(--zone-systems-ink) 4%, var(--bg));
+}
+
+/* Typikon's list reset removes the browser's marker reservation. Preserve a
+   deliberate inline-start gutter so outside bullets and numerals remain on
+   the paper at narrow widths while prose retains its readable measure. */
+.prose ul,
+.prose ol {
+  padding-inline-start: 1.75rem;
+}
+
+/* === Terminal panel (§3.1) — the base primitive === */
+.term-panel {
+  margin: var(--space-l) 0;
+}
+
+.term-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3xs) var(--space-m);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
+}
+
+.term-meta a {
+  color: var(--text-light);
+}
+
+.term-mat {
+  background: var(--bg);
+  border: 1px solid var(--panel-edge);
+  padding: var(--space-s);
+}
+
+@media (max-width: 480px) {
+  .term-mat {
+    padding: var(--space-xs);
+  }
+}
+
+.term-screen {
+  background: var(--term-bg);
+  min-height: 12rem;
+}
+
+/* Architecture-diagram variant (ergon-tools, nosologia — §4.2): the same
+   matted-frame treatment, paper-toned instead of a dark screen — a
+   diagram is not a running session. */
+.diagram-plate {
+  background: var(--bg-accent);
+}
+
+.diagram-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.term-screen .ap-player {
+  --term-color-background: var(--term-bg);
+  --term-color-foreground: var(--term-text);
+  --term-color-0: var(--ansi-0);
+  --term-color-1: var(--ansi-1);
+  --term-color-2: var(--ansi-2);
+  --term-color-3: var(--ansi-3);
+  --term-color-4: var(--ansi-4);
+  --term-color-5: var(--ansi-5);
+  --term-color-6: var(--ansi-6);
+  --term-color-7: var(--ansi-7);
+  --term-color-8: var(--ansi-8);
+  --term-color-9: var(--ansi-9);
+  --term-color-10: var(--ansi-10);
+  --term-color-11: var(--ansi-11);
+  --term-color-12: var(--ansi-12);
+  --term-color-13: var(--ansi-13);
+  --term-color-14: var(--ansi-14);
+  --term-color-15: var(--ansi-15);
+  --term-font-family: var(--font-mono), monospace;
+  width: 100%;
+}
+
+/* Fallback <pre> — visible until site.js swaps in the player, and always
+   visible to no-JS visitors, feed readers, and crawlers (§3.1). */
+.term-fallback {
+  margin: 0;
+  padding: var(--space-s);
+  color: var(--term-text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.term-caption {
+  font-family: var(--font-body);
+  font-size: var(--step--1);
+  color: var(--text-mid);
+  margin-top: var(--space-xs);
+  max-width: var(--width-prose);   /* WHY: was unbounded → ran full shell width (~140 chars); cap to the reading measure */
+}
+
+.term-transcript {
+  margin-top: var(--space-xs);
+}
+
+.term-transcript summary {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+.term-transcript pre {
+  margin-top: var(--space-xs);
+  padding: var(--space-s);
+  background: var(--bg-accent);
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+/* === Catalog row (§3.2) — a ledger row, not a card === */
+.catalog {
+  list-style: none;
+  margin: var(--space-m) 0;
+  padding: 0;
+}
+
+.catalog-row {
+  position: relative;
+  display: block;
+  border-top: 1px solid var(--rule);
+  padding-block: var(--space-s);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color var(--t-micro) ease-out, box-shadow var(--t-micro) ease-out;
+}
+
+.catalog-row-name a::after,
+.ledger-name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.catalog-row-meta a,
+.proof-links a {
+  position: relative;
+  z-index: 1;
+}
+
+.catalog-row:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.catalog-row:has(a:hover),
+.catalog-row:has(a:focus-visible) {
+  background: color-mix(in oklab, var(--accent) 4%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);   /* the ledger-margin tick */
+}
+
+/* Deep-link landing gets the same mark as a hovered row. */
+.faq-item:target {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Aged-accent ladder (§W8) — Leatherworks' rest -> base -> aged
+   progression, on click. box-shadow: inset (not border-left) so the
+   tick causes zero layout shift; the 120ms transitions collapse under
+   typikon's global reduced-motion rule for free. */
+a:active {
+  text-decoration-color: var(--accent-aged);
+}
+
+.button:active,
+.nav-links a.nav-primary:active {
+  background: var(--accent-aged);
+}
+
+
+.catalog-row-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--step-1);
+  margin: 0;
+}
+
+.catalog-row-name a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.catalog-row:has(a:hover) .catalog-row-name a {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.catalog-row-desc {
+  font-family: var(--font-body);
+  color: var(--text-mid);
+  margin: var(--space-3xs) 0;
+  max-width: 70ch;
+}
+
+.catalog-row-claim {
+  max-width: 76ch;
+  margin: var(--space-xs) 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+.catalog-row-meta {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-light);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs) var(--space-xs);
+}
+
+.catalog-row-meta a {
+  color: var(--text-light);
+}
+
+/* === Home ===
+   .kicker/.home-h1/.home-lede live in the "Evidence-lab home" block below
+   (their properties are consolidated there — DESIGN-v2 §3.1 display-1
+   pass folded the former duplicate declarations here into one rule
+   each rather than leaving a second, mostly-shadowed block in the
+   cascade). */
+.practice-paragraph {
+  font-family: var(--font-body);
+  font-size: 1.1875rem;    /* prose tier (§1.3) — reading prose in home dress */
+  color: var(--text-mid);
+  max-width: var(--width-prose);
+  margin: var(--space-xl) 0;
+  padding-top: var(--space-l);
+  border-top: 1px solid var(--rule);
+}
+
+/* The statement line (§1.1) — Spectral italic, used once per page
+   maximum: the consulting-close line is its home-page appearance. */
+.consulting-line {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: var(--step-1);
+  color: var(--text-mid);
+  max-width: 60ch;
+  margin: 0;
+}
+
+.home-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s) var(--space-m);
+  align-items: baseline;
+  margin: var(--space-m) 0 var(--space-l);
+}
+
+.home-ctas a {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* === Footer (§3.7, §W9) — three mono clusters + sibling line, closed
+   out with a designed sign-off: kicker labels, links lifted one ink
+   tier above their labels, a top rule, and the flame's second and
+   final appearance per page (masthead, then here — never per-section). */
+.site-footer-clusters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-m) var(--space-xl);
+  margin-bottom: var(--space-s);
+}
+
+.site-footer-cluster {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.footer-kicker {
+  display: block;
+  font-size: var(--step--2);
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+  margin-bottom: var(--space-3xs);
+}
+
+.site-footer-cluster a {
+  color: var(--text-mid);   /* links lift one ink tier above their labels */
+}
+
+.site-footer-cluster a:hover {
+  color: var(--accent);
+}
+
+.site-footer-sibling {
+  margin-bottom: var(--space-s);
+}
+
+.site-footer-sibling a {
+  color: var(--text-light);
+}
+
+.site-footer-colophon {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--text-light);
+  text-transform: none;
+  letter-spacing: normal;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-s);
+  margin-top: var(--space-s);
+}
+
+/* The seal: the flame's second and final appearance per page. Same mask
+   technique as the masthead (.logo::before above). */
+.site-footer-colophon::before {
+  content: "";
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.4em;
+  vertical-align: -0.08em;
+  background-color: var(--accent);
+  -webkit-mask: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg') no-repeat center / contain;
+  mask: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg') no-repeat center / contain;
+}
+
+/* Rhythm law (§1.2, §5 component kit) — the footer's own share of the
+   graded scale: --space-l above (visually paired with whatever section
+   sits above it), --space-xl below so the close gets room to land. */
+footer {
+  padding-block: var(--space-l) var(--space-xl);
+}
+
+/* === Consulting (§Addendum, §1.3 DESIGN-v1.3) === */
+.engagement-shapes {
+  display: grid;
+  gap: var(--space-m);
+  margin: var(--space-m) 0 var(--space-l);
+}
+
+/* Shell-width 3-col grid (§1.3 table: engagement_shapes exits .prose to
+   shell tier). Own breakpoint, not a reuse of .ledger-grid's class (that
+   grid steps 2-col at 1024px / 3-col at 1680px) -- same grid+media-query
+   idiom, three shapes fit one row at the width the reading-prose column
+   would otherwise leave idle. */
+@media (min-width: 1024px) {
+  .engagement-shapes {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Engagement shapes -> plates (§4.5): border/padding/background on each
+   shape; h3/p already inherit the correct mono/serif treatment from the
+   sitewide h3 and body rules. Non-link plates take no hover. */
+.engagement-shape {
+  border: 1px solid var(--rule);
+  padding: var(--space-m);
+  background: var(--bg);
+}
+
+.engagement-shape h3 {
+  margin-bottom: var(--space-3xs);
+}
+
+.engagement-shape p {
+  margin-bottom: 0;
+  color: var(--text-mid);
+}
+
+.consulting-inquiry {
+  max-width: var(--width-display);
+  margin-block: var(--space-xl);
+  padding: clamp(var(--space-m), 4vw, var(--space-l));
+  border: 1px solid var(--text);
+  background: var(--bg-accent);
+}
+
+.consulting-inquiry h2 {
+  font-size: var(--step-3);
+  max-width: 24ch;
+  margin-bottom: var(--space-s);
+}
+
+.consulting-inquiry > p:not(.section-label) {
+  max-width: 62ch;
+  color: var(--text-mid);
+}
+
+.consulting-inquiry .button {
+  margin-top: var(--space-s);
+}
+
+/* === Evidence-lab home === */
+/* Hero (DESIGN-v2 §3.1) — the one big moment. min-height + align-content
+   centers the kicker/h1/lede/CTAs as a group inside a viewport-scale box
+   without pinning them (the receipt band's top edge still peeks below
+   the fold at common heights — the "continuation hint"). isolation:
+   isolate — see the WHY note on body, above: without its own stacking
+   context, the emboss ::after's z-index: -1 escapes to the root and
+   loses to body's own opaque background instead of painting above it. */
+.home-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: min(78svh, 46rem);
+  display: grid;
+  align-content: center;
+  padding-block: var(--space-l) var(--space-2xl);
+}
+
+/* Full-bleed baseline — the one chrome-ink line on the site that runs
+   viewport edge to edge, replacing the former border-bottom (§3.1). */
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: auto calc(50% - 50vw) 0;
+  height: 1px;
+  background: var(--text);
+}
+
+/* Emboss flame (§1.4, §3.1) — the flame's third and final appearance per
+   site, home hero only: --text at 3.5% opacity, brand as texture pressed
+   into the paper rather than ink. Same mask technique as .logo::before/
+   .site-footer-colophon::before; z-index: -1 paints it above the grain
+   (body::before) but behind the hero's own in-flow text content.
+   WHY 0.035: a specified value (DESIGN-v2 §3.1), the same order of
+   magnitude as --grain-opacity's 0.05 sibling judgment call rather than
+   a separately measured perceptual threshold — chosen to read as felt
+   texture at a glance and as the flame mark only on closer inspection,
+   not verified against a contrast-ratio target. */
+.home-hero::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: var(--space-l);
+  z-index: -1;
+  width: clamp(14rem, 24vw, 21rem);
+  aspect-ratio: 1;
+  background-color: var(--text);
+  opacity: 0.035;
+  -webkit-mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  mask-image: url('/a/8f06524849eed10d277b169a30dd8672e25b0147eeb2216ff65a37aad6804c1b.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+@media (max-width: 700px) {
+  .home-hero::after {
+    display: none;
+  }
+}
+
+.kicker,
+.section-label {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--accent-aged);
+  margin-bottom: var(--space-s);
+}
+
+/* Section-label index register (§5 component kit) — "01 · <label>", the
+   index in a quieter ink than the label it counts. Home sections only. */
+.section-label-index {
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hero h1 — --display-1, the only place type goes this large (§1.1,
+   §3.1). "Agent systems you can inspect." breaks to two lines at all
+   widths, verified against the 16ch cap. */
+.home-h1 {
+  max-width: 16ch;
+  font-size: var(--display-1);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin-block: var(--space-xs) 0;
+}
+
+/* Hero lede — the serif display moment (§1.1): Spectral, the site's one
+   large-scale body-face appearance, subordinate to the mono h1 above. */
+.home-lede {
+  max-width: 38ch;
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+  line-height: 1.35;
+  margin-block: var(--space-m) var(--space-l);
+}
+
+.text-action {
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* isolation: isolate — see the WHY note on body, above: without its own
+   stacking context, the ::before's z-index: -1 escapes to the root and
+   loses to body's own opaque background instead of painting above it. */
+.proof-surface {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: var(--space-l);
+  padding-block: var(--space-xl);
+}
+
+.proof-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+  background: var(--bg-accent);
+  border-block: 1px solid var(--rule);
+}
+
+@media (min-width: 900px) {
+  .proof-surface {
+    grid-template-columns: minmax(16rem, 0.8fr) minmax(24rem, 1.2fr);
+    align-items: start;
+  }
+}
+
+/* Home section statements (§1.1, §3.5, §3.6, §5) — --display-3, the
+   register one step under the hero: proof intro, the four
+   section-heading-rows (selected/fleet-map/writing headings). The
+   consulting-close statement sits one step up at --display-2 (below). */
+.proof-intro h2,
+.section-heading-row h2 {
+  border: 0;
+  padding: 0;
+  margin-top: var(--space-xs);
+  max-width: 27ch;
+  font-size: var(--display-3);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.proof-intro h2::before,
+.section-heading-row h2::before {
+  content: none;
+}
+
+/* Record header strip (§3.2) — document anatomy for the receipt plate:
+   a labeled strip above the title; the maturity badge moves up into it.
+   Real fields only, both already sourced from the system's frontmatter. */
+.proof-record-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-s);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-xs);
+  margin-bottom: var(--space-s);
+}
+
+.proof-record {
+  border: 1px solid var(--text);
+  background: var(--bg);
+  padding: clamp(var(--space-m), 4vw, var(--space-l));
+}
+
+.proof-record h3 {
+  font-size: var(--step-3);
+  margin-block: 0 var(--space-xs);
+}
+
+.proof-record h3 a {
+  color: var(--text);
+}
+
+/* Claim paragraph — the one serif statement inside the receipt band
+   (§1.1, §3.2): Spectral against the record's otherwise all-mono frame. */
+.proof-claim {
+  font-family: var(--font-body);
+  font-size: var(--step-1);
+  color: var(--text-mid);
+}
+
+.proof-receipt {
+  margin-block: var(--space-m);
+  border-top: 3px double var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.proof-receipt > div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.3fr) minmax(0, 1fr);
+  gap: var(--space-s);
+  padding-block: var(--space-xs);
+  border-bottom: 1px solid var(--rule);
+}
+
+.proof-receipt dt,
+.proof-links {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+}
+
+.proof-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s) var(--space-m);
+}
+
+/* Rhythm law (§1.2) — major home sections (feature stack, fleet map,
+   writing) get --space-2xl padding-block, hairline between. */
+.home-section {
+  padding-block: var(--space-2xl);
+  border-bottom: 1px solid var(--rule);
+}
+
+.section-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--space-m);
+}
+
+.section-heading-row > a {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+}
+
+/* === Featured-system blocks (§3.3) — replaces the three uniform
+   catalog rows with full-bleed wash "product moments," ordered by
+   weight (thumos, aletheia, harmonia). Ink assignment is data (the
+   --feat-*-ink aliases in :root), not decoration: each block wears its
+   own zone's ink, previewing the catalog's own grammar. Counts as the
+   page's one contiguous wash sequence (§1.3 budget). isolation:
+   isolate — see the WHY note on body, above: without its own stacking
+   context, each ::before's z-index: -1 escapes to the root and loses
+   to body's own opaque background instead of painting above it. */
+.feature-block {
+  position: relative;
+  isolation: isolate;
+  padding-block: var(--space-2xl);
+}
+
+.feature-block::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+}
+
+/* WHY 4% on all three: same wash-tint rationale as .dossier-header::before
+   above (DESIGN-v2 §1.3), not re-derived per block. */
+.feature-thumos::before {
+  background: color-mix(in oklab, var(--feat-thumos-ink) 4%, var(--bg));
+}
+
+.feature-aletheia::before {
+  background: color-mix(in oklab, var(--feat-aletheia-ink) 4%, var(--bg));
+}
+
+.feature-harmonia::before {
+  background: color-mix(in oklab, var(--feat-harmonia-ink) 4%, var(--bg));
+}
+
+/* Seam between abutting washes — the plain-paper edge one block's tint
+   ends and the next begins. */
+.feature-block + .feature-block::before {
+  border-top: 1px solid var(--rule);
+}
+
+.feature-index {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-light);
+  margin-bottom: var(--space-xs);
+}
+
+.feature-index-name {
+  color: var(--accent-aged);
+}
+
+.feature-title {
+  font-size: var(--display-3);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-s);
+}
+
+.feature-title a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.feature-title a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+.feature-desc {
+  font-family: var(--font-body);
+  font-size: var(--step-1);
+  color: var(--text-mid);
+  max-width: 44ch;
+}
+
+.feature-claim {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text);
+  margin-block: var(--space-s) var(--space-xs);
+}
+
+.feature-link {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  margin-top: var(--space-s);
+}
+
+/* Block 01 (thumos) — text left, spec plate right. Block 02 (aletheia)
+   mirrors it: the grid columns invert and .feature-text's order flips,
+   so the plate leads visually while staying second in reading order.
+   Below 1024px both fall back to block flow (text, then plate). */
+@media (min-width: 1024px) {
+  .feature-lead {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: var(--space-xl);
+    align-items: center;
+  }
+
+  .feature-mirror {
+    display: grid;
+    grid-template-columns: 5fr 7fr;
+    gap: var(--space-xl);
+    align-items: center;
+  }
+
+  .feature-mirror .feature-text {
+    order: 2;
+  }
+}
+
+/* Block 03 (harmonia) — single column, breaking the alternation on
+   purpose so the sequence doesn't end on an ABAB thump. Facts render as
+   a horizontal fact strip (§4.2) instead of a plate. */
+.feature-stack .feature-desc {
+  max-width: var(--width-display);
+}
+
+.feature-stack .fact-row {
+  margin-top: var(--space-l);
+}
+
+/* Spec plate (§3.3, §5) — the standing frame a terminal plate replaces
+   once a system publishes a cast. Frontmatter-derived only; no fake
+   terminals. */
+.spec-plate {
+  background: var(--bg);
+  border: 1px solid var(--text);
+  padding: var(--space-m);
+  font-variant-numeric: tabular-nums;
+}
+
+.spec-plate > div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.4fr) minmax(0, 1fr);
+  gap: var(--space-s);
+  padding-block: var(--space-xs);
+  border-top: 3px double var(--text);
+}
+
+.spec-plate > div + div {
+  border-top: 1px solid var(--rule);
+}
+
+.spec-plate dt {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+}
+
+.spec-plate dd {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+/* === Fleet map (§3.4) — a schematic, not a boxed table. No outer mat:
+   the diagram lives directly on the paper, source node left-aligned
+   (kills the centered-table feel), a drawn drop + distribution rail
+   carrying the .kanon-ci.toml chip, risers dropping to gapped nodes. */
+.fleet-map {
+  margin-top: var(--space-l);
+}
+
+.fleet-map-source {
+  display: inline-block;
+  padding: var(--space-s) var(--space-m);
+  border: 2px solid var(--text);
+  background: var(--bg);
+}
+
+.fleet-map-source strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+}
+
+.fleet-map-source span {
+  display: block;
+  margin-top: var(--space-3xs);
+  font-size: var(--step--1);
+  color: var(--text-mid);
+}
+
+/* The drop: a 1px vertical line from under the source node to the rail. */
+.fleet-map-drop {
+  width: 1px;
+  height: var(--space-l);
+  margin-left: 1.5rem;
+  background: var(--text);
+}
+
+/* The distribution rail: one line spanning the node grid's width, the
+   .kanon-ci.toml chip sitting on it as a paper knockout. */
+.fleet-map-rail {
+  position: relative;
+  border-top: 1px solid var(--text);
+}
+
+.fleet-map-rail::before {
+  content: "";
+  position: absolute;
+  left: 1.5rem;
+  top: -1.5px;
+  width: 3px;
+  height: 3px;
+  background: var(--text);
+  transform: translateX(-1px);
+}
+
+.fleet-map-chip {
+  position: absolute;
+  left: 1.5rem;
+  top: 0;
+  transform: translate(-1px, -50%);
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  color: var(--accent-aged);
+  background: var(--bg);
+  padding-inline: var(--space-xs);
+  white-space: nowrap;
+}
+
+.fleet-map-nodes {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-s);
+  margin: 0;
+  padding: 0;
+}
+
+/* Risers — each node drops from the rail on its own 1px tick, capped
+   with the same 3px junction mark the drop uses. */
+.fleet-map-nodes li {
+  position: relative;
+  padding-top: var(--space-s);
+}
+
+.fleet-map-nodes li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: var(--space-s);
+  background: var(--text);
+  transform: translateX(-0.5px);
+}
+
+.fleet-map-nodes li::after {
+  content: "";
+  position: absolute;
+  top: -1.5px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  background: var(--text);
+  transform: translateX(-1.5px);
+}
+
+.fleet-map-nodes a {
+  display: block;
+  height: 100%;
+  padding: var(--space-s);
+  border: 1px solid var(--rule);
+  color: var(--text);
+  background: var(--bg);
+  text-decoration: none;
+}
+
+.fleet-map-nodes a:hover,
+.fleet-map-nodes a:focus-visible {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.fleet-map-nodes strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  font-weight: 600;
+}
+
+.fleet-map-nodes span {
+  display: block;
+  margin-top: var(--space-3xs);
+  font-family: var(--font-mono);
+  font-size: max(var(--step--2), 0.75rem);
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.fleet-map figcaption {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  max-width: 70ch;
+  margin-top: var(--space-m);
+}
+
+.home-writing-list,
+.recording-plan-list {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-l);
+}
+
+.home-writing-list li {
+  display: grid;
+  grid-template-columns: 8rem minmax(12rem, 0.55fr) minmax(16rem, 1fr);
+  gap: var(--space-m);
+  padding-block: var(--space-m);
+  border-top: 1px solid var(--rule);
+}
+
+.home-writing-list time,
+.plan-state {
+  font-family: var(--font-mono);
+  font-size: max(var(--step--1), 0.8125rem);
+  color: var(--text-light);
+}
+
+.home-writing-list h3,
+.home-writing-list p {
+  margin: 0;
+}
+
+.home-writing-list h3 a {
+  color: var(--text);
+}
+
+/* Consulting close (§3.6) — the quiet rust band: the one place the
+   site's warmth surfaces structurally, a wash rather than the neutral
+   band tier the receipt band above uses. isolation: isolate — see the
+   WHY note on body, above: without its own stacking context, the
+   ::before's z-index: -1 escapes to the root and loses to body's own
+   opaque background instead of painting above it. */
+.consulting-close {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: var(--space-l);
+  padding-block: var(--space-2xl);
+}
+
+.consulting-close::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+  /* WHY 4%: same wash-tint rationale as .dossier-header::before above
+     (DESIGN-v2 §1.3) — this is the page's one "close" wash. */
+  background: color-mix(in oklab, var(--accent-aged) 4%, var(--bg));
+  border-block: 1px solid var(--rule);
+}
+
+.consulting-close h2 {
+  border: 0;
+  padding: 0;
+  margin-top: var(--space-xs);
+  max-width: 24ch;
+  font-size: var(--display-2);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+
+.consulting-close h2::before {
+  content: none;
+}
+
+.consulting-close .button {
+  margin-top: var(--space-m);
+  font-size: max(var(--step--1), 0.8125rem);
+}
+
+/* === Evidence register === */
+.evidence-header,
+.evidence-section {
+  max-width: var(--width-display);
+}
+
+/* Count line (§4.3) — the honest zero rendered as a number, computed in
+   template from the same section/cast counts the register itself uses. */
+.evidence-count-line {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-xs);
+}
+
+.evidence-section {
+  margin-block: var(--space-xl);
+}
+
+.evidence-index {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-m);
+  border-bottom: 1px solid var(--rule);
+}
+
+.evidence-index a {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.4fr) minmax(0, 1fr);
+  gap: var(--space-m);
+  padding-block: var(--space-m);
+  border-top: 1px solid var(--rule);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.evidence-index a:hover strong,
+.evidence-index a:focus-visible strong {
+  color: var(--accent);
+}
+
+.recording-status {
+  padding: var(--space-m);
+  border: 1px solid var(--text);
+  background: var(--bg-accent);
+}
+
+.recording-plan-list li {
+  padding-block: var(--space-m);
+  border-top: 1px solid var(--rule);
+}
+
+.recording-plan-list li > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-s);
+}
+
+.recording-plan-list h3 {
+  margin: 0;
+}
+
+.recording-plan-list h3 a {
+  color: var(--text);
+}
+
+.recording-plan-list p {
+  max-width: 75ch;
+  margin: var(--space-xs) 0 0;
+}
+
+@media (max-width: 700px) {
+  .section-heading-row,
+  .home-writing-list li,
+  .evidence-index a {
+    display: block;
+  }
+
+  .section-heading-row > a,
+  .home-writing-list h3,
+  .evidence-index span {
+    display: block;
+    margin-top: var(--space-xs);
+  }
+
+  /* Fleet map mobile composition — a deliberate narrow-width anatomy,
+     not the desktop schematic with pieces switched off. The drop/rail/
+     chip graphic (the .kanon-ci.toml wiring detail) is redundant at
+     this width with the figcaption's own prose statement of the same
+     fact, so it's dropped rather than cramped; the source node becomes
+     a full-width leading element and the rail simplifies to one plain
+     top rule over the node grid. */
+  .fleet-map-source {
+    display: block;
+  }
+
+  .fleet-map-drop,
+  .fleet-map-chip {
+    display: none;
+  }
+
+  .fleet-map-rail {
+    margin-top: var(--space-m);
+    border-top: 1px solid var(--text);
+  }
+
+  .fleet-map-rail::before {
+    content: none;
+  }
+
+  .fleet-map-nodes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: var(--space-s);
+  }
+
+  .fleet-map-nodes li {
+    padding-top: 0;
+  }
+
+  .fleet-map-nodes li::before,
+  .fleet-map-nodes li::after {
+    display: none;
+  }
+
+  .journal-list a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-xs) var(--space-s);
+  }
+
+  .journal-list .entry-name,
+  .journal-list .entry-components {
+    grid-column: 1 / -1;
+  }
+
+  .journal-list .entry-date-inline,
+  .journal-list .entry-words {
+    font-size: max(var(--step--2), 0.75rem);
+  }
+
+  .journal-list .entry-words {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    padding-inline: var(--space-s);
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
+  }
+
+  nav,
+  main,
+  footer {
+    max-width: 100%;
+  }
+
+  .nav-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .nav-links a,
+  .site-footer-cluster,
+  .site-footer-colophon,
+  .catalog-row-meta,
+  .fact-row,
+  .receipt,
+  .entry-date,
+  .entry-header .entry-components,
+  .specs {
+    font-size: max(var(--step--2), 0.75rem);
+  }
+
+  .nav-links a.nav-primary {
+    justify-content: center;
+    padding-inline: var(--space-xs);
+  }
+
+  .proof-receipt > div,
+  .fleet-map-nodes {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-table-wrap {
+    width: 100%;
+    margin-inline: 0;
+    padding: var(--space-xs);
+  }
+}
