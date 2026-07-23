@@ -100,12 +100,10 @@ linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
 # per DESIGN §3.7, more structure than typikon's stock flat footer_links
 # list can carry).
 #
-# legal_owner: UNSET until the Secretary of State confirms the entity
-# registration (alternates filed; exact name pending). Setting it to the
-# registered name (e.g. "Ardent Works LLC") activates the footer © line
-# and the Organization JSON-LD legalName in one change; add the matching
-# Ownership row to content/colophon.md in the same commit.
+# legal_owner: the registered entity. Drives the footer © line and the
+# Organization JSON-LD legalName from this one value.
 [extra.footer]
+legal_owner = "Ardent Works LLC"
 colophon_summary = "Static Zola site. No site-authored analytics, cookies, or remote third-party runtime/application requests in authored output."
 sibling_url = "https://ardentleatherworks.com"
 sibling_label = "SIBLING WORKSHOP: ARDENT LEATHERWORKS"

@@ -1427,6 +1427,15 @@ a:active {
   margin-top: var(--space-s);
 }
 
+/* Legal-owner line - renders only when config [extra.footer] legal_owner
+   is set (footer.html). Quietest line on the page: the entity, stated once. */
+.site-footer-legal {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--text-light);
+  margin-top: var(--space-3xs);
+}
+
 /* The seal: the flame's second and final appearance per page. Same mask
    technique as the masthead (.logo::before above). */
 .site-footer-colophon::before {
