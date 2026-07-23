@@ -17,6 +17,7 @@ node_modules/
 test-results/
 playwright-report/
 .playwright/
+.wrangler/
 *.local
 .env
 .env.local

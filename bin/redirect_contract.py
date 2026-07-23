@@ -26,9 +26,11 @@ class RedirectRule(NamedTuple):
 
 
 SUPPORTED_REDIRECTS = (
+    RedirectRule("/404", "/404/", 308),
+    RedirectRule("/404.html", "/404/", 308),
+    RedirectRule("/demos", "/evidence/", 301),
     RedirectRule("/systems/ergon-tools/*", "/systems/", 301),
     RedirectRule("/systems/nosologia/*", "/systems/", 301),
-    RedirectRule("/demos", "/evidence/", 301),
     RedirectRule("/demos/*", "/evidence/", 301),
 )
 EXACT_PROBE_PATHS = {
@@ -93,9 +95,9 @@ def _shape_errors(rule: RedirectRule, label: str, line_number: int) -> list[str]
             f"{context}: redirect target must be one normalized same-origin path; "
             f"found {target!r}"
         )
-    if rule.status != 301:
+    if rule.status not in {301, 308}:
         errors.append(
-            f"{context}: redirect status must be exact permanent status 301; "
+            f"{context}: redirect status must be permanent 301 or 308; "
             f"found {rule.status}"
         )
     if source_matches(source, target):

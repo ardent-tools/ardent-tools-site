@@ -23,6 +23,7 @@ from release_manifest import (
 )
 from header_contract import load_headers
 from html_authority import AUTHORITY_NAME, validate_authority
+from pages_runtime import validate_runtime
 from redirect_contract import load_redirects
 
 BASE_URL = "https://ardent.tools"
@@ -187,7 +188,8 @@ def validate_cache_contract(errors: list[str], output: Path, headers_text: str) 
     paths = {
         output_url(output, path)
         for path in output.rglob("*")
-        if path.is_file() and path.name not in {"_headers", "_redirects"}
+        if path.is_file()
+        and path.name not in {"_headers", "_redirects", "_routes.json"}
     }
     for pattern, _ in rules:
         paths.add(pattern.replace("*", "contract-probe.bin"))
@@ -606,6 +608,9 @@ def main() -> int:
 
     _, redirect_errors = load_redirects(output / "_redirects")
     for error in redirect_errors:
+        fail(errors, error)
+
+    for error in validate_runtime(output):
         fail(errors, error)
 
     if not re.search(r"^\s*Cache-Control:\s*[^\n]*\bno-transform\b", headers, re.MULTILINE | re.I):

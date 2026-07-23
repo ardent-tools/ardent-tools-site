@@ -106,6 +106,7 @@ cmp static/systems.json "$CHECK_ROOT/systems.json"
 
 echo "==> integrity regression tests"
 python3 -m unittest discover -s tests -p 'test_*.py'
+node --test tests/smoke/pages-error-boundary.node.mjs
 
 echo "==> resume reproducibility and factual manifest"
 python3 bin/validate-resume-fonts.py --font-dir resume/fonts
@@ -142,6 +143,7 @@ if [[ -f "$PROD_OUTPUT/404/index.html" ]]; then
 fi
 python3 bin/html_authority.py "$PROD_OUTPUT" \
   --revision "$BUILD_REVISION" --base-url "$SITE_BASE_URL"
+python3 bin/pages_runtime.py "$PROD_OUTPUT"
 python3 bin/release_manifest.py "$PROD_OUTPUT" \
   --revision "$BUILD_REVISION" --asset-epoch "$ASSET_EPOCH"
 themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
@@ -185,7 +187,8 @@ SITE_OUTPUT_DIR="$LOCAL_OUTPUT" TYPIKON_BASE_URL="$LOCAL_BASE_URL" \
   pa11y-ci --config tests/pa11y.config.cjs
 
 echo "==> all-route Playwright"
-export NODE_PATH="$(npm root -g)"
+NODE_PATH=$(npm root -g)
+export NODE_PATH
 SITE_OUTPUT_DIR="$LOCAL_OUTPUT" TYPIKON_BASE_URL="$LOCAL_BASE_URL" \
 PLAYWRIGHT_OUTPUT_DIR="$CHECK_ROOT/playwright-artifacts" \
 PLAYWRIGHT_JSON_OUTPUT_FILE="$CHECK_ROOT/playwright.json" \

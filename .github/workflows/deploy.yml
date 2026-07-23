@@ -105,6 +105,12 @@ jobs:
           ARDENT_BUILD_REVISION: ${{ github.sha }}
         run: bin/check-site.sh
 
+      - name: Compile the Pages error boundary
+        run: |
+          npm install -g wrangler@4.112.0
+          wrangler pages functions build functions \
+            --outfile "$RUNNER_TEMP/ardent-pages-worker.js"
+
       # ── Deploy on green pushes to main only ───────────────────
       - name: Deploy to Cloudflare Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -113,9 +119,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          npm install -g wrangler@4.112.0
           python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"
-          wrangler pages deploy public --project-name=ardent-tools --branch=main
+          wrangler pages deploy --branch=main
 
       - name: Verify live authored/runtime boundary
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -44,10 +44,15 @@ The validated tree carries `build-revision.txt`; CI supplies the exact GitHub
 revision. `release-html.json` records the full SHA-256 body of every retained
 HTML route and the byte-identical custom 404, while marking the routes declared
 canonical by `sitemap.xml`. `release-resources.json` covers the served non-HTML
-regular resources in that exact tree, excluding the two Cloudflare Pages
-control files and the resource manifest itself. The HTML authority is one of
-those resources. Non-canonical resource URLs have one content digest and the
-single release asset epoch from `config.toml`.
+regular resources in that exact tree, excluding the three Cloudflare Pages
+control files and the resource manifest itself. The HTML authority and
+`runtime-boundary.json` are resources: the latter binds the Pages Function
+source, generated `_routes.json`, and production `wrangler.toml` to exact
+SHA-256 digests. Non-canonical
+resource URLs have one content digest and the single release asset epoch from
+`config.toml`. The HTML authority remains query-free because the Function reads
+that exact runtime URL; its manifest digest and live fetch prove the consumed
+bytes directly.
 
 The post-deploy verifier refuses a different live sentinel or manifest, fetches
 every retained HTML route, probes the custom 404, and requests every exact
@@ -56,14 +61,41 @@ complete configured direct-response header boundary, including the derived
 `Speculation-Rules` URL and the speculation-rules media type. The deploy job
 revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
+The repository-owned Wrangler config makes the project name, validated output
+directory, and compatibility date 2026-07-21 production source of truth. The
+Function compile and deploy both use Wrangler 4.112.0 and that same config, so
+runtime behavior does not silently depend on the day or external dashboard
+defaults.
 
-The complete four-rule `_redirects` file is a strict local contract. The live
+The complete six-rule `_redirects` file is a strict local contract. The live
 verifier requests a safe representative for every declaration without following
 it; the two system wildcard probes are revision-specific, while the exact
-`/demos` rule and its catch-all use their fixed non-destructive paths. It requires
-the declared permanent status and exact same-origin destination. Redirect responses
-are not assigned cache-header claims because Cloudflare Pages applies
-`_redirects` before `_headers`.
+`/demos` rule and its catch-all use their fixed non-destructive paths. Exact
+`/404` and `/404.html` rules both canonicalize directly to `/404/`, avoiding
+Pages' duplicate-200 custom-file behavior and an automatic two-hop redirect. It
+requires the declared permanent status and exact same-origin destination.
+Redirect responses are not assigned cache-header claims because Cloudflare
+Pages applies `_redirects` before `_headers`.
+
+At `ardent.tools`, Cloudflare replaced the global cache policy with `no-store`
+when its static asset server synthesized a 404. The root catch-all in
+`functions/[[path]].js` serves the deployment-local `/404/` authority and
+explicitly applies the complete direct-response header contract to 404/410
+responses. If the asset server unexpectedly returns success for an unretained
+path, the Function replaces those stale bytes with the same authority and status
+404. `bin/pages_runtime.py` derives `_routes.json` from the retained HTML
+authority, every regular non-HTML resource, and the redirect contract. Paths in
+that exact retained route/resource/redirect set remain on static serving.
+Physical `index.html` aliases and other requests selected by the catch-all cross
+the Function. Pages treats a trailing slash as optional while matching static
+route exclusions, so slashless canonical aliases remain native/static. A 308
+that does reach the Function is preserved only when its path and destination
+exactly match an alias derived from the retained HTML authority. Unexpected
+success, generated 404s, and unowned or stale redirects receive the authoritative
+404; a retained 410 keeps its status and body with the explicit headers, while
+other operational errors remain visible. CI unit-tests and compiles that
+Function before any production upload; the live verifier proves aliases,
+custom-404 behavior, and tombstones at the custom domain.
 
 ## Deploy
 
