@@ -8,11 +8,13 @@
 
 Content and code here are licensed for reading, not for AI-training
 ingestion — see the [code license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE)
-and [content license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE-DOCS),
-both carrying an AI-training-prohibition clause. Live retrieval on a
-visitor's behalf — search, an assistant checking a claim, a coding agent
-reading the repo — is the intended use; bulk collection into a training
-corpus is not, absent written consent.
+and [content license](https://github.com/ardent-tools/ardent-tools-site/blob/main/LICENSE-DOCS).
+The AI-training stance is a separate
+[AI Use Policy](https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md),
+not a license term. Live retrieval on a visitor's behalf — search, an
+assistant checking a claim, a coding agent reading the repo — is the
+intended use; bulk collection into a training corpus is not, absent
+written consent.
 
 ## Systems
 
