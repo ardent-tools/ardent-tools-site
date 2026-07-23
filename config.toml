@@ -91,6 +91,7 @@ uri = "https://ardent.tools/about/"
 [extra.person]
 name = "Cody Kickertz"
 job_title = "AI Systems Architect"
+location = "Austin, TX"
 email = "cody@ardent.tools"
 github = "https://github.com/forkwright"
 linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"

@@ -1,9 +1,8 @@
 +++
 title = "About"
 description = "USMC finance leadership, an MBA, a pivot into data and AI engineering, and an independent practice building agent infrastructure."
+template = "about.html"
 +++
-
-# About
 
 I spent five years in the Marine Corps at Camp Lejeune, North Carolina, helping lead a disbursing office of 157 Marines and 12 civilians across seven finance functions, serving personnel across the eastern United States and Europe. On a seven-month deployment aboard three naval vessels supporting a 3,000-person Marine Expeditionary Unit, I managed a $350,000 cash budget with zero discrepancies.
 

@@ -1,0 +1,28 @@
+{# about.html — the person rendered in the same coordinate grammar as
+   the systems (DESIGN-v2 §4.6): h1 + a fact strip carrying name, role,
+   location, and a contact route, all sourced from config.extra.person
+   (the single source the footer's own Reach cluster already reads —
+   no data duplicated into this page's own frontmatter). Shadow over
+   page.html rather than an override: about.md's markdown no longer
+   carries its own leading "# About" heading, since this template now
+   renders page.title as h1 itself, matching every other content
+   template's pattern (system.html, evidence.html, consulting.html).
+#}
+{% extends "page.html" %}
+
+{% block content %}
+<header class="about-header">
+  <h1>{{ page.title }}</h1>
+  <div class="fact-row">
+    {%- if config.extra.person.name %}<span>{{ config.extra.person.name }}</span>{%- endif %}
+    {%- if config.extra.person.job_title %}<span>{{ config.extra.person.job_title }}</span>{%- endif %}
+    {%- if config.extra.person.location %}<span>{{ config.extra.person.location }}</span>{%- endif %}
+    <span><a href="/contact/">Contact <span class="arrow">&rarr;</span></a></span>
+  </div>
+</header>
+<div class="prose">
+{%- include "partials/product-gallery.html" -%}
+{{ page.content | safe }}
+{%- include "partials/video.html" -%}
+</div>
+{% endblock content %}
