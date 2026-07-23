@@ -36,7 +36,8 @@ DIRECT_RESPONSE_HEADERS = {
         "usb=(), web-share=(), xr-spatial-tracking=()"
     ),
     "content-security-policy": (
-        "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
+        "default-src 'self'; img-src 'self'; style-src 'self'; "
+        "script-src 'self' 'wasm-unsafe-eval'; "
         "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
         "frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; "
         "worker-src 'none'; upgrade-insecure-requests"

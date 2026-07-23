@@ -130,6 +130,7 @@ ADDRESSABLE_SUFFIX_AUTHORITIES = frozenset(
         ".otf",
         ".pdf",
         ".png",
+        ".sh",
         ".svg",
         ".tape",
         ".ttf",

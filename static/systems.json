@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "8269da85a40e6a433c9ee19c76b75f028cc5d1b2269855493e30cad4004f476a",
+    "input_sha256": "6a8fd4596c841e03011e91cca77af82d990128404989f35509aa4b4cbac2d3d1",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -28,7 +28,7 @@
       },
       {
         "path": "content/systems/kanon.md",
-        "sha256": "4e9adf962d5d48700f053e72dcec5c9357bf35e619dbc1111ac154f17d470d67"
+        "sha256": "75cd94d5d343d3e612602520fdc43d6b1b468eece7e4058e7813b3a67782dbab"
       },
       {
         "path": "content/systems/logismos.md",
