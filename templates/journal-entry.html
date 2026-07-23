@@ -42,6 +42,9 @@
   <p class="specs">{{ page.extra.words }}</p>
   {%- endif %}
 
+  {#- End mark (§4.4) — the tick that opens sections closes essays. #}
+  <div class="essay-end" aria-hidden="true"></div>
+
   {%- if page.lower or page.higher %}
   <nav class="entry-nav" aria-label="Journal navigation">
     {# In a section sorted by date DESC, page.higher is the chronologically

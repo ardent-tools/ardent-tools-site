@@ -454,6 +454,48 @@ nav[aria-label="Main navigation"] {
   }
 }
 
+/* Drop cap (§4.4) — the first paragraph of the essay body only; the
+   Leatherworks bookbinding move, Spectral against the mono-600 h1 above
+   it. Scoped through .journal-entry-page (the essay article's own
+   wrapper) rather than the bare .prose > p:first-of-type selector the
+   spec shows, since .prose wraps the first paragraph on every content
+   template (about, consulting, system dossiers, colophon...) — an
+   unscoped rule would drop-cap all of them, not just essays. Float
+   fallback first; @supports upgrades to the initial-letter path where
+   the browser can lay text around it properly. */
+.journal-entry-page .prose > p:first-of-type::first-letter {
+  font-family: var(--font-body);
+  font-weight: 500;
+  color: var(--accent-aged);
+  float: left;
+  font-size: 3.2em;
+  line-height: 0.82;
+  padding-right: 0.09em;
+}
+
+@supports (initial-letter: 3) {
+  .journal-entry-page .prose > p:first-of-type::first-letter {
+    float: none;
+    font-size: inherit;
+    line-height: inherit;
+    padding: 0;
+    initial-letter: 3;
+    margin-right: 0.35rem;
+  }
+}
+
+/* End mark (§4.4) — the tick that opens sections (h2::before, above)
+   closes essays: a short centered rule before the prev/next row. The
+   one deliberately centered mark on the site (§3.6's "no centered text"
+   rule governs typographic content, not this ornament). */
+.essay-end {
+  width: 2.5rem;
+  height: 1px;
+  background: var(--text);
+  margin-block: var(--space-xl) var(--space-m);
+  margin-inline: auto;
+}
+
 /* === Radius discipline: 0 everywhere except badges (2px) === */
 .ap-player,
 div.ap-wrapper div.ap-player,
