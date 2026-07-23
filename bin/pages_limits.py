@@ -9,7 +9,9 @@ from pathlib import Path
 
 MAX_STATIC_FILE_BYTES = 25 * 1024 * 1024
 MAX_HEADER_RULES = 100
-ROOT_HEADER_RULES = 1
+# The two fixed direct-response roots: "/*" (no-store default) and "/a/*"
+# (immutable override for content-addressed resources).
+ROOT_HEADER_RULES = 2
 MAX_MEDIA_TYPE_HEADER_RULES = MAX_HEADER_RULES - ROOT_HEADER_RULES
 
 
@@ -26,7 +28,7 @@ def require_media_type_rule_capacity(count: int) -> None:
     if total > MAX_HEADER_RULES:
         raise ValueError(
             "_headers would exceed Cloudflare Pages' "
-            f"{MAX_HEADER_RULES}-rule limit: {ROOT_HEADER_RULES} root rule plus "
+            f"{MAX_HEADER_RULES}-rule limit: {ROOT_HEADER_RULES} root rules plus "
             f"{count} media-type rules"
         )
 

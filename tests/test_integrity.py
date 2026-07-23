@@ -74,6 +74,7 @@ ASSET_MARKUP = (
     f'<link rel="stylesheet" href="{CSS_URL}"><script src="{JS_URL}" defer></script>'
 )
 GOOD_CACHE = "no-store, no-transform"
+GOOD_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 GOOD_CSP = (
     "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
     "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
@@ -88,9 +89,9 @@ def run_production_fixture(
     revision: str = EXPECTED_REVISION,
     revision_cache: str = "no-store, no-transform",
     css_body: bytes = CSS_BODY,
-    css_cache: str = GOOD_CACHE,
+    css_cache: str = GOOD_IMMUTABLE_CACHE,
     js_body: bytes = JS_BODY,
-    js_cache: str = GOOD_CACHE,
+    js_cache: str = GOOD_IMMUTABLE_CACHE,
     js_status: int = 200,
     error_js_body: bytes = ERROR_JS_BODY,
     about_status: int = 200,
@@ -227,7 +228,11 @@ def run_production_fixture(
             body = files[item["output_path"]]
             logical_path = item["logical_path"]
             status = 200
-            cache = GOOD_CACHE
+            cache = (
+                GOOD_IMMUTABLE_CACHE
+                if item["cache_class"] in {"addressed", "retained"}
+                else GOOD_CACHE
+            )
             if logical_path == "build-revision.txt":
                 body = f"{revision}\n".encode()
                 cache = revision_cache
@@ -475,13 +480,22 @@ class ProductionAssetContractTests(unittest.TestCase):
         )
         self.assertTrue(all(JS_OUTPUT in error for error in errors), errors)
 
-    def test_immutable_asset_cache_policy_fails(self) -> None:
+    def test_malformed_immutable_asset_cache_policy_fails(self) -> None:
         errors = run_production_fixture(
             self,
             js_cache="public, max-age=0, must-revalidate, no-transform, immutable",
         )
         self.assertEqual(len(errors), 1, errors)
-        self.assertIn("must be exactly no-store, no-transform", errors[0])
+        self.assertIn(
+            "must be exactly public, max-age=31536000, immutable", errors[0]
+        )
+
+    def test_addressed_asset_no_store_cache_policy_fails(self) -> None:
+        errors = run_production_fixture(self, js_cache=GOOD_CACHE)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn(
+            "must be exactly public, max-age=31536000, immutable", errors[0]
+        )
 
     def test_non_200_authored_asset_fails(self) -> None:
         errors = run_production_fixture(self, js_status=404, js_body=b"not found")
@@ -2302,6 +2316,53 @@ class HeaderContractTests(unittest.TestCase):
                 )
                 self.assertTrue(errors, label)
 
+    def test_addressed_asset_cache_control_must_detach_the_inherited_value(
+        self,
+    ) -> None:
+        raw = self.finalized_headers()
+        detach_line = "  ! Cache-Control\n"
+        self.assertIn(detach_line, raw)
+        without_detach = raw.replace(detach_line, "")
+        _contract, errors = headers_contract.validate_headers(
+            without_detach, self.repository_manifest()
+        )
+        self.assertTrue(
+            any("must detach the inherited" in error for error in errors), errors
+        )
+
+    def test_addressed_asset_section_missing_entirely_fails(self) -> None:
+        raw = self.finalized_headers()
+        without_section = raw.replace(
+            "\n/a/*\n  ! Cache-Control\n  Cache-Control: public, max-age=31536000, immutable\n",
+            "\n",
+        )
+        self.assertNotEqual(without_section, raw)
+        _contract, errors = headers_contract.validate_headers(
+            without_section, self.repository_manifest()
+        )
+        self.assertTrue(
+            any("supported path set differs" in error for error in errors), errors
+        )
+
+    def test_parse_headers_tracks_detach_independent_of_the_resulting_map(
+        self,
+    ) -> None:
+        raw = "/a/*\n  ! Cache-Control\n  Cache-Control: public, max-age=1, immutable\n"
+        sections, detached, errors = headers_contract.parse_headers(raw)
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            sections["/a/*"], {"cache-control": "public, max-age=1, immutable"}
+        )
+        self.assertIn("cache-control", detached["/a/*"])
+
+        bare_detach = "/a/*\n  ! Cache-Control\n"
+        bare_sections, bare_detached, bare_errors = headers_contract.parse_headers(
+            bare_detach
+        )
+        self.assertEqual(bare_errors, [])
+        self.assertEqual(bare_sections["/a/*"], {})
+        self.assertIn("cache-control", bare_detached["/a/*"])
+
     def test_live_direct_header_omission_and_duplicate_fail(self) -> None:
         missing = run_production_fixture(
             self,
@@ -2969,6 +3030,57 @@ class CacheContractTests(unittest.TestCase):
             any("must be exactly no-store, no-transform" in error for error in errors),
             errors,
         )
+
+    def test_addressed_asset_prefix_requires_the_detached_immutable_override(
+        self,
+    ) -> None:
+        headers = """/*
+  Cache-Control: no-store, no-transform
+
+/a/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("a").mkdir()
+            output.joinpath("a/" + "0" * 64 + ".css").write_text("body{}")
+            errors: list[str] = []
+            site.validate_cache_contract(errors, output, headers)
+        self.assertEqual(errors, [])
+
+    def test_addressed_asset_prefix_without_detach_joins_and_fails(self) -> None:
+        # Cloudflare Pages joins same-name headers from overlapping sections
+        # rather than letting the later one win; a /a/* Cache-Control line
+        # with no preceding detach leaves both the inherited no-store value
+        # and the new immutable one in effect, which is neither policy.
+        headers = """/*
+  Cache-Control: no-store, no-transform
+
+/a/*
+  Cache-Control: public, max-age=31536000, immutable
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("a").mkdir()
+            output.joinpath("a/" + "0" * 64 + ".css").write_text("body{}")
+            errors: list[str] = []
+            site.validate_cache_contract(errors, output, headers)
+        self.assertTrue(
+            any("2 effective Cache-Control" in error for error in errors), errors
+        )
+
+    def test_repository_headers_pass_the_two_tier_cache_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            output.joinpath("a").mkdir()
+            output.joinpath("a/" + "1" * 64 + ".css").write_text("body{}")
+            output.joinpath("index.html").write_text("home\n")
+            errors: list[str] = []
+            site.validate_cache_contract(
+                errors, output, (ROOT / "_headers").read_text()
+            )
+        self.assertEqual(errors, [])
 
 
 class RecordingContractTests(unittest.TestCase):

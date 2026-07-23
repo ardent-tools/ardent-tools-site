@@ -23,7 +23,7 @@ from release_manifest import (
     validate_public_references,
 )
 from pages_limits import validate_static_tree
-from header_contract import load_headers
+from header_contract import ADDRESSED_ASSET_CACHE_CONTROL, ADDRESSED_ASSET_PATH, load_headers
 from html_authority import AUTHORITY_NAME, validate_authority
 from pages_runtime import validate_runtime
 from redirect_contract import load_redirects
@@ -216,12 +216,20 @@ def validate_cache_contract(errors: list[str], output: Path, headers_text: str) 
                     value.strip().strip('"').lower() if separator else None,
                 )
             )
-        if Counter(directives) != Counter(
-            {("no-store", None): 1, ("no-transform", None): 1}
-        ):
+        # /a/* is provably immutable by construction (content-addressed);
+        # every other path keeps the root no-store default.
+        if fnmatch.fnmatchcase(path, ADDRESSED_ASSET_PATH):
+            expected = Counter(
+                {("public", None): 1, ("max-age", "31536000"): 1, ("immutable", None): 1}
+            )
+            description = ADDRESSED_ASSET_CACHE_CONTROL
+        else:
+            expected = Counter({("no-store", None): 1, ("no-transform", None): 1})
+            description = "no-store, no-transform"
+        if Counter(directives) != expected:
             fail(
                 errors,
-                f"_headers: {path} Cache-Control must be exactly no-store, no-transform; "
+                f"_headers: {path} Cache-Control must be exactly {description}; "
                 f"found {cache_values[0]!r}",
             )
 

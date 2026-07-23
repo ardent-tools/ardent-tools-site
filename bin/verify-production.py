@@ -51,6 +51,10 @@ REQUIRED_RELEASE_LOGICAL_PATHS = (
     "speculation-rules.json",
 )
 CUSTOM_404_MARKERS = ("404: no such path", "Return home")
+# Both classes are served at /a/<full-sha256>.<ext> — provably immutable by
+# construction, so they carry the long-lived immutable policy rather than
+# the root no-store default (see release_manifest.py's cache_class values).
+ADDRESSED_ASSET_CACHE_CLASSES = frozenset({"addressed", "retained"})
 STRICT_ZERO_CAST_CSP = {
     "default-src": ("'self'",),
     "img-src": ("'self'",),
@@ -152,6 +156,24 @@ def validate_no_store_cache(
         errors.append(
             f"{label} Cache-Control must be exactly no-store, no-transform; "
             f"found {cache_control!r}"
+        )
+
+
+def validate_immutable_cache(
+    errors: list[str], label: str, headers: dict[str, str]
+) -> None:
+    """Addressed/retained resources live at /a/<full-sha256>.<ext> — provably
+    immutable by construction — and carry the matching long-lived policy
+    instead of the root no-store default."""
+    cache_control = header(headers, "Cache-Control")
+    directives = cache_directives(headers)
+    expected = Counter(
+        {("public", None): 1, ("max-age", "31536000"): 1, ("immutable", None): 1}
+    )
+    if Counter(directives) != expected:
+        errors.append(
+            f"{label} Cache-Control must be exactly public, max-age=31536000, "
+            f"immutable; found {cache_control!r}"
         )
 
 
@@ -541,9 +563,14 @@ def verify(
             )
             continue
         if not directly_validated:
-            validate_no_store_cache(
-                errors, f"release resource {relative_url!r}", resource_headers
-            )
+            if item.get("cache_class") in ADDRESSED_ASSET_CACHE_CLASSES:
+                validate_immutable_cache(
+                    errors, f"release resource {relative_url!r}", resource_headers
+                )
+            else:
+                validate_no_store_cache(
+                    errors, f"release resource {relative_url!r}", resource_headers
+                )
         validate_live_direct_headers(
             errors,
             f"release resource {relative_url!r}",
@@ -701,7 +728,11 @@ def verify(
                 )
             continue
         if not in_manifest:
-            validate_no_store_cache(
+            # collect_hashed_assets() only accepts /a/<full-sha256>.<extension>
+            # references, so any asset reaching this branch is, by
+            # construction, under the immutable /a/* policy regardless of its
+            # (missing) manifest entry.
+            validate_immutable_cache(
                 errors, f"authored {kind} asset {asset_url!r}", asset_headers
             )
         digest = hashlib.sha256(asset_body).hexdigest()

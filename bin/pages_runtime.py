@@ -315,7 +315,7 @@ def validate_function_headers(output: Path) -> list[str]:
         raw_headers = (output / "_headers").read_text()
     except OSError as exc:
         return errors + [f"pages runtime: cannot read retained _headers: {exc}"]
-    sections, header_errors = parse_headers(raw_headers)
+    sections, _detached, header_errors = parse_headers(raw_headers)
     errors.extend(header_errors)
     static_headers = sections.get(ROOT_PATH)
     if static_headers is None:
