@@ -23,7 +23,7 @@
     <div class="catalog-row-meta">
       <span>{{ item.badge }}</span>
       <span>{{ item.license }}</span>
-      <span><a href="{{ item.repo | safe }}">REPO &rarr;</a></span>
+      <span><a href="{{ item.repo | safe }}">REPO <span class="arrow">&rarr;</span></a></span>
     </div>
   </li>
   {%- endfor %}

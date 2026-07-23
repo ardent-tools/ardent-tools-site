@@ -28,11 +28,11 @@
 
   {%- if config.extra.footer.sibling_url %}
   <p class="site-footer-sibling">
-    <a href="{{ config.extra.footer.sibling_url | safe }}">{{ config.extra.footer.sibling_label | default(value="SIBLING WORKSHOP") }} &rarr;</a>
+    <a href="{{ config.extra.footer.sibling_url | safe }}">{{ config.extra.footer.sibling_label | default(value="SIBLING WORKSHOP") }} <span class="arrow">&rarr;</span></a>
   </p>
   {%- endif %}
 
   {%- if config.extra.footer.colophon_summary %}
-  <p class="site-footer-colophon">{{ config.extra.footer.colophon_summary }} <a href="/colophon/">Full colophon &rarr;</a></p>
+  <p class="site-footer-colophon">{{ config.extra.footer.colophon_summary }} <a href="/colophon/">Full colophon <span class="arrow">&rarr;</span></a></p>
   {%- endif %}
 </footer>

@@ -32,7 +32,7 @@
     <span>PRIVATE &middot; CASE STUDY</span>
     {%- endif %}
     {%- if page.extra.demo and page.extra.demo.cast %}
-    <span><a href="{{ page.permalink | safe }}">WATCH RECORDING{% if page.extra.demo.duration %}: {{ page.extra.demo.duration }}{% endif %} &rarr;</a></span>
+    <span><a href="{{ page.permalink | safe }}">WATCH RECORDING{% if page.extra.demo.duration %}: {{ page.extra.demo.duration }}{% endif %} <span class="arrow">&rarr;</span></a></span>
     {%- endif %}
   </div>
 </li>
