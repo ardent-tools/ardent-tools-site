@@ -39,10 +39,12 @@
    editorial text claiming the considered middle column, same treatment
    as .evidence-intro, not the narrow reading measure a one-sentence intro
    doesn't need. #}
+<header class="catalog-header">
 <h1>{{ section.title }}</h1>
 <div class="systems-intro">
 {{ section.content | safe }}
 </div>
+</header>
 
 <p class="catalog-index">
   <a href="#systems">SYSTEMS {{ section.pages | length }}</a> &middot;
@@ -52,7 +54,7 @@
 </p>
 
 <div class="catalog-group zone-systems" id="systems">
-  <h2>Flagship systems</h2>
+  <h2><span class="group-index">01</span> &mdash; Flagship systems <span class="group-count">&middot; {{ section.pages | length }}</span></h2>
   <p class="group-caption">The flagship layer — an OS, an agent runtime, a standards engine, a media platform, an RF toolkit, a GPU inference stack, a mesh client.</p>
   <ul class="catalog">
     {%- for p in section.pages %}
@@ -62,7 +64,7 @@
 </div>
 
 <div class="catalog-group zone-libraries" id="libraries">
-  <h2>Libraries</h2>
+  <h2><span class="group-index">02</span> &mdash; Libraries <span class="group-count">&middot; {{ lib_count }}</span></h2>
   <p class="group-caption">Shared substrate the systems above are built on: search primitives, sealing, subprocess handling, common scaffolding.</p>
   {%- set_global libs = [] %}
   {%- for item in section.extra.ledger %}{% if item.group == "libraries" %}{% set_global libs = libs | concat(with=[item]) %}{% endif %}{% endfor %}
@@ -70,7 +72,7 @@
 </div>
 
 <div class="catalog-group zone-web" id="web">
-  <h2>Web</h2>
+  <h2><span class="group-index">03</span> &mdash; Web <span class="group-count">&middot; {{ web_count }}</span></h2>
   <p class="group-caption">Web-facing infrastructure: this site's own theme, and a self-hosted newsletter service.</p>
   {%- set_global webs = [] %}
   {%- for item in section.extra.ledger %}{% if item.group == "web" %}{% set_global webs = webs | concat(with=item) %}{% endif %}{% endfor %}
@@ -78,14 +80,14 @@
 </div>
 
 <div class="catalog-group" id="in-design">
-  <h2>In design</h2>
+  <h2><span class="group-index">04</span> &mdash; In design <span class="group-count">&middot; {{ design_count }}</span></h2>
   <p class="group-caption">Specification before code — locked design decisions, no shipped implementation yet.</p>
   {%- set_global designs = [] %}
   {%- for item in section.extra.ledger %}{% if item.group == "in-design" %}{% set_global designs = designs | concat(with=item) %}{% endif %}{% endfor %}
   {{ ledger::register(items=designs) }}
 </div>
 
-<p class="catalog-footnote">FLEET CI WORKFLOWS: <a href="https://github.com/forkwright/.github">FORKWRIGHT/.GITHUB &rarr;</a></p>
+<p class="catalog-footnote">FLEET CI WORKFLOWS: <a href="https://github.com/forkwright/.github">FORKWRIGHT/.GITHUB <span class="arrow">&rarr;</span></a></p>
 
-<p class="catalog-ownership">Systems built in employment are employer property, described under professional experience <a href="/about/#built-in-employment">&rarr;</a></p>
+<p class="catalog-ownership">Systems built in employment are employer property, described under professional experience <a href="/about/#built-in-employment"><span class="arrow">&rarr;</span></a></p>
 {% endblock content %}

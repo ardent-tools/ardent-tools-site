@@ -2,6 +2,7 @@
    source for both current receipts and future recording targets. A planned
    target is prose, never a player-shaped placeholder. #}
 {% extends "page.html" %}
+{% import "partials/asset-url.html" as asset_url %}
 
 {% block content %}
 {%- set systems = get_section(path="systems/_index.md") %}
@@ -13,6 +14,14 @@
 
 <header class="evidence-header">
   <h1>{{ page.title }}</h1>
+  {#- Count line (§4.3) — the honest zero rendered as a number, computed
+     from the same section/cast counts the register below uses. This
+     must render unconditionally, including when a count is zero: the
+     zero is the page's own thesis made visible, never hidden behind a
+     conditional. #}
+  {%- set sys_n = systems.pages | length %}
+  {%- set ess_n = writing.pages | length %}
+  <p class="evidence-count-line">systems {% if sys_n < 10 %}0{% endif %}{{ sys_n }} &middot; essays {% if ess_n < 10 %}0{% endif %}{{ ess_n }} &middot; recordings {% if cast_count < 10 %}0{% endif %}{{ cast_count }}</p>
   <div class="evidence-intro">{{ page.content | safe }}</div>
 </header>
 
@@ -47,7 +56,7 @@
       <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} — {{ system.extra.demo.target }}{% endif %}</p>
       <p><strong>Would show:</strong> {{ system.extra.demo.shows }}</p>
       <p><strong>Would not show:</strong> {{ system.extra.demo.not_shows }}</p>
-      {%- if system.extra.demo.tape %}<p><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}">Inspect the planned recording script&nbsp;&rarr;</a></p>{% endif %}
+      {%- if system.extra.demo.tape %}<p><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}">Inspect the planned recording script&nbsp;<span class="arrow">&rarr;</span></a></p>{% endif %}
     </li>
       {%- endif %}
     {%- endfor %}

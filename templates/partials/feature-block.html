@@ -1,0 +1,44 @@
+{# feature-block.html — the featured-system "product moment" (DESIGN-v2
+   §3.3). Renders one system page as a full-bleed wash section: index
+   kicker, title, serif description, headline claim, badge, and a
+   dossier link, paired with either a frontmatter-derived spec plate
+   (thumos/aletheia) or a horizontal fact strip (harmonia — the third
+   block breaks the alternation on purpose). Every field comes straight
+   from the page's own frontmatter; nothing here is invented, and no
+   fake terminal renders — when a system publishes a cast, the spec
+   plate slot is what a terminal plate replaces.
+
+   layout: "lead" (text left, plate right) | "mirror" (plate left, text
+   right) | "stack" (single column, fact strip instead of a plate).
+#}
+{% macro block(page, index, layout) %}
+<section class="feature-block feature-{{ page.slug }} feature-{{ layout }}" aria-labelledby="feature-{{ page.slug }}-title">
+  <div class="feature-text">
+    <p class="feature-index"><span class="feature-index-n">{{ index }}</span> &middot; <span class="feature-index-name">{{ page.slug }}</span></p>
+    <h3 id="feature-{{ page.slug }}-title" class="feature-title"><a href="{{ page.permalink | safe }}">{{ page.title }}</a></h3>
+    {%- if page.description %}
+    <p class="feature-desc">{{ page.description }}</p>
+    {%- endif %}
+    {%- if page.extra.headline_claim %}
+    <p class="feature-claim">{{ page.extra.headline_claim.claim }}</p>
+    {%- endif %}
+    {%- if page.extra.badge %}
+    <p><span class="badge">{{ page.extra.badge }}</span></p>
+    {%- endif %}
+    <p class="feature-link"><a href="{{ page.permalink | safe }}">Read the dossier <span class="arrow">&rarr;</span></a></p>
+  </div>
+  {%- if layout == "stack" %}
+  <div class="fact-row">
+    {%- if page.extra.badge %}<span>{{ page.extra.badge }}</span>{%- endif %}
+    {%- if page.extra.stack %}<span>{{ page.extra.stack }}</span>{%- endif %}
+    {%- if page.extra.headline_claim %}<span>{{ page.extra.headline_claim.receipt }}</span>{%- endif %}
+  </div>
+  {%- else %}
+  <dl class="spec-plate">
+    {%- if page.extra.badge %}<div><dt>Status</dt><dd>{{ page.extra.badge }}</dd></div>{%- endif %}
+    {%- if page.extra.stack %}<div><dt>Stack</dt><dd>{{ page.extra.stack }}</dd></div>{%- endif %}
+    {%- if page.extra.headline_claim %}<div><dt>Receipt</dt><dd>{{ page.extra.headline_claim.receipt }}</dd></div>{%- endif %}
+  </dl>
+  {%- endif %}
+</section>
+{% endmacro block %}
