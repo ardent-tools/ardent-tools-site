@@ -21,13 +21,6 @@ The check also refuses to pass what it cannot check. A `file_lines` value with n
 
 A run against kanon on 2026-06-22 produced 31 candidates that had already cleared citation-verification - 31 quotes, all real, all sitting exactly where each finding said they sat. Those 31 went on to a second pass - a strong model reading each cited location in context, told to assume every finding false until the surrounding code proved otherwise. 28 came back refuted. Three more were real but rated too high, and were corrected down. None of the 31 survived the second pass at its original rating.
 
-| Outcome | Count |
-|---|---|
-| Citation-verified candidates | 31 |
-| Refuted by the adversarial judge | 28 |
-| Real, severity corrected down | 3 |
-| Real, upheld as originally rated | 0 |
-
 Crypto and kernel-adjacent code produced the worst of it, the surface where a plausible-sounding defect and a real one read almost identically to a model pattern-matching on shape instead of tracing control flow. Nothing in the run was a bad citation or a formatting slip. Every one of the 28 refuted findings had already passed the check that confirms its quote is real.
 
 ---
