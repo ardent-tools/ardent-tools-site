@@ -4,6 +4,7 @@ description = "Two pre-registered kill tests, run before a line of extraction co
 date = 2026-07-20
 
 [extra]
+tier = "research"
 components = "falsifiability · spectral analysis · kill gates"
 words = "~1490 words"
 +++

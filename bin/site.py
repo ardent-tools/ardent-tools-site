@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 
 
@@ -37,6 +38,35 @@ def run(command: list[str]) -> None:
 def verify_derivations() -> None:
     for script, output in DERIVATIONS:
         run([sys.executable, script, "--output", output, "--check"])
+
+
+def verify_writing_tiers() -> None:
+    # WHY: the two-tier /writing/ template groups by extra.tier; an untagged
+    # entry would fall through both groups and vanish from the listing. Fail
+    # closed on any writing entry missing a valid tier.
+    valid = {"notes", "research"}
+    problems: list[str] = []
+    for path in sorted((ROOT / "content/writing").glob("*.md")):
+        if path.name == "_index.md":
+            continue
+        lines = path.read_text(encoding="utf-8").splitlines()
+        fences = [i for i, line in enumerate(lines) if line.strip() == "+++"]
+        tier = None
+        if len(fences) >= 2:
+            frontmatter = "\n".join(lines[fences[0] + 1 : fences[1]])
+            tier = tomllib.loads(frontmatter).get("extra", {}).get("tier")
+        if tier not in valid:
+            problems.append(
+                f"{path.relative_to(ROOT)}: extra.tier must be one of "
+                f"{sorted(valid)}, got {tier!r}"
+            )
+    if problems:
+        sys.stderr.write(
+            "ERROR: writing entries missing a valid extra.tier:\n  "
+            + "\n  ".join(problems)
+            + "\n"
+        )
+        raise SystemExit(1)
 
 
 def atomic_write(path: Path, body: bytes) -> None:
@@ -233,6 +263,7 @@ def main() -> int:
             verify_derivations()
             return 0
         if command in {"check", "build"}:
+            verify_writing_tiers()
             verify_derivations()
             os.execvp("zola", ["zola", command, *arguments])
         if command == "serve":
