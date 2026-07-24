@@ -4,6 +4,7 @@ description = "Five rungs a rule can live on, from merge gate to one-off prompt,
 date = 2026-07-20
 
 [extra]
+tier = "research"
 components = "hardness ladder · demotion law · proxy gates"
 words = "~1600 words"
 +++
