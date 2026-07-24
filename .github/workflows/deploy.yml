@@ -14,6 +14,11 @@
 # Secrets the consumer must set in GitHub repo settings:
 #   - CLOUDFLARE_API_TOKEN
 #   - CLOUDFLARE_ACCOUNT_ID
+# Optional (enables the post-deploy CDN cache purge; without them the purge step
+# warns and skips, and a shared-header change will not reach unchanged immutable
+# resources until the cache is purged - see issue #79):
+#   - CLOUDFLARE_ZONE_ID            (the zone id for the canonical domain)
+#   - CLOUDFLARE_CACHE_PURGE_TOKEN  (a token scoped to zone:cache_purge)
 
 name: Deploy to Cloudflare Pages
 
@@ -188,6 +193,32 @@ jobs:
             --project ardent-tools \
             --production-branch main)
           echo "ARDENT_IMMUTABLE_URL=$immutable_url" >> "$GITHUB_ENV"
+
+      - name: Purge Cloudflare cache so shared-header changes reach immutable resources
+        # WHY: content-addressed /a/<sha> resources are served `immutable`. When a
+        # shared response header (CSP, Permissions-Policy, ...) changes but a
+        # resource's bytes do not, its URL is unchanged and the edge keeps serving
+        # the cached response with the OLD header - the canonical-origin verify then
+        # fails on every unchanged resource. Purging forces a re-fetch so every
+        # response carries the current header contract. See issue #79.
+        # Fail-open on absent secrets: skips with a warning, never breaks a deploy.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        env:
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CF_PURGE_TOKEN: ${{ secrets.CLOUDFLARE_CACHE_PURGE_TOKEN }}
+        run: |
+          if [ -z "$CF_ZONE_ID" ] || [ -z "$CF_PURGE_TOKEN" ]; then
+            echo "::warning::CLOUDFLARE_ZONE_ID / CLOUDFLARE_CACHE_PURGE_TOKEN not set; skipping CDN purge. A shared-header change will not reach unchanged immutable resources until the cache is purged (issue #79)."
+            exit 0
+          fi
+          curl -sS --retry 3 --retry-delay 5 -o "$RUNNER_TEMP/cf-purge.json" -w 'HTTP %{http_code}\n' \
+            -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_PURGE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}'
+          python3 -c "import json,sys; r=json.load(open('$RUNNER_TEMP/cf-purge.json')); print('purge success:', r.get('success'), r.get('errors') or ''); sys.exit(0 if r.get('success') else 1)"
+          echo "cache purged; pausing for edge propagation before the canonical verify"
+          sleep 15
 
       - name: Verify live authored/runtime boundary
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
