@@ -3168,12 +3168,19 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertEqual(checkout_step.get("uses", "").split("@")[0], "actions/checkout")
         self.assertEqual(checkout_step["with"]["fetch-depth"], "0")
 
+        # wrangler comes from the pinned npm ci toolchain (node_modules/.bin on
+        # PATH), not a per-step global install; the install step must precede it.
+        install_step = workflow_step(steps, "Install pa11y-ci, lychee, playwright")
+        self.assertIn("npm ci", install_step["run"])
+        self.assertIn('node_modules/.bin" >> "$GITHUB_PATH"', install_step["run"])
         compile_step = workflow_step(steps, "Compile the Pages error boundary")
-        install = compile_step["run"].index("npm install -g wrangler@4.112.0")
-        compile_function = compile_step["run"].index(
-            "wrangler pages functions build functions"
+        self.assertIn(
+            "wrangler pages functions build functions", compile_step["run"]
         )
-        self.assertLess(install, compile_function)
+        self.assertLess(
+            step_names.index("Install pa11y-ci, lychee, playwright"),
+            step_names.index("Compile the Pages error boundary"),
+        )
         self.assertLess(
             step_names.index("Compile the Pages error boundary"),
             step_names.index("Deploy to Cloudflare Pages"),
