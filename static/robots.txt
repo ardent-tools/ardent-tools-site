@@ -1,4 +1,50 @@
+# Search indexing and live retrieval on a visitor's behalf are welcome - that is
+# the intended use of this public, source-linked site. Building or improving an
+# AI model on this work, including bulk collection into a training corpus, is not
+# permitted without written consent. Full policy: /AI-USE-POLICY.md
+# https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md
+
 User-agent: *
 Allow: /
+
+# Known training-corpus crawlers - disallowed per the policy above. Search
+# engines (Googlebot, Bingbot, ...) and live-retrieval agents (ChatGPT-User,
+# OAI-SearchBot, Claude-User, Claude-SearchBot, PerplexityBot, Applebot, ...) are
+# deliberately not listed and stay allowed by the rule above.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
 
 Sitemap: https://ardent.tools/sitemap.xml

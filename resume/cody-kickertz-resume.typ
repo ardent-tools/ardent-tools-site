@@ -67,7 +67,7 @@
 
 #section("EXPERIENCE")
 
-#role("Summus Global", "2023–Present", subtitle: "Data Scientist & AI Systems Architect")
+#role("Summus Global", "2023–2026", subtitle: "Data Scientist & AI Systems Architect")
 
 - Architected an agent-native internal analytics platform in Rust: a governed MCP tool server with 137 tools over the data warehouse, protected by SQL validation, SELECT-only database policy, and a hard block on raw-CLI writes against production PHI.
 - Built a standards-as-code governance layer with 284 machine-enforced rules across 13 registries, wired to commit-time gates and a promotion loop that turns observed tool use into reviewed, durable infrastructure.
