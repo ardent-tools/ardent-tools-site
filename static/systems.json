@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "6a8fd4596c841e03011e91cca77af82d990128404989f35509aa4b4cbac2d3d1",
+    "input_sha256": "94242f8f37de6c51af0a8380985baa8a1a9066821f3b5362e0d4a47e5f3ce8e9",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -20,7 +20,7 @@
       },
       {
         "path": "content/systems/hamma.md",
-        "sha256": "15baa38ad416ca6408351c482ce6d06d635af2d7385e448d8505d9275b6f931c"
+        "sha256": "defaa1b6e9bc8dca166e13a69be5faeee4169dd70bc0f3e24661570bc4ad304e"
       },
       {
         "path": "content/systems/harmonia.md",
