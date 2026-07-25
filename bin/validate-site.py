@@ -52,7 +52,7 @@ WORKSPACE_COMMAND = (
 TOKEI_COMMAND = "tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'"
 PINNED_SNAPSHOTS = {
     "akroasis.md": "4e3712669df7",
-    "hamma.md": "216e2adc83d5",
+    "hamma.md": "2423485c5c48",
     "logismos.md": "94e4e97dce6e",
     "thumos.md": "77cc89906a52",
 }
@@ -60,10 +60,8 @@ REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 ADDRESSED_ASSET_RE = re.compile(r"^/a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
 TAPE_TARGETS = {
     "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
-    "hamma-tests.tape": "ARDENT_HAMMA_ROOT",
     "harmonia-serve.tape": "ARDENT_HARMONIA_ROOT",
     "logismos-parity.tape": "ARDENT_LOGISMOS_ROOT",
-    "thumos-boot.tape": "ARDENT_THUMOS_ROOT",
 }
 FORBIDDEN_TAPE_FORMS = (
     "sudo ",
@@ -826,18 +824,34 @@ def main() -> int:
     if "cpu_baseline.json" in tape:
         fail(errors, "Logismos tape retains the wrong cpu_baseline.json fixture")
 
-    thumos_tape = Path("static/tapes/thumos-boot.tape").read_text()
+    # The thumos cast is published; its reproduction recipe is the asciinema
+    # driver, not a VHS tape. The recipe must build the same primary qemu-feature
+    # target CI builds, boot it through the same runner path (stdin from
+    # /dev/null so -nographic does not block a recording pty), and gate each
+    # step's marker, build before boot before the boundary line.
+    thumos_recipe = Path("static/tapes/thumos-boot.driver.sh").read_text()
     for required in (
-        'Type "cd \\"$ARDENT_THUMOS_ROOT/crates/thumos\\""',
-        "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8",
-        "../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos",
+        "PIN=3352cef887cf",
+        "ARDENT_THUMOS_ROOT",
+        "git clone --quiet https://github.com/forkwright/thumos.git",
+        "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8 && ok BUILD_OK",
+        "../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos < /dev/null && ok BOOT_OK",
+        "not shown: physical AGM M7 hardware",
     ):
-        if required not in thumos_tape:
-            fail(errors, f"Thumos tape lacks authoritative CI command/path: {required}")
-    if "scripts/qemu-runner.sh target/" in thumos_tape.replace(
+        if required not in thumos_recipe:
+            fail(errors, f"Thumos recipe lacks reproduction contract: {required}")
+    t_build = thumos_recipe.find("ok BUILD_OK")
+    t_boot = thumos_recipe.find("ok BOOT_OK", t_build)
+    t_boundary = thumos_recipe.find("not shown: physical AGM M7", t_boot)
+    if not (0 <= t_build < t_boot < t_boundary):
+        fail(errors, "Thumos recipe must build then boot before the boundary line")
+    if "scripts/qemu-runner.sh target/" in thumos_recipe.replace(
         "../../scripts/qemu-runner.sh target/", ""
     ):
-        fail(errors, "Thumos tape retains the stale repo-root runner path")
+        fail(errors, "Thumos recipe retains the stale repo-root runner path")
+    for dangerous in ("git checkout --", "$HOME/dev", "sudo ", "dnf install", "rm -rf /"):
+        if dangerous in thumos_recipe:
+            fail(errors, f"Thumos recipe retains dangerous or stale form: {dangerous!r}")
 
     # The kanon cast is published; its reproduction recipe is the asciinema
     # driver, not a VHS tape. The recipe must reproduce the cast against a
@@ -881,6 +895,32 @@ def main() -> int:
         if dangerous in kanon_recipe:
             fail(errors, f"Kanon recipe retains dangerous or stale form: {dangerous!r}")
 
+    # The hamma cast is published; its recipe runs the hamma-core and dictyon
+    # test suites against a public clone pinned to the commit the cast's
+    # rev-parse beat shows, then the boundary line. Not an end-to-end tailnet.
+    hamma_recipe = Path("static/tapes/hamma-tests.driver.sh").read_text()
+    for required in (
+        "PIN=2423485c5c48",
+        "ARDENT_HAMMA_ROOT",
+        "git clone --quiet https://github.com/forkwright/hamma.git",
+        "cargo test -p hamma-core && ok CORE_TESTS_OK",
+        "cargo test -p dictyon && ok DICTYON_TESTS_OK",
+        "not shown: two peers on a tailnet",
+    ):
+        if required not in hamma_recipe:
+            fail(errors, f"Hamma recipe lacks reproduction contract: {required}")
+    h_core = hamma_recipe.find("ok CORE_TESTS_OK")
+    h_dictyon = hamma_recipe.find("ok DICTYON_TESTS_OK", h_core)
+    h_boundary = hamma_recipe.find("not shown: two peers", h_dictyon)
+    if not (0 <= h_core < h_dictyon < h_boundary):
+        fail(
+            errors,
+            "Hamma recipe must run core then dictyon tests before the boundary line",
+        )
+    for dangerous in ("git checkout --", "$HOME/dev", "every public repo"):
+        if dangerous in hamma_recipe:
+            fail(errors, f"Hamma recipe retains dangerous or stale form: {dangerous!r}")
+
     harmonia_tape = Path("static/tapes/harmonia-serve.tape").read_text()
     for stale in ("/api/library/scan", "import queue", "populat"):
         if stale in harmonia_tape.lower():
@@ -891,6 +931,7 @@ def main() -> int:
         for path in [
             Path("config.toml"),
             Path("content/colophon.md"),
+            Path("content/evidence.md"),
             Path("static/llms.txt"),
             Path("static/img/og-card.svg"),
         ]
@@ -898,6 +939,12 @@ def main() -> int:
     for stale_claim in (
         "Recordings and receipts, not claims",
         "Every recording on one page",
+        # The published-cast count is derived by the /evidence/ register from
+        # system frontmatter; receipt prose must never enumerate or categorize
+        # it. These three drifted the moment a second cast (hamma) landed.
+        "One cast is published so far",
+        "today that is kanon",
+        "The recordings are still backlog",
     ):
         if stale_claim in source_corpus:
             fail(errors, f"stale recording claim remains: {stale_claim!r}")

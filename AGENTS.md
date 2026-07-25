@@ -138,7 +138,7 @@ must report only embedded/subsetted Nimbus Sans Regular and Bold.
 
 ## Open items from the build pass
 
-- The kanon cast is published - the first. Its player, panel, WATCH link, recipe link, and the `wasm-unsafe-eval` CSP exception are live and gate-enforced; the reproduction recipe is `static/tapes/kanon-gate.driver.sh` (asciinema, not VHS - VHS cannot emit `.cast`), validated by `validate-site.py`. The remaining systems show recording targets as backlog prose (their `.tape` files are planned VHS storyboards) until their casts land.
+- Published casts live at `static/casts/<name>.cast` with a reproduction recipe at `static/tapes/<name>.driver.sh` (asciinema, not VHS - VHS cannot emit `.cast`); for each, the player, panel, WATCH link, recipe link, and the shared `wasm-unsafe-eval` CSP exception are live and gate-enforced by `validate-site.py`. Systems without a cast show their recording targets as backlog prose, and their planned `.tape` VHS storyboards under `static/tapes/` stand until their casts land.
 - The résumé PDF source is `static/files/cody-kickertz-resume.pdf`, linked from `/hire/` (its home page — `/resume/` 301s there) and `/about/`; the home hero links to `/hire/` rather than triggering the download directly. Finalization emits a physical full-digest URL with the stable download filename `cody-kickertz-resume.pdf`.
 - `about.md` carries no `## Influences` section (removed in v1.1 phase A pending the operator's actual 5-8 entries; add it back only with real content).
 - `logismos` and `harmonia` carry DESIGN-defined launch gates (CI + CLAUDE.md language for logismos; run instructions for harmonia) that are not yet cleared. No build-pass report exists in this repo; check `kanon planning` for each repo's current gate status.

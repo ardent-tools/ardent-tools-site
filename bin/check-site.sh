@@ -206,7 +206,9 @@ SITE_OUTPUT_DIR="$LOCAL_OUTPUT" TYPIKON_BASE_URL="$LOCAL_BASE_URL" \
   pa11y-ci --config tests/pa11y.config.cjs
 
 echo "==> all-route Playwright"
-NODE_PATH=$(npm root -g)
+# Resolve @playwright/test from a local npm ci tree (CI) first, then a global
+# install (a local gate run that installed the tools globally). Backward-compatible.
+NODE_PATH="$(npm root):$(npm root -g)"
 export NODE_PATH
 SITE_OUTPUT_DIR="$LOCAL_OUTPUT" TYPIKON_BASE_URL="$LOCAL_BASE_URL" \
 PLAYWRIGHT_OUTPUT_DIR="$CHECK_ROOT/playwright-artifacts" \
