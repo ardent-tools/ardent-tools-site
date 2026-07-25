@@ -52,7 +52,7 @@ WORKSPACE_COMMAND = (
 TOKEI_COMMAND = "tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'"
 PINNED_SNAPSHOTS = {
     "akroasis.md": "4e3712669df7",
-    "hamma.md": "216e2adc83d5",
+    "hamma.md": "2423485c5c48",
     "logismos.md": "94e4e97dce6e",
     "thumos.md": "77cc89906a52",
 }
@@ -60,7 +60,6 @@ REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 ADDRESSED_ASSET_RE = re.compile(r"^/a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
 TAPE_TARGETS = {
     "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
-    "hamma-tests.tape": "ARDENT_HAMMA_ROOT",
     "harmonia-serve.tape": "ARDENT_HARMONIA_ROOT",
     "logismos-parity.tape": "ARDENT_LOGISMOS_ROOT",
     "thumos-boot.tape": "ARDENT_THUMOS_ROOT",
@@ -880,6 +879,32 @@ def main() -> int:
     for dangerous in ("git checkout --", "$HOME/dev", "every public repo"):
         if dangerous in kanon_recipe:
             fail(errors, f"Kanon recipe retains dangerous or stale form: {dangerous!r}")
+
+    # The hamma cast is published; its recipe runs the hamma-core and dictyon
+    # test suites against a public clone pinned to the commit the cast's
+    # rev-parse beat shows, then the boundary line. Not an end-to-end tailnet.
+    hamma_recipe = Path("static/tapes/hamma-tests.driver.sh").read_text()
+    for required in (
+        "PIN=2423485c5c48",
+        "ARDENT_HAMMA_ROOT",
+        "git clone --quiet https://github.com/forkwright/hamma.git",
+        "cargo test -p hamma-core && ok CORE_TESTS_OK",
+        "cargo test -p dictyon && ok DICTYON_TESTS_OK",
+        "not shown: two peers on a tailnet",
+    ):
+        if required not in hamma_recipe:
+            fail(errors, f"Hamma recipe lacks reproduction contract: {required}")
+    h_core = hamma_recipe.find("ok CORE_TESTS_OK")
+    h_dictyon = hamma_recipe.find("ok DICTYON_TESTS_OK", h_core)
+    h_boundary = hamma_recipe.find("not shown: two peers", h_dictyon)
+    if not (0 <= h_core < h_dictyon < h_boundary):
+        fail(
+            errors,
+            "Hamma recipe must run core then dictyon tests before the boundary line",
+        )
+    for dangerous in ("git checkout --", "$HOME/dev", "every public repo"):
+        if dangerous in hamma_recipe:
+            fail(errors, f"Hamma recipe retains dangerous or stale form: {dangerous!r}")
 
     harmonia_tape = Path("static/tapes/harmonia-serve.tape").read_text()
     for stale in ("/api/library/scan", "import queue", "populat"):
