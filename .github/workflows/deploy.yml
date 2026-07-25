@@ -31,9 +31,15 @@ on:
   # the same strict gate, pinned deployment, and live production verifier.
   workflow_dispatch:
 
+# WHY: a production cutover (preview verify -> promote -> canonical verify)
+# must never be interrupted mid-flight by a newer push (AT-01) - PR/build
+# checks keep the prior aggressive-cancel group, while every push or
+# workflow_dispatch run targeting main shares one dedicated, non-cancelable
+# group so a second production run queues behind the first instead of
+# canceling it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && 'ardent-tools-production' || format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: ${{ !((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main') }}
 
 permissions:
   contents: read
@@ -182,7 +188,69 @@ jobs:
             --outfile "$RUNNER_TEMP/ardent-pages-worker.js"
 
       # ── Deploy green main revisions ───────────────────────────
-      - name: Deploy to Cloudflare Pages
+      # AT-01 remediation: production is proved live BEFORE it is cut over.
+      # The same gated public/ tree deploys twice - first as a non-production
+      # preview (verified in full), then re-uploaded byte-for-byte to the
+      # production branch. A failed preview verify never reaches the promote
+      # step (see the INVARIANT note on that step below), and a failed
+      # canonical verify after promote auto-restores the last-known-good
+      # deployment captured here before either upload runs.
+      - name: Capture last-known-good production deployment
+        id: capture_last_good
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler pages deployment list --project-name ardent-tools --environment production --json \
+            > "$RUNNER_TEMP/ardent-production-deployments.json"
+          python3 bin/pages_last_deployment.py "$RUNNER_TEMP/ardent-production-deployments.json" \
+            --project ardent-tools >> "$GITHUB_OUTPUT"
+
+      - name: Deploy preview to Cloudflare Pages
+        id: preview_deploy
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_SHA: ${{ github.sha }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/ardent-wrangler-preview-output.jsonl
+        run: |
+          python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"
+          wrangler pages deploy --branch="ci-preview-$GITHUB_SHA" --commit-hash "$GITHUB_SHA"
+          preview_url=$(python3 bin/pages_deployment_receipt.py \
+            "$WRANGLER_OUTPUT_FILE_PATH" \
+            --expected-revision "$GITHUB_SHA" \
+            --project ardent-tools \
+            --production-branch main \
+            --environment preview)
+          echo "ARDENT_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
+
+      - name: Verify preview deployment
+        id: preview_verify
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          # The Pages Function/header plane can converge route-by-route after
+          # Wrangler returns; retain a six-minute sleep budget for the full proof.
+          python3 bin/verify-production.py \
+            --base-url "$ARDENT_PREVIEW_URL" \
+            --canonical-origin https://ardent.tools \
+            --require-cf-ray \
+            --require-logical-alias-tombstones \
+            --attempts 37 --delay 10 \
+            --expected-revision "$GITHUB_SHA" \
+            --artifact-root public
+
+      # INVARIANT: this step carries no failure()/success()/always() call in
+      # its `if:`, so GitHub Actions implicitly ANDs success() onto it - if
+      # preview_verify (or any earlier step) failed, this step is SKIPPED
+      # automatically and production is never touched. Do not add
+      # `if: always()` or otherwise weaken this condition; that would defeat
+      # the AT-01 fail-safe (preview must verify before promotion).
+      - name: Promote verified preview to production
+        id: promote
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -225,21 +293,12 @@ jobs:
           echo "cache purged; pausing for edge propagation before the canonical verify"
           sleep 15
 
-      - name: Verify live authored/runtime boundary
+      - name: Verify canonical domain after production cutover
+        id: canonical_verify
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          # The Pages Function/header plane can converge route-by-route after
-          # Wrangler returns; retain a six-minute sleep budget for the full proof.
-          python3 bin/verify-production.py \
-            --base-url "$ARDENT_IMMUTABLE_URL" \
-            --canonical-origin https://ardent.tools \
-            --require-cf-ray \
-            --require-logical-alias-tombstones \
-            --attempts 37 --delay 10 \
-            --expected-revision "$GITHUB_SHA" \
-            --artifact-root public
           python3 bin/verify-production.py \
             --base-url https://ardent.tools \
             --canonical-origin https://ardent.tools \
@@ -247,3 +306,40 @@ jobs:
             --attempts 13 --delay 10 \
             --expected-revision "$GITHUB_SHA" \
             --artifact-root public
+
+      # ── Auto-restore on a failed cutover ──────────────────────
+      # Both steps below fire only when `promote` itself reached 'success'
+      # (i.e. production bytes actually changed this run) and a later step
+      # (canonical_verify) failed. If promote never ran or itself failed,
+      # production was never touched and there is nothing to restore -
+      # steps.promote.outcome stays 'skipped'/'failure' and neither step
+      # below runs (implicit success() gating already stopped the job).
+      - name: Restore last-known-good production deployment
+        if: failure() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.promote.outcome == 'success' && steps.capture_last_good.outputs.had_prior_deployment == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          LAST_GOOD_DEPLOYMENT_ID: ${{ steps.capture_last_good.outputs.last_good_deployment_id }}
+          LAST_GOOD_REVISION: ${{ steps.capture_last_good.outputs.last_good_revision }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          echo "::error::Canonical verification failed after promoting $GITHUB_SHA; restoring last-known-good deployment $LAST_GOOD_DEPLOYMENT_ID (revision $LAST_GOOD_REVISION)"
+          curl -sS --fail --retry 3 --retry-delay 5 -o "$RUNNER_TEMP/cf-rollback.json" -w 'HTTP %{http_code}\n' \
+            -X POST "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools/deployments/${LAST_GOOD_DEPLOYMENT_ID}/rollback" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json"
+          python3 -c "import json,sys; r=json.load(open('$RUNNER_TEMP/cf-rollback.json')); print('rollback success:', r.get('success'), r.get('errors') or ''); sys.exit(0 if r.get('success') else 1)"
+          python3 bin/verify_restore.py \
+            --base-url https://ardent.tools \
+            --expected-revision "$LAST_GOOD_REVISION" \
+            --attempts 13 --delay 10
+          echo "::error::Production auto-restored to last-known-good revision $LAST_GOOD_REVISION after $GITHUB_SHA failed canonical verification"
+          exit 1
+
+      - name: Fail loudly - no prior production deployment to restore
+        if: failure() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.promote.outcome == 'success' && steps.capture_last_good.outputs.had_prior_deployment != 'true'
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          echo "::error::Canonical verification failed after promoting $GITHUB_SHA and there is no prior production deployment to auto-restore (this looks like the first production deployment). Manual intervention required."
+          exit 1

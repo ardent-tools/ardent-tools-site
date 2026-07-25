@@ -78,12 +78,19 @@ def validate_url(value: object, project: str) -> str:
 
 
 def extract_deployment_url(
-    path: Path, *, expected_revision: str, project: str, production_branch: str
+    path: Path,
+    *,
+    expected_revision: str,
+    project: str,
+    production_branch: str,
+    environment: str = "production",
 ) -> str:
     if not REVISION_RE.fullmatch(expected_revision):
         raise ValueError("expected revision must be one lowercase 40-hex value")
     if not PROJECT_RE.fullmatch(project):
         raise ValueError("Pages project name is invalid")
+    if environment not in {"production", "preview"}:
+        raise ValueError("environment must be exactly 'production' or 'preview'")
     if (
         not BRANCH_RE.fullmatch(production_branch)
         or production_branch.startswith(("/", "."))
@@ -133,8 +140,8 @@ def extract_deployment_url(
         deployment_id
     ):
         raise ValueError("Wrangler detailed deployment_id is not one lowercase UUID")
-    if entry.get("environment") != "production":
-        raise ValueError("Wrangler detailed deployment environment is not production")
+    if entry.get("environment") != environment:
+        raise ValueError(f"Wrangler detailed deployment environment is not {environment}")
     if entry.get("production_branch") != production_branch:
         raise ValueError("Wrangler detailed deployment production branch differs")
     trigger = entry.get("deployment_trigger")
@@ -167,6 +174,11 @@ def main() -> int:
     parser.add_argument("--expected-revision", required=True)
     parser.add_argument("--project", required=True)
     parser.add_argument("--production-branch", default="main")
+    parser.add_argument(
+        "--environment",
+        default="production",
+        choices=("production", "preview"),
+    )
     args = parser.parse_args()
     try:
         url = extract_deployment_url(
@@ -174,6 +186,7 @@ def main() -> int:
             expected_revision=args.expected_revision,
             project=args.project,
             production_branch=args.production_branch,
+            environment=args.environment,
         )
     except ValueError as exc:
         sys.stderr.write(f"ERROR: {exc}\n")
