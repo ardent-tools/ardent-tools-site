@@ -54,7 +54,11 @@ and `playwright.config.ts` are unchanged. CI alone sets
 
 `static/systems.json` carries a deterministic schema version, generator
 version, exact source list, per-source SHA-256 digests, and aggregate input
-digest. `data/career-claims.json` is the typed authority for selected Marine
+digest. `static/sbom.cdx.json` is a CycloneDX 1.6 receipt derived from the
+deploy workflow's pins, the npm lockfile, the Python requirements, and the
+vendored player's bytes; each component carries a purl, license, and an
+`ardent:tier` of `runtime` or `build`, and the document omits a timestamp and
+serial number so it stays byte-identical across runs. `data/career-claims.json` is the typed authority for selected Marine
 Corps facts repeated across About and the résumé; it derives the public
 `career-claims.json` receipt. The gate checks stable IDs, scope, typed
 value/unit/display bindings, a closed operator-authorization registry,
