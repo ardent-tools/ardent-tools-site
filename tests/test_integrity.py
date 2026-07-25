@@ -3228,10 +3228,12 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertIn("Authorization: Bearer ${CLOUDFLARE_API_TOKEN}", capture_run)
         self.assertIn("per_page=${per_page}", capture_run)
         self.assertIn("page=${page}", capture_run)
-        # Paginates until a short page proves the list is exhausted, with a
-        # bounded max_pages so an API/response anomaly cannot loop forever.
+        # Paginates until an EMPTY page proves the list is exhausted (not a
+        # short one: the CF API per_page ceiling is undocumented and may clamp
+        # below the requested value), with a bounded max_pages so an
+        # API/response anomaly cannot loop forever.
         self.assertIn("max_pages", capture_run)
-        self.assertIn('"$page_count" -lt "$per_page"', capture_run)
+        self.assertIn('"$page_count" -eq 0', capture_run)
         self.assertIn("bin/pages_last_deployment.py", capture_run)
         self.assertIn('>> "$GITHUB_OUTPUT"', capture_run)
         self.assertNotIn(

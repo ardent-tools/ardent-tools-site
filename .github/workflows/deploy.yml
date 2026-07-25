@@ -245,7 +245,13 @@ jobs:
             jq -s '.[0] + .[1].result' "$combined" "$page_file" > "$combined.next"
             mv "$combined.next" "$combined"
             page_count=$(jq '.result | length' "$page_file")
-            if [ "$page_count" -lt "$per_page" ]; then
+            # Break on an empty page, not a short one: the CF API's per_page
+            # ceiling is undocumented and may clamp below the requested 100, so
+            # a short page is not proof of the last page. Fetch until empty
+            # (bounded by max_pages above); pages_last_deployment.py's
+            # created_on sort then picks the true newest regardless of page
+            # order or clamping.
+            if [ "$page_count" -eq 0 ]; then
               break
             fi
             page=$((page + 1))
