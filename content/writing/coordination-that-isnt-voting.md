@@ -4,6 +4,7 @@ description = "The two default shapes of multi-agent coordination, the arithmeti
 date = 2026-07-20
 
 [extra]
+tier = "research"
 components = "constraint propagation · anti-Condorcet · convex hull"
 words = "~1470 words"
 +++

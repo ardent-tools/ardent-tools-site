@@ -4,6 +4,7 @@ description = "One number triangulated three ways, a SHA-bound local gate stamp 
 date = 2026-07-21
 
 [extra]
+tier = "notes"
 components = "triangulation · unshared failure modes · system of record"
 words = "~1120 words"
 +++

@@ -1,0 +1,75 @@
+{# Consumer shadow of typikon's journal-section.html. Groups entries by
+   extra.tier - Notes first (the practitioner-shareable pieces are the entry
+   ramp for a first-time visitor from a shared link), then Research - instead
+   of one flat date-sorted list. Reuses the systems-catalog group grammar
+   (.catalog-group / .group-index / .group-caption / .catalog-index) and the
+   theme's own .journal-list row markup. Every entry must carry extra.tier;
+   bin/site.py fails closed if one is missing. Re-diff on typikon refresh. #}
+{% extends "base.html" %}
+
+{% block title %}{{ section.extra.seo_title | default(value=section.title) }} - {{ config.title }}{% endblock title %}
+{% block og_title %}{{ section.extra.seo_title | default(value=section.title) }} - {{ config.title }}{% endblock og_title %}
+{% block description %}{{ section.description | default(value=config.description | default(value="")) }}{% endblock description %}
+{% block og_description %}{{ section.description | default(value=config.description | default(value="")) }}{% endblock og_description %}
+{% block body_class %}{% if section.extra.body_class %} class="{{ section.extra.body_class }}"{% endif %}{% endblock body_class %}
+
+{% block ld_json %}
+  {{ super() }}
+  {{ crumb::breadcrumb(title=section.title, permalink=section.permalink, ancestors=section.ancestors) }}
+{% endblock ld_json %}
+
+{% block content %}
+{%- set_global notes_count = 0 %}
+{%- set_global research_count = 0 %}
+{%- for entry in section.pages %}
+  {%- if entry.extra.tier == "notes" %}{% set_global notes_count = notes_count + 1 %}{% endif %}
+  {%- if entry.extra.tier == "research" %}{% set_global research_count = research_count + 1 %}{% endif %}
+{%- endfor %}
+
+<h1>{{ section.title }}</h1>
+
+{{ section.content | safe }}
+
+<p class="catalog-index">
+  <a href="#notes">NOTES {{ notes_count }}</a> &middot;
+  <a href="#research">RESEARCH {{ research_count }}</a>
+</p>
+
+<div class="catalog-group" id="notes">
+  <h2><span class="group-index">01</span> &mdash; Notes <span class="group-count">&middot; {{ notes_count }}</span></h2>
+  <p class="group-caption">{{ section.extra.notes_caption | default(value="Practitioner notes - a decision, a failure mode, a method, worked short.") }}</p>
+  <ul class="journal-list">
+  {%- for entry in section.pages %}{%- if entry.extra.tier == "notes" %}
+    <li>
+      <a href="{{ entry.permalink | safe }}">
+        <span class="entry-name">{{ entry.title }}</span>
+        {%- if entry.date %}<span class="entry-date-inline">{{ entry.date | date(format="%Y-%m-%d") }}</span>{% endif %}
+        {%- if entry.extra.components %}<span class="entry-components">{{ entry.extra.components }}</span>{% endif %}
+        {%- if entry.extra.words %}<span class="entry-words">{{ entry.extra.words }}</span>{% endif %}
+      </a>
+    </li>
+  {%- endif %}{%- endfor %}
+  </ul>
+</div>
+
+<div class="catalog-group" id="research">
+  <h2><span class="group-index">02</span> &mdash; Research <span class="group-count">&middot; {{ research_count }}</span></h2>
+  <p class="group-caption">{{ section.extra.research_caption | default(value="Longer pieces - a proof, a kill test, an argument worked to its formal end.") }}</p>
+  <ul class="journal-list">
+  {%- for entry in section.pages %}{%- if entry.extra.tier == "research" %}
+    <li>
+      <a href="{{ entry.permalink | safe }}">
+        <span class="entry-name">{{ entry.title }}</span>
+        {%- if entry.date %}<span class="entry-date-inline">{{ entry.date | date(format="%Y-%m-%d") }}</span>{% endif %}
+        {%- if entry.extra.components %}<span class="entry-components">{{ entry.extra.components }}</span>{% endif %}
+        {%- if entry.extra.words %}<span class="entry-words">{{ entry.extra.words }}</span>{% endif %}
+      </a>
+    </li>
+  {%- endif %}{%- endfor %}
+  </ul>
+</div>
+
+{%- if section.extra.list_caption %}
+<p class="specs">{{ section.extra.list_caption }}</p>
+{%- endif %}
+{% endblock content %}
