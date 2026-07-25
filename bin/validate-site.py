@@ -62,7 +62,6 @@ TAPE_TARGETS = {
     "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
     "harmonia-serve.tape": "ARDENT_HARMONIA_ROOT",
     "logismos-parity.tape": "ARDENT_LOGISMOS_ROOT",
-    "thumos-boot.tape": "ARDENT_THUMOS_ROOT",
 }
 FORBIDDEN_TAPE_FORMS = (
     "sudo ",
@@ -825,18 +824,34 @@ def main() -> int:
     if "cpu_baseline.json" in tape:
         fail(errors, "Logismos tape retains the wrong cpu_baseline.json fixture")
 
-    thumos_tape = Path("static/tapes/thumos-boot.tape").read_text()
+    # The thumos cast is published; its reproduction recipe is the asciinema
+    # driver, not a VHS tape. The recipe must build the same primary qemu-feature
+    # target CI builds, boot it through the same runner path (stdin from
+    # /dev/null so -nographic does not block a recording pty), and gate each
+    # step's marker, build before boot before the boundary line.
+    thumos_recipe = Path("static/tapes/thumos-boot.driver.sh").read_text()
     for required in (
-        'Type "cd \\"$ARDENT_THUMOS_ROOT/crates/thumos\\""',
-        "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8",
-        "../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos",
+        "PIN=3352cef887cf",
+        "ARDENT_THUMOS_ROOT",
+        "git clone --quiet https://github.com/forkwright/thumos.git",
+        "cargo build --release --target armv7a-none-eabi --features qemu --jobs 8 && ok BUILD_OK",
+        "../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos < /dev/null && ok BOOT_OK",
+        "not shown: physical AGM M7 hardware",
     ):
-        if required not in thumos_tape:
-            fail(errors, f"Thumos tape lacks authoritative CI command/path: {required}")
-    if "scripts/qemu-runner.sh target/" in thumos_tape.replace(
+        if required not in thumos_recipe:
+            fail(errors, f"Thumos recipe lacks reproduction contract: {required}")
+    t_build = thumos_recipe.find("ok BUILD_OK")
+    t_boot = thumos_recipe.find("ok BOOT_OK", t_build)
+    t_boundary = thumos_recipe.find("not shown: physical AGM M7", t_boot)
+    if not (0 <= t_build < t_boot < t_boundary):
+        fail(errors, "Thumos recipe must build then boot before the boundary line")
+    if "scripts/qemu-runner.sh target/" in thumos_recipe.replace(
         "../../scripts/qemu-runner.sh target/", ""
     ):
-        fail(errors, "Thumos tape retains the stale repo-root runner path")
+        fail(errors, "Thumos recipe retains the stale repo-root runner path")
+    for dangerous in ("git checkout --", "$HOME/dev", "sudo ", "dnf install", "rm -rf /"):
+        if dangerous in thumos_recipe:
+            fail(errors, f"Thumos recipe retains dangerous or stale form: {dangerous!r}")
 
     # The kanon cast is published; its reproduction recipe is the asciinema
     # driver, not a VHS tape. The recipe must reproduce the cast against a
