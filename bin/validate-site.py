@@ -916,6 +916,7 @@ def main() -> int:
         for path in [
             Path("config.toml"),
             Path("content/colophon.md"),
+            Path("content/evidence.md"),
             Path("static/llms.txt"),
             Path("static/img/og-card.svg"),
         ]
@@ -923,6 +924,12 @@ def main() -> int:
     for stale_claim in (
         "Recordings and receipts, not claims",
         "Every recording on one page",
+        # The published-cast count is derived by the /evidence/ register from
+        # system frontmatter; receipt prose must never enumerate or categorize
+        # it. These three drifted the moment a second cast (hamma) landed.
+        "One cast is published so far",
+        "today that is kanon",
+        "The recordings are still backlog",
     ):
         if stale_claim in source_corpus:
             fail(errors, f"stale recording claim remains: {stale_claim!r}")
