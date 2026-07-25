@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 736 304" width="736" height="304" role="img" aria-labelledby="cs-title cs-desc">
+  <title id="cs-title">Three shapes of multi-agent coordination: vote, hub, lateral</title>
+  <desc id="cs-desc">Three side-by-side network diagrams. Shape 1, vote: four agent nodes with no edges between them, each sending one arrow down to an aggregator that combines finished outputs. Shape 2, hub: a hub node farms pieces out to four workers and receives results back, paired arrows in both directions, still no edges between workers. Shape 3, lateral: the four agents are joined to each other by heavier lateral edges, influence during solve, and also feed an integrator that composes the result. The agent-to-agent edges exist only in the third shape.</desc>
+  <defs>
+    <marker id="ah" viewBox="0 0 8 8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0.5,0.8 L7.4,4 L0.5,7.2 Z" fill="#6B6661"/>
+    </marker>
+  </defs>
+  <g>
+    <rect x="8" y="10" width="232" height="250" rx="3" fill="none" stroke="#DDD7C8" stroke-width="1"/>
+    <text x="26" y="38" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="12" font-weight="600" letter-spacing="1" fill="#1C1917">1 · VOTE</text>
+    <text x="26" y="56" font-family="Spectral, Georgia, serif" font-style="italic" font-size="11.5" fill="#6B6661">independent, then aggregate</text>
+    <line x1="53.7" y1="130.5" x2="103.6" y2="198.8" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="101.1" y1="132.6" x2="117.1" y2="198.5" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="146.9" y1="132.6" x2="130.9" y2="198.5" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="194.3" y1="130.5" x2="144.4" y2="198.8" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <circle cx="46" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="98" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="150" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="202" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <rect x="74" y="200" width="100" height="28" rx="3" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <text x="124" y="218" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="#1C1917">aggregator</text>
+  </g>
+  <g>
+    <rect x="252" y="10" width="232" height="250" rx="3" fill="none" stroke="#DDD7C8" stroke-width="1"/>
+    <text x="270" y="38" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="12" font-weight="600" letter-spacing="1" fill="#1C1917">2 · HUB</text>
+    <text x="270" y="56" font-family="Spectral, Georgia, serif" font-style="italic" font-size="11.5" fill="#6B6661">decompose, then assemble</text>
+    <line x1="350.9" y1="198.2" x2="301" y2="129.9" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="295.5" y1="132.7" x2="343.7" y2="198.5" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="364.4" y1="199.3" x2="348.3" y2="133.4" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="342.3" y1="133.8" x2="357.6" y2="196.8" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="377.4" y1="200.7" x2="393.5" y2="134.8" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="387.9" y1="132.4" x2="372.5" y2="195.4" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="389.9" y1="201.8" x2="439.9" y2="133.5" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="435.6" y1="129.1" x2="387.4" y2="195" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <circle cx="290" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="342" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="394" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="446" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <rect x="318" y="200" width="100" height="28" rx="3" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <text x="368" y="218" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="#1C1917">hub</text>
+  </g>
+  <g>
+    <rect x="496" y="10" width="232" height="250" rx="3" fill="none" stroke="#DDD7C8" stroke-width="1"/>
+    <text x="514" y="38" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="12" font-weight="600" letter-spacing="1" fill="#1C1917">3 · LATERAL</text>
+    <text x="514" y="56" font-family="Spectral, Georgia, serif" font-style="italic" font-size="11.5" fill="#6B6661">coupled during solve</text>
+    <path d="M543.2,110.8 Q560,81 576.8,110.8" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M595.2,110.8 Q612,81 628.8,110.8" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M647.2,110.8 Q664,81 680.8,110.8" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M540.5,108.7 Q586,63 631.5,108.7" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M592.5,108.7 Q638,63 683.5,108.7" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M537.4,107.4 Q612,45 686.6,107.4" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="541.7" y1="130.5" x2="591.6" y2="198.8" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="589.1" y1="132.6" x2="605.1" y2="198.5" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="634.9" y1="132.6" x2="618.9" y2="198.5" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <line x1="682.3" y1="130.5" x2="632.4" y2="198.8" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <circle cx="534" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="586" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="638" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <circle cx="690" cy="120" r="13" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <rect x="562" y="200" width="100" height="28" rx="3" fill="#F0EBE0" stroke="#1C1917" stroke-width="1.3"/>
+    <text x="612" y="218" text-anchor="middle" font-family="'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="#1C1917">integrator</text>
+  </g>
+  <g>
+    <line x1="223" y1="283" x2="253" y2="283" stroke="#6B6661" stroke-width="1.4" marker-end="url(#ah)"/>
+    <text x="263" y="287" font-family="Spectral, Georgia, serif" font-size="11.5" fill="#44403C">hand-off</text>
+    <path d="M356,287 Q371,276 386,287" fill="none" stroke="#9E4A1E" stroke-width="2.2" stroke-linecap="round"/>
+    <text x="396" y="287" font-family="Spectral, Georgia, serif" font-size="11.5" fill="#44403C">influence during solve</text>
+  </g>
+</svg>

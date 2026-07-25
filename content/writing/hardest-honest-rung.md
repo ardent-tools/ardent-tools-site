@@ -5,7 +5,7 @@ date = 2026-07-20
 
 [extra]
 tier = "research"
-components = "hardness ladder · demotion law · proxy gates"
+components = "Five rungs a rule can live on, and the mirror-image failures at either end of the ladder."
 words = "~1600 words"
 +++
 
@@ -17,7 +17,7 @@ The mirror-image failure rarely gets named. Take a genuine judgment call, the ki
 
 ---
 
-The repositories I maintain are worked on by AI agents as much as by me, which multiplies the places a rule can live. Prose-or-CI stretches into a five-rung ladder, codified in the standards library of kanon, the system that runs the forge, the lint engine, and the audit machinery for my repositories. The placement document is named TEKHNE.md, after tekhne, the Greek word for craft: the knowledge of how a thing is well made. Its spine is one table.
+The repositories I maintain are worked on by AI agents as much as by me, which multiplies the places a rule can live. Prose-or-CI stretches into a five-rung ladder, codified in the standards library of [kanon](/systems/kanon/), the system that runs the forge, the lint engine, and the audit machinery for my repositories. The placement document is named TEKHNE.md, after tekhne, the Greek word for craft: the knowledge of how a thing is well made. Its spine is one table.
 
 | Rung | Home | Precondition | Test |
 |---|---|---|---|
@@ -30,6 +30,17 @@ The repositories I maintain are worked on by AI agents as much as by me, which m
 The placement rule is a single sentence: every behavior settles at the hardest rung whose precondition it meets. The preconditions do the work. A rule earns the gate rung only when it is mechanical and its failure modes can be enumerated. Doctrine that resists deterministic encoding stops at the context rung no matter how much anyone cares about it.
 
 The test column is the ladder's check on itself: every rung above the bottom carries a way to catch its own failure. The bottom rung has no test. That is the reason a one-off prompt is the last resort, not a gap in the table.
+
+Rung 5's test is the concrete one - a known-bad fixture, blocked. A three-line file with a `dbg!` left in it, run through the lint that gates every merge in these repositories:
+
+```
+$ kanon lint --rust lint-demo.rs
+lint-demo.rs:3 [RUST/dbg-macro] dbg!() macro LEFT in non-test code
+$ echo $?
+1
+```
+
+Exit 1 is the merge refused. The rule earns the gate rung because its failure is mechanical and enumerable - a `dbg!` in shipped code is always wrong - and the fixture proves the gate catches it.
 
 ---
 
@@ -48,6 +59,8 @@ The two laws describe one defect seen from opposite directions, and both substit
 ---
 
 Placement needs an admission test, and the one kanon's decision records use is reflexive: no lint rule and no design document is admitted unless passing it means the property is present, not a proxy satisfied. The record that established the bar applied it to its own text and struck an unfalsifiable superlative about itself from an earlier draft. The decisive question at admission never changes: does the thing exhibit the property it claims, or assert it? A vault that stores plaintext asserts. The question sounds philosophical until it catches something running.
+
+Run across a whole claim register, the test sorts rather than flatters. A private architecture's falsifiability register takes every load-bearing prose claim and asks the same question of each - is the missing falsifier honest, because the claim is subjective and no metric can carry it, or is it an oversight. One claim landed on the wrong side of that line - that personality emerges from a model's routing topology rather than its prompts, shipped with no way to tell the two apart. The register named it an oversight instead of defending it, and wrote the missing falsifier in the same line - swap the topology file for a frozen reference, re-run the conversation, and if the voice survives, the personality was in the prompts all along.
 
 It caught the judge. kanon includes a judge contract for semantic findings. The landed source is narrower than the redesign: `elenchos` defines typed candidates and verdicts, requires a verified citation before a strong-tier semantic judge runs, and provides a generic labeled holdout type of ten to twenty mixed confirm/reject cases with deterministic scoring. Those types and tests are real. They establish a contract shape and a reusable holdout subset, but they do not yet establish a fully grounded, per-kind calibrated judgment system.
 

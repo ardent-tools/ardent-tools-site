@@ -5,7 +5,7 @@ date = 2026-07-21
 
 [extra]
 tier = "notes"
-components = "triangulation · unshared failure modes · system of record"
+components = "One count triangulated three ways that share no failure mode, and self-reports checked against an independent verifier."
 words = "~1120 words"
 +++
 
@@ -33,11 +33,24 @@ The distrust behind all this counting was earned. The first time a drift audit r
 
 ---
 
-The same rule holds in a second codebase that shares no code and no domain with the first. kanon - the name is Greek for a measuring rod - runs the git forge, the lint engine, and the audit machinery for my own repositories, where AI agents work alongside me daily.
+The same rule holds in a second codebase that shares no code and no domain with the first. [kanon](/systems/kanon/) - the name is Greek for a measuring rod - runs the git forge, the lint engine, and the audit machinery for my own repositories, where AI agents work alongside me daily.
 
-When kanon's local gate stamps a commit, the trailer records the installed Kanon version, the stages that ran, and the exact Git tree SHA it checked. The SHA binding is landed: reusing that local trailer after changing the tree fails the local clean-tree check. The trailer is still plain text, however, and any process that can write a commit message can forge its shape.
+kanon's own tool surface counts the same three ways, on code anyone can clone. Each MCP tool is declared by an attribute on its handler, exactly as the private surface was. Grep the registration sites in the server source and the count comes back 131 - a naive whole-repo grep returns 170, but 39 of those are the attribute quoted inside test fixtures and inside the module that parses it, the same false-positive-then-inspect the private count made going from 138 to 137. Regenerate the derived catalog and it agrees:
+
+```
+$ grep -rn '#\[tool(' crates/angelos/src/server.rs crates/angelos/src/server/*.rs | wc -l
+131
+$ kanon derive --check --only mcp-catalog-sync
+ok  mcp-catalog-sync: up-to-date
+```
+
+`--check` writes nothing and exits non-zero on drift; a clean exit means the checked-in catalog, regenerated from the same annotations, still names 131 tools, and the live daemon serves the same 131. Two methods that cannot fail the same way, on a public repository (kanon at `9352aa7995c4`) - the private surface's 137 was counted exactly this way, where the code that proves it cannot be shown.
+
+When kanon's local gate stamps a commit, the trailer records the installed Kanon version, the stages that ran, and the exact Git tree SHA it checked. The SHA binding is landed: reusing that local trailer after changing the tree fails the local clean-tree check. The trailer is still plain text, and any process that can write a commit message can forge its shape.
 
 In the source inspected on 2026-07-22, the forge does not turn that trailer into synchronous push rejection. Its post-receive hook runs after the ref has moved, posts the pushed SHA to the server, and enqueues CI keyed to that revision, and the resulting run reports independently on the pushed artifact. That is useful verification, but it cannot retroactively make a forged trailer prevent the push that carried it. Trailer rejection at the receive boundary is accepted design work, not a property of the post-receive mechanism.
+
+One path does re-derive instead of trusting. When the dispatch reconciler merges a worker agent's lane, it reads none of the trailer's claims on faith: `verify_gate_passed_trailer` re-derives the lane worktree's tree with `git rev-parse HEAD^{tree}`, re-derives the tree of the PR head the same way, and refuses the merge if the two differ. A forged or stale trailer survives exactly until the tree it claims to have gated is computed independently and compared against the tree actually being merged. That check runs on the lane-review path, not on every push, so it narrows rather than closes the receive-boundary gap - but where it runs, the commit's identity is re-derived, never believed.
 
 kanon's audit engine fans finder agents out over a codebase, then verifies, deduplicates, and files what survives. The invariant list in its decision record includes this one: after every batch, the orchestrator queries the issue tracker and reconciles the filed count against what the agents reported. The self-report is never accepted, only checked. The engine's runbook carries the mirror rule: a finding that an agent's reply omits is kept and flagged, never silently dropped, and only an explicit mechanical verdict - confirmed unreal, or a high-confidence duplicate - removes anything from the run. Every run closes with a disposition report in which each candidate is accounted for: filed, dropped with a stated reason, or flagged for review.
 

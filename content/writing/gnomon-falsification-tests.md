@@ -5,7 +5,7 @@ date = 2026-07-20
 
 [extra]
 tier = "research"
-components = "falsifiability · spectral analysis · kill gates"
+components = "Two kill criteria set before any extraction code ran, and the measurements that returned on the kill side of both."
 words = "~1490 words"
 +++
 
@@ -36,6 +36,8 @@ Both came back on the kill side of the line I'd drawn.
 
 F2 is the more ambiguous of the two. The trained matrices were measurably less random than the null - 0.7815 against a baseline of 0.89 to 0.95 for matrices of the same shape, meaning something in training did concentrate the spectrum somewhat. It just didn't concentrate it enough. The bet needed a number under 0.3, and what came back sat above the 0.7 line I'd set before running the test, closer to the random end of the scale than the structured end.
 
+Even the best single case fell short. Of the 128 matrices measured, the one that came closest to escaping the kill line - the full-attention key projection at layer 59 - scored 0.5758, the lowest normalized rank in the set, and still sat nowhere near the 0.3 the bet required. Four matrices in all came in under 0.7; the mean landed at 0.7815 because the other 124 did not. The strongest evidence the teacher had to offer for the bet was a single matrix that missed by a wide margin.
+
 F4 left less room for interpretation. Subspace overlap between the base model and the fine-tune came back at 0.9999999986 against a 0.9 kill line - 1.4 parts in a billion short of identical. The mean weight cosine across the same matrices printed at 1.00002, past the mathematical maximum of a cosine, because sixteen of the 128 per-matrix values round above 1.0 in single precision. The difference between the two models' weights is smaller than the rounding error of the arithmetic measuring it.
 
 Two models that behave differently enough that a third party built and published the fine-tune specifically to change that behavior have query and key projections that are numerically indistinguishable at single precision. Whatever abliteration changed, it didn't touch these matrices - or these matrices function as shared scaffolding that this class of fine-tuning doesn't reach either way. Both readings kill the same claim: that routing here captures a model's trained identity rather than its architecture.
@@ -46,7 +48,7 @@ What the result falsifies is specific: routing separability as a linear-subspace
 
 ---
 
-The routing result wasn't the only thing wrong with the original design. A separate line of the same self-review turned up a purely mathematical problem the spectral test hadn't even touched: the architecture's headline mechanism was many small worker units voting, and voting is a bad idea when a single unit's accuracy on a hard task is below chance. Majority vote among agents with per-agent accuracy under 0.5 gets worse, not better, as more agents are added - the Condorcet jury theorem runs backward past that threshold. No amount of extracted routing was going to fix a mechanism that was mathematically dead on arrival before the routing question was even asked.
+The routing result wasn't the only thing wrong with the original design. A separate line of the same self-review turned up a purely mathematical problem the spectral test hadn't even touched: the architecture's headline mechanism was many small worker units voting, and voting is a bad idea when a single unit's accuracy on a hard task is below chance. Majority vote among agents with per-agent accuracy under 0.5 gets worse, not better, as more agents are added - the Condorcet jury theorem runs backward past that threshold, the failure [Coordination that isn't voting](/writing/coordination-that-isnt-voting/) works through from the other direction. No amount of extracted routing was going to fix a mechanism that was mathematically dead on arrival before the routing question was even asked.
 
 What survived both kills was a narrower, differently-testable claim: instead of many units voting on the same answer, one integrator evaluates and synthesizes across units that explore differently-scoped regions of a decomposed problem - the pattern behind Monte Carlo tree search, ant-colony methods, and a jury whose value is spread of perspective rather than any one juror's brilliance. That version doesn't need routing to capture a teacher's trained identity.
 
