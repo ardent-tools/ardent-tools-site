@@ -220,37 +220,41 @@ jobs:
           # https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/list/
           # (AT-01 remediation).
           #
-          # Paginated: `env=production` filters server-side so no page
-          # mixes in preview deployments, but the endpoint's sort order and
-          # per_page ceiling are undocumented, so every page is fetched and
-          # concatenated - bin/pages_last_deployment.py's own created_on
-          # sort picks the true newest regardless of API ordering.
+          # Query params kept minimal: only `page`. The documented `env` and
+          # `per_page` params returned HTTP 400 from the live endpoint (first
+          # AT-01 cutover), so neither is sent - pages_last_deployment.py
+          # filters environment==production client-side, and CF's default page
+          # size with break-on-empty pagination covers the rest. curl does NOT
+          # use --fail (which suppresses the response body); the CF error body
+          # is logged on any non-success response so a failure is diagnosable
+          # rather than a bare exit 22.
           page=1
-          per_page=100
           max_pages=50
           combined="$RUNNER_TEMP/ardent-production-deployments.json"
           echo '[]' > "$combined"
           while :; do
             if [ "$page" -gt "$max_pages" ]; then
-              echo "::error::CF Pages production deployment list exceeded ${max_pages} pages (${per_page} per page); capture_last_good aborted rather than looping unbounded." >&2
+              echo "::error::CF Pages deployment list exceeded ${max_pages} pages; capture_last_good aborted rather than looping unbounded." >&2
               exit 1
             fi
             page_file="$RUNNER_TEMP/ardent-production-deployments-page-${page}.json"
-            curl -sS --fail --retry 3 --retry-delay 5 \
+            curl -sS --retry 3 --retry-delay 5 \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               -H "Content-Type: application/json" \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools/deployments?env=production&page=${page}&per_page=${per_page}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools/deployments?page=${page}" \
               -o "$page_file"
-            jq -e '.success == true and (.result | type == "array")' "$page_file" > /dev/null
+            if ! jq -e '.success == true and (.result | type == "array")' "$page_file" > /dev/null 2>&1; then
+              echo "::error::CF Pages deployment list request failed (page ${page}); response body follows:" >&2
+              cat "$page_file" >&2 || true
+              exit 1
+            fi
             jq -s '.[0] + .[1].result' "$combined" "$page_file" > "$combined.next"
             mv "$combined.next" "$combined"
             page_count=$(jq '.result | length' "$page_file")
-            # Break on an empty page, not a short one: the CF API's per_page
-            # ceiling is undocumented and may clamp below the requested 100, so
-            # a short page is not proof of the last page. Fetch until empty
-            # (bounded by max_pages above); pages_last_deployment.py's
-            # created_on sort then picks the true newest regardless of page
-            # order or clamping.
+            # Break on an empty page (no per_page sent, so CF's default page
+            # size applies and its sort order is undocumented): fetch every
+            # page until empty, bounded by max_pages; pages_last_deployment.py's
+            # created_on sort then picks the true newest across all pages.
             if [ "$page_count" -eq 0 ]; then
               break
             fi

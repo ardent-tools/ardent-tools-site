@@ -3222,16 +3222,24 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("wrangler pages deployment list --project-name", capture_run)
         self.assertIn(
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}"
-            "/pages/projects/ardent-tools/deployments?env=production",
+            "/pages/projects/ardent-tools/deployments?page=",
             capture_run,
         )
         self.assertIn("Authorization: Bearer ${CLOUDFLARE_API_TOKEN}", capture_run)
-        self.assertIn("per_page=${per_page}", capture_run)
         self.assertIn("page=${page}", capture_run)
-        # Paginates until an EMPTY page proves the list is exhausted (not a
-        # short one: the CF API per_page ceiling is undocumented and may clamp
-        # below the requested value), with a bounded max_pages so an
-        # API/response anomaly cannot loop forever.
+        # Only `page` is sent: the documented env/per_page params returned a
+        # live HTTP 400 on the first cutover, so environment is filtered
+        # client-side (pages_last_deployment.py) and per_page is left to CF's
+        # default. A regression that re-adds either would 400 production again.
+        self.assertNotIn("env=production", capture_run)
+        self.assertNotIn("per_page=", capture_run)
+        # curl must NOT use --fail (it suppresses the CF error body); the body
+        # is logged on any non-success so a 400 is diagnosable, not a bare 22.
+        # (Checks the invocation, not the prose comment that names the flag.)
+        self.assertNotIn("curl -sS --fail", capture_run)
+        self.assertIn('cat "$page_file"', capture_run)
+        # Paginates until an EMPTY page proves the list is exhausted, with a
+        # bounded max_pages so an API/response anomaly cannot loop forever.
         self.assertIn("max_pages", capture_run)
         self.assertIn('"$page_count" -eq 0', capture_run)
         self.assertIn("bin/pages_last_deployment.py", capture_run)
