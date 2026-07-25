@@ -77,14 +77,15 @@ def validate_url(value: object, project: str) -> str:
     return value
 
 
-def extract_deployment_url(
+def extract_deployment_receipt(
     path: Path,
     *,
     expected_revision: str,
     project: str,
     production_branch: str,
     environment: str = "production",
-) -> str:
+) -> tuple[str, str]:
+    """Return (deployment_url, deployment_id) from one validated Wrangler receipt."""
     if not REVISION_RE.fullmatch(expected_revision):
         raise ValueError("expected revision must be one lowercase 40-hex value")
     if not PROJECT_RE.fullmatch(project):
@@ -165,7 +166,43 @@ def extract_deployment_url(
         or basic_entry.get("url") != deployment_url
     ):
         raise ValueError("Wrangler basic and detailed deployment receipts differ")
-    return deployment_url
+    return deployment_url, deployment_id
+
+
+def extract_deployment_url(
+    path: Path,
+    *,
+    expected_revision: str,
+    project: str,
+    production_branch: str,
+    environment: str = "production",
+) -> str:
+    url, _deployment_id = extract_deployment_receipt(
+        path,
+        expected_revision=expected_revision,
+        project=project,
+        production_branch=production_branch,
+        environment=environment,
+    )
+    return url
+
+
+def extract_deployment_id(
+    path: Path,
+    *,
+    expected_revision: str,
+    project: str,
+    production_branch: str,
+    environment: str = "production",
+) -> str:
+    _url, deployment_id = extract_deployment_receipt(
+        path,
+        expected_revision=expected_revision,
+        project=project,
+        production_branch=production_branch,
+        environment=environment,
+    )
+    return deployment_id
 
 
 def main() -> int:
@@ -179,9 +216,15 @@ def main() -> int:
         default="production",
         choices=("production", "preview"),
     )
+    parser.add_argument(
+        "--field",
+        default="url",
+        choices=("url", "id"),
+        help="which extracted receipt field to print (default: url)",
+    )
     args = parser.parse_args()
     try:
-        url = extract_deployment_url(
+        url, deployment_id = extract_deployment_receipt(
             args.receipt,
             expected_revision=args.expected_revision,
             project=args.project,
@@ -191,7 +234,7 @@ def main() -> int:
     except ValueError as exc:
         sys.stderr.write(f"ERROR: {exc}\n")
         return 1
-    sys.stdout.write(f"{url}\n")
+    sys.stdout.write(f"{url if args.field == 'url' else deployment_id}\n")
     return 0
 
 

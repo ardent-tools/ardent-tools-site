@@ -47,6 +47,11 @@ permissions:
 jobs:
   gate-and-deploy:
     runs-on: ubuntu-latest
+    # WHY 30: comfortably exceeds a normal gate+preview+promote+verify run
+    # (observed well under 20m), while bounding how long a wedged run can
+    # hold the non-cancelable production concurrency group below GitHub's
+    # 6-hour default (AT-01 remediation).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -202,9 +207,50 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          wrangler pages deployment list --project-name ardent-tools --environment production --json \
-            > "$RUNNER_TEMP/ardent-production-deployments.json"
-          python3 bin/pages_last_deployment.py "$RUNNER_TEMP/ardent-production-deployments.json" \
+          # WHY the CF API directly, not `wrangler pages deployment list
+          # --json`: wrangler's --json output is a PascalCase DISPLAY
+          # mapping ({Id, Environment:"Production", Source:<7-char-sha>,
+          # ...}), not the lowercase deployment shape
+          # bin/pages_last_deployment.py assumes, and Source truncates the
+          # commit to 7 hex chars while bin/verify_restore.py needs the
+          # full 40-hex revision to match build-revision.txt. The CF API
+          # itself returns lowercase snake_case fields (id, environment,
+          # created_on, deployment_trigger.metadata.commit_hash - full
+          # 40-hex) - verified against
+          # https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/list/
+          # (AT-01 remediation).
+          #
+          # Paginated: `env=production` filters server-side so no page
+          # mixes in preview deployments, but the endpoint's sort order and
+          # per_page ceiling are undocumented, so every page is fetched and
+          # concatenated - bin/pages_last_deployment.py's own created_on
+          # sort picks the true newest regardless of API ordering.
+          page=1
+          per_page=100
+          max_pages=50
+          combined="$RUNNER_TEMP/ardent-production-deployments.json"
+          echo '[]' > "$combined"
+          while :; do
+            if [ "$page" -gt "$max_pages" ]; then
+              echo "::error::CF Pages production deployment list exceeded ${max_pages} pages (${per_page} per page); capture_last_good aborted rather than looping unbounded." >&2
+              exit 1
+            fi
+            page_file="$RUNNER_TEMP/ardent-production-deployments-page-${page}.json"
+            curl -sS --fail --retry 3 --retry-delay 5 \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools/deployments?env=production&page=${page}&per_page=${per_page}" \
+              -o "$page_file"
+            jq -e '.success == true and (.result | type == "array")' "$page_file" > /dev/null
+            jq -s '.[0] + .[1].result' "$combined" "$page_file" > "$combined.next"
+            mv "$combined.next" "$combined"
+            page_count=$(jq '.result | length' "$page_file")
+            if [ "$page_count" -lt "$per_page" ]; then
+              break
+            fi
+            page=$((page + 1))
+          done
+          python3 bin/pages_last_deployment.py "$combined" \
             --project ardent-tools >> "$GITHUB_OUTPUT"
 
       - name: Deploy preview to Cloudflare Pages
@@ -223,8 +269,17 @@ jobs:
             --expected-revision "$GITHUB_SHA" \
             --project ardent-tools \
             --production-branch main \
-            --environment preview)
+            --environment preview \
+            --field url)
+          preview_deployment_id=$(python3 bin/pages_deployment_receipt.py \
+            "$WRANGLER_OUTPUT_FILE_PATH" \
+            --expected-revision "$GITHUB_SHA" \
+            --project ardent-tools \
+            --production-branch main \
+            --environment preview \
+            --field id)
           echo "ARDENT_PREVIEW_URL=$preview_url" >> "$GITHUB_ENV"
+          echo "ARDENT_PREVIEW_DEPLOYMENT_ID=$preview_deployment_id" >> "$GITHUB_ENV"
 
       - name: Verify preview deployment
         id: preview_verify
@@ -256,16 +311,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GITHUB_SHA: ${{ github.sha }}
-          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/ardent-wrangler-output.jsonl
         run: |
           python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"
           wrangler pages deploy --branch=main --commit-hash "$GITHUB_SHA"
-          immutable_url=$(python3 bin/pages_deployment_receipt.py \
-            "$WRANGLER_OUTPUT_FILE_PATH" \
-            --expected-revision "$GITHUB_SHA" \
-            --project ardent-tools \
-            --production-branch main)
-          echo "ARDENT_IMMUTABLE_URL=$immutable_url" >> "$GITHUB_ENV"
 
       - name: Purge Cloudflare cache so shared-header changes reach immutable resources
         # WHY: content-addressed /a/<sha> resources are served `immutable`. When a
@@ -314,6 +362,23 @@ jobs:
       # production was never touched and there is nothing to restore -
       # steps.promote.outcome stays 'skipped'/'failure' and neither step
       # below runs (implicit success() gating already stopped the job).
+      #
+      # INVARIANT: a job CANCELLATION (not failure) after a successful
+      # promote does not trigger restore - both steps below gate on
+      # failure(), and GHA's failure() explicitly excludes cancelled(), so
+      # a cancelled run after promote leaves production exactly where
+      # promote left it, unrestored. This is bounded, not unguarded: the
+      # non-cancelable production concurrency group (see the top-level
+      # `concurrency:` block) means a newer push queues behind this run
+      # instead of cancelling it, and the job-level `timeout-minutes`
+      # bounds how long a run can sit cancellable/wedged before someone
+      # notices; production still holds the preview-verified bytes from
+      # this run's promote in that window, never a half-written deploy. Do
+      # not fake a cancellation-triggered restore with `if: cancelled()`:
+      # a cancelled runner gets only a short grace period before it is
+      # force-killed, so a rollback network call started there is itself
+      # liable to be cut mid-flight - strictly worse than leaving
+      # already-verified production bytes in place.
       - name: Restore last-known-good production deployment
         if: failure() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.promote.outcome == 'success' && steps.capture_last_good.outputs.had_prior_deployment == 'true'
         env:
@@ -343,3 +408,30 @@ jobs:
         run: |
           echo "::error::Canonical verification failed after promoting $GITHUB_SHA and there is no prior production deployment to auto-restore (this looks like the first production deployment). Manual intervention required."
           exit 1
+
+      # ── Preview cleanup ────────────────────────────────────────
+      # WHY always() + best-effort: ci-preview-<sha> deployments are public
+      # and accumulate with no CF-side pruning. This step runs on every
+      # path that reached a real preview deployment (success, failed
+      # preview_verify, failed promote, or a failed-and-restored cutover)
+      # so the preview is never left behind regardless of outcome; it never
+      # fails the job itself, because cleanup failing must not change an
+      # already-decided deploy or restore result.
+      - name: Delete preview deployment
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && steps.preview_deploy.outcome == 'success'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # WHY force=true: ci-preview-<sha> is deployed via `--branch`, so
+          # it carries the branch alias `ARDENT_PREVIEW_URL` points at - the
+          # CF API rejects deleting an aliased non-production deployment
+          # without this flag (verified against
+          # https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/delete/).
+          curl -sS --retry 3 --retry-delay 5 -o "$RUNNER_TEMP/cf-preview-delete.json" -w 'HTTP %{http_code}\n' \
+            -X DELETE "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/ardent-tools/deployments/${ARDENT_PREVIEW_DEPLOYMENT_ID}?force=true" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            || echo "::warning::preview deployment cleanup request failed for $ARDENT_PREVIEW_DEPLOYMENT_ID (best-effort; not failing the job)"
+          python3 -c "import json,sys; r=json.load(open('$RUNNER_TEMP/cf-preview-delete.json')); print('preview cleanup success:', r.get('success'), r.get('errors') or '')" \
+            || echo "::warning::preview deployment cleanup response for $ARDENT_PREVIEW_DEPLOYMENT_ID could not be parsed (best-effort; not failing the job)"

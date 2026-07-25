@@ -3213,13 +3213,30 @@ class DeployWorkflowContractTests(unittest.TestCase):
             steps, "Capture last-known-good production deployment"
         )
         self.assertEqual(capture_step.get("id"), "capture_last_good")
+        capture_run = capture_step["run"]
+        # AT-01 follow-up: the last-known-good lookup calls the CF API
+        # directly - wrangler's own `--json` output is a PascalCase display
+        # mapping the extractor does not understand and truncates the
+        # commit to 7 hex chars (see PagesLastDeploymentTests' wrangler
+        # rejection test below).
+        self.assertNotIn("wrangler pages deployment list --project-name", capture_run)
         self.assertIn(
-            "wrangler pages deployment list --project-name ardent-tools "
-            "--environment production --json",
-            capture_step["run"],
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}"
+            "/pages/projects/ardent-tools/deployments?env=production",
+            capture_run,
         )
-        self.assertIn("bin/pages_last_deployment.py", capture_step["run"])
-        self.assertIn('>> "$GITHUB_OUTPUT"', capture_step["run"])
+        self.assertIn("Authorization: Bearer ${CLOUDFLARE_API_TOKEN}", capture_run)
+        self.assertIn("per_page=${per_page}", capture_run)
+        self.assertIn("page=${page}", capture_run)
+        # Paginates until a short page proves the list is exhausted, with a
+        # bounded max_pages so an API/response anomaly cannot loop forever.
+        self.assertIn("max_pages", capture_run)
+        self.assertIn('"$page_count" -lt "$per_page"', capture_run)
+        self.assertIn("bin/pages_last_deployment.py", capture_run)
+        self.assertIn('>> "$GITHUB_OUTPUT"', capture_run)
+        self.assertNotIn(
+            "wrangler pages deployment list --project-name", workflow_text
+        )
 
         preview_deploy_step = workflow_step(steps, "Deploy preview to Cloudflare Pages")
         self.assertEqual(preview_deploy_step.get("id"), "preview_deploy")
@@ -3242,6 +3259,11 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertIn("bin/pages_deployment_receipt.py", preview_run)
         self.assertIn("--environment preview", preview_run)
         self.assertIn("ARDENT_PREVIEW_URL", preview_run)
+        # The preview deployment id is captured too (consumed by the
+        # best-effort preview-cleanup step) - one call selects each field.
+        self.assertIn("--field url", preview_run)
+        self.assertIn("--field id", preview_run)
+        self.assertIn("ARDENT_PREVIEW_DEPLOYMENT_ID", preview_run)
 
         preview_verify_step = workflow_step(steps, "Verify preview deployment")
         self.assertEqual(preview_verify_step.get("id"), "preview_verify")
@@ -3265,12 +3287,16 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertLess(promote_validate, promote_upload)
         self.assertEqual(promote_step["env"]["GITHUB_SHA"], "${{ github.sha }}")
         self.assertIn('--commit-hash "$GITHUB_SHA"', promote_run)
-        self.assertEqual(
-            promote_step["env"]["WRANGLER_OUTPUT_FILE_PATH"],
-            "${{ runner.temp }}/ardent-wrangler-output.jsonl",
-        )
-        self.assertIn("bin/pages_deployment_receipt.py", promote_run)
-        self.assertIn("ARDENT_IMMUTABLE_URL", promote_run)
+        # AT-01 follow-up: promote's own receipt-parse had no consumer
+        # (the canonical verify targets https://ardent.tools, not a
+        # per-deploy immutable URL) and a parse failure AFTER a successful
+        # upload would wrongly mark steps.promote.outcome as 'failure',
+        # skipping restore-eligibility even though production bytes had
+        # already changed. The step is exactly validate + upload now.
+        self.assertNotIn("WRANGLER_OUTPUT_FILE_PATH", promote_step["env"])
+        self.assertNotIn("pages_deployment_receipt.py", promote_run)
+        self.assertNotIn("ARDENT_IMMUTABLE_URL", promote_run)
+        self.assertNotIn("ARDENT_IMMUTABLE_URL", workflow_text)
 
         # INVARIANT: none of the preview/promote steps reference a status
         # check function - GitHub Actions implicitly ANDs success() onto
@@ -3382,6 +3408,55 @@ class DeployWorkflowContractTests(unittest.TestCase):
         )
         self.assertIn("exit 1", no_prior_step["run"])
         self.assertNotIn("wrangler pages deployment", no_prior_step["run"])
+
+    def test_job_has_a_bounded_timeout(self) -> None:
+        workflow_text = (ROOT / ".github/workflows/deploy.yml").read_text()
+        workflow = parse_workflow_yaml(workflow_text)
+        job = workflow["jobs"]["gate-and-deploy"]
+        # AT-01 follow-up: a wedged run must not hold the non-cancelable
+        # production concurrency group for GitHub's 6-hour job default.
+        self.assertEqual(job["timeout-minutes"], "30")
+
+    def test_preview_cleanup_is_best_effort_and_gated_on_a_real_preview(
+        self,
+    ) -> None:
+        workflow_text = (ROOT / ".github/workflows/deploy.yml").read_text()
+        workflow = parse_workflow_yaml(workflow_text)
+        steps = workflow["jobs"]["gate-and-deploy"]["steps"]
+        step_names = [step.get("name") for step in steps]
+
+        cleanup_step = workflow_step(steps, "Delete preview deployment")
+        cleanup_if = cleanup_step["if"]
+        # always() so the preview is deleted whether the run went on to
+        # succeed, fail preview_verify, fail promote, or fail-and-restore -
+        # but only when preview_deploy itself actually created one.
+        self.assertIn("always()", cleanup_if)
+        self.assertIn("steps.preview_deploy.outcome == 'success'", cleanup_if)
+
+        cleanup_run = cleanup_step["run"]
+        self.assertIn(
+            "-X DELETE "
+            '"https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}'
+            "/pages/projects/ardent-tools/deployments/"
+            '${ARDENT_PREVIEW_DEPLOYMENT_ID}?force=true"',
+            cleanup_run,
+        )
+        self.assertIn("Authorization: Bearer ${CLOUDFLARE_API_TOKEN}", cleanup_run)
+        # Best-effort: cleanup failure is swallowed, never an `exit 1` that
+        # would fail an already-decided deploy/restore outcome.
+        self.assertNotIn("exit 1", cleanup_run)
+        self.assertIn("|| echo", cleanup_run)
+
+        # Cleanup must run after the preview id exists and after the
+        # restore-decision steps, so it observes their outcome.
+        self.assertLess(
+            step_names.index("Deploy preview to Cloudflare Pages"),
+            step_names.index("Delete preview deployment"),
+        )
+        self.assertLess(
+            step_names.index("Fail loudly - no prior production deployment to restore"),
+            step_names.index("Delete preview deployment"),
+        )
 
     def test_workflow_yaml_parser_handles_flow_scalars_and_detach_edges(
         self,
@@ -3530,6 +3605,70 @@ class PagesDeploymentReceiptTests(unittest.TestCase):
             unterminated.write_text(json.dumps(self.entries()[0]))
             with self.assertRaisesRegex(ValueError, "LF-terminated"):
                 self.extract(unterminated)
+
+    def test_extract_deployment_id_matches_the_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), self.entries())
+            deployment_id = deployment_receipt.extract_deployment_id(
+                path,
+                expected_revision=self.REVISION,
+                project=self.PROJECT,
+                production_branch="main",
+            )
+        self.assertEqual(deployment_id, self.DEPLOYMENT_ID)
+
+    def test_extract_deployment_receipt_returns_url_and_id_together(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), self.entries())
+            url, deployment_id = deployment_receipt.extract_deployment_receipt(
+                path,
+                expected_revision=self.REVISION,
+                project=self.PROJECT,
+                production_branch="main",
+            )
+        self.assertEqual(url, self.URL)
+        self.assertEqual(deployment_id, self.DEPLOYMENT_ID)
+
+    def test_main_field_argument_selects_url_or_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), self.entries())
+            for field, expected in (("url", self.URL), ("id", self.DEPLOYMENT_ID)):
+                with self.subTest(field=field):
+                    captured = io.StringIO()
+                    argv = [
+                        "pages_deployment_receipt.py",
+                        str(path),
+                        "--expected-revision", self.REVISION,
+                        "--project", self.PROJECT,
+                        "--production-branch", "main",
+                        "--field", field,
+                    ]
+                    with (
+                        mock.patch.object(deployment_receipt.sys, "argv", argv),
+                        mock.patch.object(deployment_receipt.sys, "stdout", captured),
+                    ):
+                        result = deployment_receipt.main()
+                    self.assertEqual(result, 0)
+                    self.assertEqual(captured.getvalue(), f"{expected}\n")
+
+    def test_main_defaults_to_url_field(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), self.entries())
+            captured = io.StringIO()
+            argv = [
+                "pages_deployment_receipt.py",
+                str(path),
+                "--expected-revision", self.REVISION,
+                "--project", self.PROJECT,
+                "--production-branch", "main",
+            ]
+            with (
+                mock.patch.object(deployment_receipt.sys, "argv", argv),
+                mock.patch.object(deployment_receipt.sys, "stdout", captured),
+            ):
+                result = deployment_receipt.main()
+            self.assertEqual(result, 0)
+            self.assertEqual(captured.getvalue(), f"{self.URL}\n")
 
 
 class PagesLastDeploymentTests(unittest.TestCase):
@@ -3686,6 +3825,49 @@ class PagesLastDeploymentTests(unittest.TestCase):
     def test_main_reports_false_with_no_prior_deployment(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = self.write(Path(directory), [])
+            captured = io.StringIO()
+            with (
+                mock.patch.object(
+                    last_deployment.sys, "argv",
+                    ["pages_last_deployment.py", str(path), "--project", self.PROJECT],
+                ),
+                mock.patch.object(last_deployment.sys, "stdout", captured),
+            ):
+                result = last_deployment.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(captured.getvalue(), "had_prior_deployment=false\n")
+
+    def test_wrangler_pascal_case_shape_is_rejected(self) -> None:
+        # AT-01 follow-up: `wrangler pages deployment list --json` emits a
+        # PascalCase DISPLAY mapping ({Id, Environment:"Production",
+        # Source:<7-char-sha>, ...}), not this extractor's lowercase CF-API
+        # schema. capture_last_good now calls the CF API directly instead
+        # (see DeployWorkflowContractTests), but this test pins the
+        # rejection at the extractor layer too: feeding it wrangler's shape
+        # must fail closed to "no prior deployment" rather than silently
+        # matching a differently-cased field, so this schema class can
+        # never silently regress again even if a future edit reintroduces
+        # a wrangler-shaped input by mistake.
+        wrangler_shaped_entries = [
+            {
+                "Id": self.DEPLOYMENT_ID,
+                "Environment": "Production",
+                "Branch": "main",
+                "Source": self.REVISION[:7],
+                "Status": "Success",
+                "Created": "2026-07-20T00:00:00Z",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), wrangler_shaped_entries)
+            deployment_id, revision = last_deployment.extract_last_good(
+                path, project=self.PROJECT
+            )
+        self.assertIsNone(deployment_id)
+        self.assertIsNone(revision)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), wrangler_shaped_entries)
             captured = io.StringIO()
             with (
                 mock.patch.object(
