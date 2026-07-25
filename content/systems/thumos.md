@@ -18,9 +18,128 @@ receipt = "CI runs this boot on pushes to main and pull requests targeting main,
 system = "thumos"
 action = "kernel boot"
 target = "qemu-system-arm -machine virt"
-tape = "/tapes/thumos-boot.tape"
+cast = "/casts/thumos-boot.cast"
+recipe = "/tapes/thumos-boot.driver.sh"
+duration = "21s"
+cols = 102
+rows = 24
+poster = "npt:0:19"
 shows = "The same primary qemu-feature build and runner invocation used by CI, with the banner, boot-complete, and service-loop markers observed after a zero exit."
 not_shows = "The complete CI sequence or hardware bring-up on the physical AGM M7. QEMU proves this boot path, not the modem/WiFi/BT/GPS vendor blobs."
+fallback = [
+  "$ cargo build --release --target armv7a-none-eabi --features qemu --jobs 8 && ok BUILD_OK",
+  "THUMOS_BUILD_OK",
+  "$ ../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos < /dev/null && ok BOOT_OK",
+  "  THUMOS v0.1.0",
+  "[init] Boot complete at 26 ms",
+  "       6 / 18 subsystems OK",
+  "THUMOS-QEMU: boot-complete",
+  "[kardia] service loop running",
+  "THUMOS-QEMU: service-loop ticks=50",
+  "THUMOS_BOOT_OK",
+  "$ # not shown: physical AGM M7 hardware - qemu proves the boot path, not the modem/wifi/bt/gps blobs",
+]
+transcript = '''
+$ # thumos - bare-metal Rust kernel, no Linux, booting under qemu-system-arm
+$ cargo build --release --target armv7a-none-eabi --features qemu --jobs 8 && ok BUILD_OK
+    Finished `release` profile [optimized] target(s) in 0.05s
+THUMOS_BUILD_OK
+$ ../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/thumos < /dev/null && ok BOOT_OK
+thumos-qemu: kernel_main reached
+
+================================
+  THUMOS v0.1.0
+  Rust OS for the AGM M7 (MT6739)
+  THUMOS-BOOT-TRUST:DEV:8f98c164358c8ace (NOT PRODUCTION-TRUSTED)
+================================
+
+[init] MMU + caches
+[init] Page allocator
+       261632 pages free (1022 MB)
+[init] Kernel heap
+       slab: 0 allocs, 0 frees
+[init] GIC
+[init] Process subsystem
+[init] Exceptions + timer
+       Timer frequency: 62500000 Hz
+[init] CSPRNG (ChaCha20)
+       CSPRNG ready
+[init] Watchdog (WDT, 5s)
+       WDT skipped (qemu: no MT6739 WDT model)
+[init] Device registry
+       18 devices registered
+[init] eMMC (MSDC0)
+       Skipped (qemu: no MSDC model)
+[init] Display (GC9306 240x320)
+       Skipped (qemu: no DDP/DSI model)
+[init] GPIO keypad
+       Skipped (qemu: no KPD model)
+[init] Secure boot verification
+       Secure boot: DEGRADED (no boot medium -- trust not established; persistent data stays locked)
+[init] Filesystem (LFS)
+       Skipped (no eMMC)
+[init] Passphrase entry
+  WARN Passphrase entry refused (secure boot not established -- fail-closed)
+[init] Encrypted filesystem
+  WARN Encrypted mount skipped (no passphrase/eMMC)
+[init] Audit log
+  WARN Audit log deferred (secure boot not established -- fail-closed)
+[init] Security mode (Daily)
+       Security mode: Daily policy applied
+[init] USB ACM serial
+       Skipped (qemu: no MUSB model)
+[init] CCCI modem
+       Skipped (qemu: no CCCI/CLDMA model); phone functions disabled
+[init] Power manager
+       5 radios active per Daily policy (applied at security-mode init)
+[init] Network WiFi readiness
+  WARN WiFi data path unavailable; production network disabled
+[init] Network loopback smoke (DHCP + DNS)
+       Skipped (qemu: no network model -- #461)
+[init] Bluetooth (BT HCI via WMT)
+  WARN BT init failed: NotInitialized
+       Bluetooth disabled
+[init] GPS (via WMT)
+  WARN GPS init failed: HardwareTimeout
+       GPS disabled
+
+[init] Boot complete at 78 ms
+       6 / 18 subsystems OK
+       NOTE: display unavailable, USB serial only
+       NOTE: modem unavailable, no phone functions
+       NOTE: network unavailable, no connectivity
+
+[init] Spawning userspace processes
+       Userspace: image-resident initramfs signature verified (boot anchor)
+       /init spawned PL0 (PID 1)
+       /shell spawned PL0 (PID 2)
+       2 userspace ELF processes running
+THUMOS-QEMU: boot-complete
+[init] No debug console this boot; entering service loop
+kardia: modem ready state=Registered
+       Audit trail: interim session key (persistent key PENDING #217)
+[karinit: hello from userspace
+shell: hello from userspace
+dia] service loop running
+kardia: frame rendered painted_px=2191
+kardia: clock src=manual wall=1735603200
+kardia: audio ready sessions=1 mic_entries=1
+kardia: statusbar net=Lte mode=D
+kardia: sim iccid_len=19 sms_inbox=1 sim_ready=true signal_bars=3 operator_len=8 sms_sent=true
+kardia: bt_audio sample_rate=44100 channels=2
+kardia: netrat rat=Some(EUtran) net=Lte
+kardia: heorte events=1 alarms=1 calendar_rows=2 timer_armed=true
+kardia: firewall rules=1 allowed=1 denied=1 audit_events=2 chain=ok
+kardia: reaped 2 fault-killed process(es)
+kardia: nav Home -> Search
+kardia: incoming call -> ringtone sessions=1
+kardia: frame rendered painted_px=7934
+kardia: nav Search -> Home
+kardia: frame rendered painted_px=2191
+THUMOS-QEMU: service-loop ticks=50
+THUMOS_BOOT_OK
+$ # not shown: physical AGM M7 hardware - qemu proves the boot path, not the modem/wifi/bt/gps blobs
+'''
 +++
 
 ## What it is
