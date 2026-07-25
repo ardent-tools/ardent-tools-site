@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DERIVATIONS = (
     ("bin/generate-systems-json.py", "static/systems.json"),
     ("bin/validate-career-claims.py", "static/career-claims.json"),
+    ("bin/generate-sbom.py", "static/sbom.cdx.json"),
 )
 USAGE = (
     "usage: python3 bin/site.py "
@@ -114,6 +115,12 @@ def derivation_inputs() -> list[Path]:
         ROOT / "content/about.md",
         ROOT / "resume/cody-kickertz-resume.typ",
         ROOT / "static/files/cody-kickertz-resume.pdf",
+        ROOT / ".github/workflows/deploy.yml",
+        ROOT / "package-lock.json",
+        ROOT / "bin/requirements.txt",
+        ROOT / "content/colophon.md",
+        ROOT / "static/vendor/asciinema/asciinema-player.min.js",
+        ROOT / "static/vendor/asciinema/asciinema-player.css",
     ]
     inputs.extend(sorted((ROOT / "content/systems").glob("*.md")))
     return inputs

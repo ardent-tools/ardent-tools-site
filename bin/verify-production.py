@@ -45,6 +45,7 @@ REQUIRED_RELEASE_LOGICAL_PATHS = (
     AUTHORITY_NAME,
     BOUNDARY_NAME,
     "robots.txt",
+    "sbom.cdx.json",
     "sitemap.xml",
     "systems.json",
     "site.webmanifest",

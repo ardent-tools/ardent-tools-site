@@ -13,6 +13,7 @@ canonical_paths = [
   "release-html.json",
   "robots.txt",
   "runtime-boundary.json",
+  "sbom.cdx.json",
   "sitemap.xml",
   "systems.json",
 ]

@@ -1,0 +1,424 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "ardent-tools-site",
+      "name": "ardent-tools-site"
+    },
+    "properties": [
+      {
+        "name": "ardent:generator",
+        "value": "bin/generate-sbom.py"
+      },
+      {
+        "name": "ardent:generator_version",
+        "value": "1"
+      },
+      {
+        "name": "ardent:purpose",
+        "value": "Build-provenance and product-composition receipt. Covers the one runtime-shipped third-party dependency and the pinned build toolchain; the toolchain itself never ships to a visitor's browser."
+      },
+      {
+        "name": "ardent:source",
+        "value": ".github/workflows/deploy.yml#sha256:095ffd1ddf424a17db53f21adf1280fbbba4ce709af287518dc3fb9d7ce4f1f3"
+      },
+      {
+        "name": "ardent:source",
+        "value": "package-lock.json#sha256:4e31154c4c3f5c45c752be78f358c24ff7916df74ac9aacbd4ff8326c5dba6ee"
+      },
+      {
+        "name": "ardent:source",
+        "value": "bin/requirements.txt#sha256:e7c964f8bb47c1c3bf4b3320b5d4873dfd4424caf01376f6fcfcb3da71841529"
+      },
+      {
+        "name": "ardent:source",
+        "value": "content/colophon.md#sha256:00f73b93dbbe1149a7fae6d052f7201b2d24b50a2c2fbaeab18cba66486a0439"
+      },
+      {
+        "name": "ardent:source",
+        "value": "static/vendor/asciinema/asciinema-player.min.js#sha256:a13c37632e1b5c49fe9128417b9319a9b5bc64cb457dd5ae52cbba8a3aceb880"
+      },
+      {
+        "name": "ardent:source",
+        "value": "static/vendor/asciinema/asciinema-player.css#sha256:f619fe17597043564f03b2c6918b3daf890ee8b912fb408542fba11afade4fdb"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/asciinema-player@3.17.0",
+      "name": "asciinema-player",
+      "version": "3.17.0",
+      "purl": "pkg:npm/asciinema-player@3.17.0",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "runtime"
+        },
+        {
+          "name": "ardent:asset",
+          "value": "static/vendor/asciinema/asciinema-player.min.js#sha256:a13c37632e1b5c49fe9128417b9319a9b5bc64cb457dd5ae52cbba8a3aceb880"
+        },
+        {
+          "name": "ardent:asset",
+          "value": "static/vendor/asciinema/asciinema-player.css#sha256:f619fe17597043564f03b2c6918b3daf890ee8b912fb408542fba11afade4fdb"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/getzola/zola@v0.22.1",
+      "name": "zola",
+      "version": "0.22.1",
+      "purl": "pkg:github/getzola/zola@v0.22.1",
+      "scope": "optional",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0ca09aa40376aaa9ddfb512ff9ad963262ef95edb0d0f2d5ec6961b6f5cf22ef"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "EUPL-1.2"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/typst/typst@v0.14.2",
+      "name": "typst",
+      "version": "0.14.2",
+      "purl": "pkg:github/typst/typst@v0.14.2",
+      "scope": "optional",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a6044cbad2a954deb921167e257e120ac0a16b20339ec01121194ff9d394996d"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/lycheeverse/lychee@lychee-v0.24.2",
+      "name": "lychee",
+      "version": "0.24.2",
+      "purl": "pkg:github/lycheeverse/lychee@lychee-v0.24.2",
+      "scope": "optional",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      "name": "actions/checkout",
+      "version": "v4.4.0",
+      "purl": "pkg:github/actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "name": "actions/setup-node",
+      "version": "v4.4.0",
+      "purl": "pkg:github/actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+      "name": "actions/setup-python",
+      "version": "v5",
+      "purl": "pkg:github/actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "platform",
+      "bom-ref": "pkg:generic/python@3.12",
+      "name": "python",
+      "version": "3.12",
+      "purl": "pkg:generic/python@3.12",
+      "scope": "optional",
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40playwright/test@1.61.1",
+      "name": "@playwright/test",
+      "version": "1.61.1",
+      "purl": "pkg:npm/%40playwright/test@1.61.1",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/pa11y-ci@4.1.1",
+      "name": "pa11y-ci",
+      "version": "4.1.1",
+      "purl": "pkg:npm/pa11y-ci@4.1.1",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "LGPL-3.0-only"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/wrangler@4.112.0",
+      "name": "wrangler",
+      "version": "4.112.0",
+      "purl": "pkg:npm/wrangler@4.112.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/attrs@26.1.0",
+      "name": "attrs",
+      "version": "26.1.0",
+      "purl": "pkg:pypi/attrs@26.1.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/jsonschema@4.26.0",
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "purl": "pkg:pypi/jsonschema@4.26.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/jsonschema-specifications@2025.9.1",
+      "name": "jsonschema-specifications",
+      "version": "2025.9.1",
+      "purl": "pkg:pypi/jsonschema-specifications@2025.9.1",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/referencing@0.37.0",
+      "name": "referencing",
+      "version": "0.37.0",
+      "purl": "pkg:pypi/referencing@0.37.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/rpds-py@2026.6.3",
+      "name": "rpds-py",
+      "version": "2026.6.3",
+      "purl": "pkg:pypi/rpds-py@2026.6.3",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/typing-extensions@4.16.0",
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "purl": "pkg:pypi/typing-extensions@4.16.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "PSF-2.0"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "ardent:tier",
+          "value": "build"
+        }
+      ]
+    }
+  ]
+}

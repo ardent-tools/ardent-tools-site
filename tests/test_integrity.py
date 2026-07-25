@@ -146,6 +146,7 @@ def run_production_fixture(
             "llms.txt": b"release fixture\n",
             "robots.txt": b"User-agent: *\n",
             "runtime-boundary.json": b"{}\n",
+            "sbom.cdx.json": b"{}\n",
             "sitemap.xml": sitemap_body,
             "systems.json": b"[]\n",
         }
@@ -2173,6 +2174,7 @@ class ReleaseManifestContractTests(unittest.TestCase):
             "release-html.json": b"{}\n",
             "robots.txt": b"fixture\n",
             "runtime-boundary.json": b"{}\n",
+            "sbom.cdx.json": b"{}\n",
             "sitemap.xml": b"<urlset/>\n",
             "systems.json": b"{}\n",
         }
@@ -4021,10 +4023,12 @@ class CatalogContractTests(unittest.TestCase):
                 "generate-systems-json.py",
                 "validate-career-claims.py",
                 "career_claim_contract.py",
+                "generate-sbom.py",
             ):
                 shutil.copy2(ROOT / "bin" / filename, root / "bin" / filename)
             shutil.copytree(ROOT / "content/systems", root / "content/systems")
             shutil.copy2(ROOT / "content/about.md", root / "content/about.md")
+            shutil.copy2(ROOT / "content/colophon.md", root / "content/colophon.md")
             (root / "data").mkdir()
             shutil.copy2(
                 ROOT / "data/exact-system-licenses.json",
@@ -4042,6 +4046,24 @@ class CatalogContractTests(unittest.TestCase):
             shutil.copy2(
                 ROOT / "static/files/cody-kickertz-resume.pdf",
                 root / "static/files/cody-kickertz-resume.pdf",
+            )
+            (root / "static/vendor/asciinema").mkdir(parents=True)
+            shutil.copy2(
+                ROOT / "static/vendor/asciinema/asciinema-player.min.js",
+                root / "static/vendor/asciinema/asciinema-player.min.js",
+            )
+            shutil.copy2(
+                ROOT / "static/vendor/asciinema/asciinema-player.css",
+                root / "static/vendor/asciinema/asciinema-player.css",
+            )
+            (root / ".github/workflows").mkdir(parents=True)
+            shutil.copy2(
+                ROOT / ".github/workflows/deploy.yml",
+                root / ".github/workflows/deploy.yml",
+            )
+            shutil.copy2(ROOT / "package-lock.json", root / "package-lock.json")
+            shutil.copy2(
+                ROOT / "bin/requirements.txt", root / "bin/requirements.txt"
             )
             entrypoint = root / "bin/site.py"
             subprocess.run(
