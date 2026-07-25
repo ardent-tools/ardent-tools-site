@@ -34,6 +34,15 @@
     {%- endif %}
   </header>
 
+  {#- Orienting figure (optional): rendered from frontmatter as furniture,
+     never inside page.content, so the canonical Atom feed carries no asset
+     dependency. Addressed like any other HTML img src at build. #}
+  {%- if page.extra.figure %}
+  <figure class="entry-figure reveal">
+    <img src="{{ page.extra.figure }}" alt="{{ page.extra.figure_alt | default(value='') }}" loading="lazy">
+  </figure>
+  {%- endif %}
+
   <div class="prose">
   {{ page.content | safe }}
   </div>
