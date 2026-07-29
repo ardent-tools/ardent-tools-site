@@ -1,6 +1,6 @@
 +++
 title = "Consulting"
-description = "Agent infrastructure, governed AI platforms, and standards-as-code - advisory retainer, scoped builds, or transition and handoff support."
+description = "Agent infrastructure and standards-as-code - advisory retainer, scoped builds, or transition and handoff support."
 template = "consulting.html"
 
 [[extra.engagement_shapes]]
@@ -22,8 +22,16 @@ Ardent Tools is a fit when an agent system works in the builder's hands but stil
 
 ## Deliverables
 
-Typical deliverables include an architecture and threat-boundary review, a repository-owned standards and gate layer, a focused tool or workflow implementation, tests for the claims the system makes, and an operator handoff that does not depend on the original builder being present. The [system dossiers](/systems/) and [evidence register](/evidence/) show the standard applied to this practice's own work.
+An engagement produces some subset of an architecture and threat-boundary review, a repository-owned standards and gate layer, a focused tool or workflow implementation, tests for the claims the system makes, and a handoff that runs without me. The [system dossiers](/systems/) and [evidence register](/evidence/) are the same standard applied to my own work.
+
+## Where it stops
+
+The work runs on your repository and your agent tooling. No company email, no VPN, no warehouse credentials, no production data. Running recurring reports is not in scope - the runbook that lets someone else run them is.
+
+Acceptance happens on your side, by your own engineer on their own machine. A handoff that only passes in my hands has not happened.
+
+Dependencies you control stay yours: enabling CI, provisioning a scoped database principal, granting schema access. The engagement names them at the start rather than waiting quietly on them.
 
 ## Proof of work
 
-The public systems and their source-linked receipts are the track record. [kanon](/systems/kanon/)'s public receipt is the standards configuration carried across six featured repositories, [harmonia](/systems/harmonia/) collapses a stack of separate media services into one shipped server, and [thumos](/systems/thumos/) boots a bare-metal phone OS under QEMU, verified by CI on every push. Each dossier states what's solid and what's still open. No client list exists yet - the practice is new, and a client gets named only with written permission.
+The public systems and their source-linked receipts are the track record. [kanon](/systems/kanon/)'s public receipt is `.kanon-ci.toml` in six featured public system repositories, each setting its own enforcement scope - presence of the config is not a claim that they run the same checks. [harmonia](/systems/harmonia/) runs the five-app *arr pattern as one server, with a capability table naming its ten remaining stubs and the admin route that returns 202 without doing the work. [thumos](/systems/thumos/) boots a bare-metal phone OS under QEMU, and CI runs that boot on pushes to main and on pull requests targeting main. A client gets named only with written permission.

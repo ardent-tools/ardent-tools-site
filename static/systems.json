@@ -4,39 +4,39 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "d07e857849bd93bc488baf4c3efdf84bd6e7fad9812bff4f1d106829d124e830",
+    "input_sha256": "e0b329ddc2366aa028dc6a70e13636582a15331b27c7308096511c9d371e6501",
     "sources": [
       {
         "path": "content/systems/_index.md",
-        "sha256": "1ac07c5da31f0435dcc0db3e37e24f87d4e3851b6b51d39a4f2ebc13291d0c86"
+        "sha256": "2f3eafdc1ebb94491b10626819b9610ac5d7b62b81fa8d8890bf2317162fcba0"
       },
       {
         "path": "content/systems/akroasis.md",
-        "sha256": "8b99400e6a00af3125a78e65f5a99167f025ef15f8bb3b2e156e23a9f2cf5fd9"
+        "sha256": "c0384cb18f18aaf08ff92ad051396a0299355f1ed25773d269ce7c277728fd58"
       },
       {
         "path": "content/systems/aletheia.md",
-        "sha256": "b805c4049b0c62c2c96ea1a42331c50c912e21d7cded10a2cf07c68e1196c4d7"
+        "sha256": "8f8fd9384859cf29c7cab7c65113bc1d77e8339effb593125b0a60e514c3673e"
       },
       {
         "path": "content/systems/hamma.md",
-        "sha256": "defaa1b6e9bc8dca166e13a69be5faeee4169dd70bc0f3e24661570bc4ad304e"
+        "sha256": "ca7d0139c8ff84c0316b029e668a7b010e0df39febfc93d3d49d49205fe8a830"
       },
       {
         "path": "content/systems/harmonia.md",
-        "sha256": "42bfa013d5aa16571aaeff730fef9ed2d2760a8c328400d76600db4e5ae87af1"
+        "sha256": "e6d7c490e360a951c2c7910dca9f815eb7d3a68edff1d22647ea88b9f55d87e4"
       },
       {
         "path": "content/systems/kanon.md",
-        "sha256": "75cd94d5d343d3e612602520fdc43d6b1b468eece7e4058e7813b3a67782dbab"
+        "sha256": "2a144e7d0a210d135956445e8b399da3010c5634790f66a48b2df5ff1523d41f"
       },
       {
         "path": "content/systems/logismos.md",
-        "sha256": "f27047ec39b997c333857a367097b826b9c1f7f744d10d4497d5cb4d41438874"
+        "sha256": "5e0e2290c15d52e1f32c76417be31eb2a58f8a2c58e9b896e0b33335e0d06cc3"
       },
       {
         "path": "content/systems/thumos.md",
-        "sha256": "7db408590889019f281eff5f6a70c61a27c0ce1e746cb55ed199b8ac2ea60951"
+        "sha256": "a3518c0ae90aa2803133e2fa361500e5ce45792376d58f8596d54c1d7d918837"
       },
       {
         "path": "data/exact-system-licenses.json",
@@ -52,10 +52,10 @@
       "group": "systems",
       "url": "https://ardent.tools/systems/akroasis/",
       "one_liner": "An RF signals toolkit in Rust: a clean-room Meshtastic mesh stack live, CHIRP radio workflows, an encrypted vault, and a 7-domain typed signal contract across 17 declared domains, 11 still stubs.",
-      "badge": "MESH LIVE · 11 OF 17 DOMAINS PLANNED",
+      "badge": "MESH LIVE · 11 OF 17 DOMAINS STUBBED",
       "repo": "https://github.com/forkwright/akroasis",
       "license": "AGPL-3.0-only",
-      "stack": "Rust workspace · 7 crates · AGPL-3.0-only",
+      "stack": "Rust workspace · 7 crates",
       "private": false
     },
     {
@@ -63,9 +63,9 @@
       "group": "systems",
       "url": "https://ardent.tools/systems/aletheia/",
       "one_liner": "Self-hosted AI agents with persistent memory. One binary, no containers, no external databases - a knowledge graph that carries forward across sessions.",
-      "badge": "TUI DEFAULT · DESKTOP IN PREVIEW",
+      "badge": "PRE-1.0 · TUI DEFAULT",
       "repo": "https://github.com/forkwright/aletheia",
-      "license": null,
+      "license": "AGPL-3.0-or-later",
       "stack": "Rust · single binary · Datalog-backed memory",
       "private": false
     },
@@ -76,7 +76,7 @@
       "one_liner": "A clean-room Rust implementation of a Tailscale-compatible mesh networking stack. Pre-alpha, actively implementing the peer client against a real reference control plane.",
       "badge": "PRE-ALPHA",
       "repo": "https://github.com/forkwright/hamma",
-      "license": null,
+      "license": "MIT OR Apache-2.0",
       "stack": "Rust · Noise protocol · WireGuard data plane planned",
       "private": false
     },
@@ -85,9 +85,9 @@
       "group": "systems",
       "url": "https://ardent.tools/systems/harmonia/",
       "one_liner": "A self-hosted media platform built to replace a stack of separate *arr-pattern services - one Rust server across 21 crates, collapsing the pattern into one media lifecycle manager.",
-      "badge": "SHIPPED CORE · LIVE ADAPTERS WIRED",
+      "badge": "CORE ROUTES LIVE · SCAN ROUTE IS A NO-OP",
       "repo": "https://github.com/forkwright/harmonia",
-      "license": null,
+      "license": "AGPL-3.0-or-later",
       "stack": "Rust · Tokio/Axum/SQLite · 21 workspace members",
       "private": false
     },
@@ -106,10 +106,10 @@
       "name": "logismos",
       "group": "systems",
       "url": "https://ardent.tools/systems/logismos/",
-      "one_liner": "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven; GPU cutover waits on hardware access.",
+      "one_liner": "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven. GPU cutover waits on hardware access.",
       "badge": "PHASE 4 BLOCKED ON HARDWARE",
       "repo": "https://github.com/forkwright/logismos",
-      "license": null,
+      "license": "PolyForm Shield 1.0.0",
       "stack": "Rust · HIP/hipBLASLt · AMD gfx1100",
       "private": false
     },
@@ -120,7 +120,7 @@
       "one_liner": "A bare-metal Rust phone OS for the AGM M7 - no Linux underneath. The kernel boots end-to-end under QEMU, and CI proves it on pushes to main and pull requests targeting main.",
       "badge": "BOOTS UNDER EMULATION",
       "repo": "https://github.com/forkwright/thumos",
-      "license": null,
+      "license": "PolyForm Shield 1.0.0",
       "stack": "Rust · bare-metal armv7a · QEMU CI",
       "private": false
     },
@@ -132,14 +132,14 @@
       "one_liner": "Desktop UI primitives for the fleet: Dioxus/Blitz components, design tokens, markdown rendering, HTTP/SSE, OS integration.",
       "badge": "v1.4.0 · API FROZEN",
       "repo": "https://github.com/forkwright/theatron",
-      "license": "MIT OR Apache-2.0"
+      "license": "Apache-2.0 OR MIT"
     },
     {
       "name": "heurema",
       "group": "libraries",
       "url": null,
       "gloss": "heurema · εὕρημα - a thing found",
-      "one_liner": "Contracts for vector search, full-text search, persistence, and rank fusion. Reciprocal-rank fusion is implemented; HNSW and BM25 land by extraction from their in-app implementations.",
+      "one_liner": "Contracts for vector search, full-text search, persistence, and rank fusion. Reciprocal-rank fusion is implemented. HNSW and BM25 land by extraction from their in-app implementations.",
       "badge": "IMPLEMENTED: RRF · INTERFACES: HNSW, BM25",
       "repo": "https://github.com/forkwright/heurema",
       "license": "AGPL-3.0-or-later"
@@ -199,7 +199,7 @@
       "group": "web",
       "url": null,
       "gloss": "epistole · ἐπιστολή - a letter",
-      "one_liner": "Subscriber lifecycle and archive flows over an embedded store; SMTP delivery is the next phase.",
+      "one_liner": "Subscriber lifecycle and archive flows over an embedded store. SMTP delivery is the next phase.",
       "badge": "PHASE 1 · SMTP PENDING",
       "repo": "https://github.com/forkwright/epistole",
       "license": "AGPL-3.0-or-later"
@@ -209,7 +209,7 @@
       "group": "in-design",
       "url": null,
       "gloss": "pinax · πίναξ - the tablet, the register",
-      "one_liner": "A relational storage engine designed from scratch in Rust: multi-writer MVCC, per-page encryption, a causal changelog as a storage primitive. Design documents only; implementation not started.",
+      "one_liner": "A relational storage engine designed from scratch in Rust: multi-writer MVCC, per-page encryption, a causal changelog as a storage primitive. Design documents only, no implementation.",
       "badge": "DESIGN PHASE",
       "repo": "https://github.com/forkwright/pinax",
       "license": "PolyForm Shield 1.0.0"
@@ -219,7 +219,7 @@
       "group": "in-design",
       "url": null,
       "gloss": "mneme · μνήμη - memory as faculty",
-      "one_liner": "A Datalog engine for facts, rules, and inference: content-addressed facts, supersede-based retraction, incrementally maintained views. Design documents only; implementation not started.",
+      "one_liner": "A Datalog engine for facts, rules, and inference: content-addressed facts, supersede-based retraction, incrementally maintained views. Design documents only, no implementation.",
       "badge": "DESIGN PHASE",
       "repo": "https://github.com/forkwright/mneme",
       "license": "PolyForm Shield 1.0.0"
@@ -229,7 +229,7 @@
       "group": "in-design",
       "url": null,
       "gloss": "dioptron · δίοπτρον - the instrument through which one sees",
-      "one_liner": "A specification for a web runtime where operator and agents share one capability surface: browsing, ingesting, querying, acting. Design documents only; implementation not started.",
+      "one_liner": "A specification for a web runtime where operator and agents share one capability surface: browsing, ingesting, querying, acting. Design documents only, no implementation.",
       "badge": "DESIGN PHASE",
       "repo": "https://github.com/forkwright/dioptron",
       "license": "AGPL-3.0-or-later"

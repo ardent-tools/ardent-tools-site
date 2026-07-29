@@ -1,6 +1,6 @@
 +++
 title = "The budget that had to be measured"
-description = "A concurrency gate for worker-agent builds, four production melts, one repeated measurement - a full-workspace build costs about twice its declared parallelism."
+description = "A build-concurrency gate melted production four times on a shared worker-agent box, and a full-workspace build turned out to cost about twice its declared parallelism."
 date = 2026-07-24
 
 [extra]
@@ -17,7 +17,7 @@ The rule that mattered here also lives in a runbook, one line among many - don't
 
 The first version of the gate checked the box's load average once, then admitted a build if the number came back low enough. Nothing separated the check from the admission. Two agents finishing work in the same few seconds could read the same low number and both get waved through - the gap between looking and acting, with nothing closing it. It also counted admitted slots, not the cores those slots would use - a one-file build and a full-workspace build occupied the same single slot on the same counter, as if they cost the same thing.
 
-The fix I wrote next replaced the load check with an actual budget. Sum the cost of every build currently running, admit a new one only if the running total plus its own cost stays under a fixed share of the box's cores, and check all of it under a lock so two admissions can't race into the same window again. Cost, at first, was set to whatever parallelism a build declared for itself - a full-workspace build declaring twelve threads counted as twelve. Two of those, admitted together under a budget sized to roughly eighty percent of the box's cores, looked safe on paper and still drove the load average to 48.
+The fix I wrote next replaced the load check with an actual budget. Sum the cost of every build in flight, admit a new one only if the running total plus its own cost stays under a fixed share of the box's cores, and check all of it under a lock so two admissions can't race into the same window again. Cost, at first, was set to whatever parallelism a build declared for itself - a full-workspace build declaring twelve threads counted as twelve. Two of those, admitted together under a budget sized to roughly eighty percent of the box's cores, looked safe on paper and still drove the load average to 48.
 
 A full-workspace build doesn't stop at the parallelism it declares. Its own compile runs alongside a format check, a lint pass, and a test runner that spawns its own processes, and all of it stacks threads past whatever number got set. I measured the actual peak against the same box - close to twice the declared figure, about 24 cores for a build that declared 12. That number, not the declared one, is what the budget needed to charge. The number that mattered here has a different pedigree than [a count triangulated three ways elsewhere](/writing/three-ways-to-count/) - one method, the same load-average reading, run again each time the previous figure turned out to be an assumption instead of a fact.
 

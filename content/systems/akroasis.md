@@ -5,33 +5,34 @@ weight = 5
 template = "system.html"
 
 [extra]
-badge = "MESH LIVE · 11 OF 17 DOMAINS PLANNED"
+gloss = "ἀκρόασις - attentive reception"
+badge = "MESH LIVE · 11 OF 17 DOMAINS STUBBED"
 repo = "https://github.com/forkwright/akroasis"
-stack = "Rust workspace · 7 crates · AGPL-3.0-only"
+stack = "Rust workspace · 7 crates"
 license = "AGPL-3.0-only"
 kanon_ci = true
 
 [extra.headline_claim]
 claim = "A clean-room Meshtastic stack is the live signal producer"
-receipt = "kerykeion: framing, serial/TCP transports, encryption, routing, store-and-forward · crates/kerykeion"
+receipt = "cargo tree -p kerykeion shows no upstream Meshtastic crate, and no C++ in the mesh protocol path · crates/kerykeion"
 
 [extra.demo]
 system = "akroasis"
 action = "CHIRP import, then vault verify"
 target = "akroasis radio import / vault identity"
 shows = "Real CLI sessions against the shipped crates: syntonia's CHIRP workflow and kryphos's vault, --json output included."
-not_shows = "Live mesh traffic or radio programming. The mesh CLI is static until daemon mode lands, and radio read/program waits on the protocol session backend. StubHardware is the default; the caption says so."
+not_shows = "Live mesh traffic or radio programming. The mesh CLI is static until daemon mode lands, and radio read/program waits on the protocol session backend. StubHardware is the default until a cast exists."
 +++
 
 ## What it is
 
-Radio, mesh networking, and spectrum-monitoring tools tend to be separate interfaces with separate data models. akroasis folds them into one Rust workspace instead: a typed signal model shared across domains, so a mesh node going quiet and a frequency spike nearby read as one event, not two unrelated logs. The mesh stack - a clean-room reimplementation of the Meshtastic protocol - runs live today. The rest is scored by what ships: kerykeion carries the mesh, syntonia handles radio programming, kryphos is the vault, and the shared signal model (its koinon crate) defines the typed contract the others write into.
+akroasis puts radio, mesh networking, and spectrum monitoring behind one typed signal model in a single Rust workspace, so a mesh node going quiet and a frequency spike nearby are one event in the type system. With one live producer, that convergence runs on synthetic input everywhere except the mesh. The mesh stack - a clean-room reimplementation of the Meshtastic protocol - runs live today. The rest is scored by what ships: kerykeion carries the mesh, syntonia handles radio programming, kryphos is the vault, and the shared signal model (its koinon crate) defines the typed contract the others write into.
 
 ## Decisions and trade-offs
 
 ### The clean-room Meshtastic stack
 
-kerykeion reimplements the protocol in Rust: protobuf framing, transports, encryption, the node database, routing, store-and-forward, rather than binding the vendor's firmware libraries. The cost is months rebuilding what a binding hands over for free. `cargo tree` confirms no upstream Meshtastic crate in the dependency graph. kerykeion is the one domain live end to end, with no C++ in the mesh protocol path. The rejected alternative - wrapping the official library and inheriting its release cadence - was available and passed over.
+kerykeion reimplements the protocol in Rust: protobuf framing, transports, encryption, the node database, routing, store-and-forward, rather than binding the vendor's firmware libraries. The cost is months rebuilding what a binding hands over for free. `cargo tree` confirms no upstream Meshtastic crate in the dependency graph. kerykeion is the one domain live end to end, with no C++ in the mesh protocol path.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -50,7 +51,7 @@ kerykeion reimplements the protocol in Rust: protobuf framing, transports, encry
 
 | Claim | Reproduction method | Where to check |
 |---|---|---|
-| Clean-room Meshtastic stack, live as the one production signal producer | Read the crate; `cargo tree -p kerykeion` shows no upstream Meshtastic crate | `crates/kerykeion` |
+| Clean-room Meshtastic stack, the one domain live end to end | Read the crate; `cargo tree -p kerykeion` shows no upstream Meshtastic crate | `crates/kerykeion` |
 | 7 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `4e3712669df7` | run from that revision |
 | 17 capability domains declared; 11 with no shipped code | Count rows and stub marks in the README table | `README.md` domain table |
 | Vault mutations logged to a BLAKE3 hash-chain tamper log | kryphos dependency tree + the `tamper.log` contract | `crates/kryphos` |

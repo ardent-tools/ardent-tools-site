@@ -5,14 +5,16 @@ weight = 2
 template = "system.html"
 
 [extra]
-badge = "TUI DEFAULT · DESKTOP IN PREVIEW"
+gloss = "ἀλήθεια - unconcealment"
+badge = "PRE-1.0 · TUI DEFAULT"
 repo = "https://github.com/forkwright/aletheia"
 stack = "Rust · single binary · Datalog-backed memory"
 kanon_ci = true
+license = "AGPL-3.0-or-later"
 
 [extra.headline_claim]
 claim = "One binary - no containers, no external databases, no sidecars"
-receipt = "aletheia/README.md, Architecture section"
+receipt = "no Dockerfile or compose file in the repo, and no Postgres, Redis, or MySQL client in the workspace dependency set"
 
 [extra.demo]
 system = "aletheia"
@@ -25,15 +27,15 @@ not_shows = "Memory recall, an LLM response, the TUI, or the desktop app. The pl
 
 ## What it is
 
-aletheia runs AI agents that remember. What was said last week, preferences stated once, a knowledge graph built from every session rather than a cold start each time - an agent carries all of it forward, with its own character, goals, and memory, and agents can coordinate with each other.
+aletheia runs AI agents that remember. An agent carries a knowledge graph across sessions instead of cold-starting each one, and agents can coordinate with each other.
 
-It ships as a single binary - no containers, no external database, no sidecar processes. Its network posture is narrower than “offline”: the runtime makes zero unsolicited outbound connections. Fully offline operation requires a local LLM, cached model files, and network tools and messaging channels disabled. It is reachable from a terminal dashboard, an HTTP/SSE API, or Signal when those interfaces are enabled.
+It ships as a single binary - no containers, no external database, no sidecar processes. The runtime makes zero unsolicited outbound connections, which is narrower than 'offline'. Fully offline operation requires a local LLM, cached model files, and network tools and messaging channels disabled. It is reachable from a terminal dashboard, an HTTP/SSE API, or Signal when those interfaces are enabled.
 
 ## Decisions and trade-offs
 
 ### One binary over an external-database architecture
 
-Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. The trade-off is real. An external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling.
+Persistent memory, session state, and the knowledge graph all live inside the single binary rather than behind a Postgres or Redis dependency. An external database would have made some queries easier to reason about and easier to inspect with off-the-shelf tooling.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -44,7 +46,7 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 
 **Solid:** persistent memory and working-memory continuity across sessions, multi-agent coordination, the built-in tool plane (file I/O, shell execution, web search, memory search, planning, agent coordination), the TUI, the HTTP/SSE API, Signal messaging with `!`-prefixed operator commands that don't consume LLM tokens, and the runtime guardrail layer described above.
 
-**Open:** the desktop app is a v1.0-target preview, not the default path - it's installed separately from a source checkout today. The MCP bridge for runtime-discovered external tools is opt-in (`--features mcp`), not compiled in by default. Several capability groups (`energeia`, `bookkeeper`, `computer-use`, `z3`) are feature-gated additions layered on top of the base tool set, not universal defaults.
+**Open:** no published receipt demonstrates cross-session recall. The health-check recording plan does not test it, and the receipt table below measures size and network posture, not memory. The desktop app is a v1.0-target preview, not the default path - it's installed separately from a source checkout today. The MCP bridge for runtime-discovered external tools is opt-in (`--features mcp`), not compiled in by default. Several capability groups (`energeia`, `bookkeeper`, `computer-use`, `z3`) are feature-gated additions layered on top of the base tool set, not universal defaults.
 
 ## Numbers, and how they were measured
 

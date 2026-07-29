@@ -5,14 +5,16 @@ weight = 4
 template = "system.html"
 
 [extra]
-badge = "SHIPPED CORE · LIVE ADAPTERS WIRED"
+gloss = "ἁρμονία - the joining together of disparate things"
+badge = "CORE ROUTES LIVE · SCAN ROUTE IS A NO-OP"
 repo = "https://github.com/forkwright/harmonia"
 stack = "Rust · Tokio/Axum/SQLite · 21 workspace members"
 kanon_ci = true
+license = "AGPL-3.0-or-later"
 
 [extra.headline_claim]
-claim = "Shipped and wired to routes: auth, library import, feed scheduling, torrent download, queue orchestration, the streaming API"
-receipt = "harmonia/README.md, capability-status table"
+claim = "Shipped and wired to routes: auth, feed scheduling, torrent download, queue orchestration, post-download import, the streaming API"
+receipt = "route registration in crates/archon/src/serve.rs at 6ab797f81c31"
 
 [extra.demo]
 system = "harmonia"
@@ -25,7 +27,7 @@ not_shows = "A library scan or import. The current admin-protected `POST /api/li
 
 ## What it is
 
-Running a self-hosted media stack usually means five or six separate *arr-style applications - one for movies, one for TV, one for music, one for indexing, one for requests - each with its own database and auth, wired together by hand. harmonia collapses that pattern into one server. A single Tokio/Axum/SQLite process, 21 Cargo workspace members, covering the full media lifecycle - import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household requests, HTTP streaming, and a native audio pipeline with bit-perfect decode and DSP.
+Running a self-hosted media stack usually means five or six separate *arr-style applications - one for movies, one for TV, one for music, one for indexing, one for requests - each with its own database and auth, wired together by hand. harmonia collapses that pattern into one server. A single Tokio/Axum/SQLite process, 21 Cargo workspace members, covering the full media lifecycle - import and rename, library scanning, metadata enrichment, quality verification, torrent acquisition, download-queue orchestration, household requests, HTTP streaming, and a native audio pipeline whose quality tier separates a bit-perfect source from a merely lossless one by codec, sample rate, and bit depth.
 
 ## Decisions and trade-offs
 
@@ -35,14 +37,14 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
-| Status reporting | A capability table naming shipped-and-wired vs. stubbed capabilities, down to the exact stub count | A blanket "it works" status claim | Harder to keep honest than a vague claim - the count has to stay current |
-| Audio decode | Native bit-perfect decode and DSP (`akouo-core`), in-process | Piping through an external decoder tool | ALSA development headers required at build time on Linux, a real stated prerequisite |
+| Status reporting | A capability table naming shipped-and-wired vs. stubbed capabilities, down to the exact stub count | A blanket "it works" status claim | The count goes stale on any capability change |
+| Audio decode | Native decode and DSP in-process (`akouo-core`), with a typed quality tier | Piping through an external decoder tool | ALSA development headers required at build time on Linux, a real stated prerequisite |
 
 ## What's solid / what's open
 
-**Solid, shipped and wired to live routes:** auth, library read/import surfaces, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import - a completed download lands directly in the library for music, movie, and book wants.
+**Solid, wired to live routes:** auth, library read/import surfaces, the feed scheduler, the torrent download engine, queue orchestration, the HTTP/OpenSubsonic streaming API, external integrations (Plex, Last.fm, Tidal), QUIC renderer transport, the native audio pipeline, and post-download import - a completed download lands directly in the library for music, movie, and book wants.
 
-**Solid, on the live serve path:** `serve` wires `metadata_adapter` and `CurationAdapter(DefaultCurationService)`. The earlier metadata and curation null-resolver claim is no longer true. Audiobook, comic, podcast, and TV library types exist alongside the established media paths.
+**Also on the live serve path:** `serve` wires `metadata_adapter` and `CurationAdapter(DefaultCurationService)`. Audiobook, comic, podcast, and TV library types are declared. Music, movie, and book are the paths with post-download import wired.
 
 **Open:** `AppState::with_stubs` remains a fallback and test constructor with ten `Null*` implementations. Those stubs are not the live `serve` wiring. At pinned revision `6ab797f81c31`, the admin-protected `POST /api/library/scan` handler returns `202 Accepted` without initiating a scan, so neither this page nor the recording plan treats it as scan evidence. The README documents build and test commands but not yet a day-to-day quick start or example configuration. Reaching a running instance from a fresh clone still means reading the `archon` CLI's own `--help` output.
 
@@ -55,6 +57,7 @@ The *arr-stack pattern (a separate app per media type, each with its own databas
 | 100,473 Rust code lines; 117,589 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `6ab797f81c31`, 2026-07-22 | run from that revision |
 | 21 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `6ab797f81c31` | run from that revision |
 | 2,290 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `6ab797f81c31`, 2026-07-22 | run from that revision |
+| A typed quality tier separates bit-perfect from lossless sources by codec, sample rate, and bit depth | unit tests for the classifier | `crates/akouo-core/src/signal_path/tier.rs` |
 | Live `serve` wires metadata and curation adapters; fallback `with_stubs` has 10 `Null*` implementations | inspect constructors and serve wiring | `crates/archon` application state and serve path |
 
 </div>

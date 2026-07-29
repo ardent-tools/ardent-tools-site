@@ -5,12 +5,13 @@ weight = 3
 template = "system.html"
 
 [extra]
+gloss = "κανών - the rule, the measuring rod"
 badge = "PRIVATE · CASE STUDY"
 private = true
 stack = "Rust · MCP server · standards-as-code"
 
 [extra.headline_claim]
-claim = "Six featured public system repos carry Kanon configuration; enforcement remains repository-specific"
+claim = "Six featured public system repos carry kanon configuration - each repo declares its own enforcement scope"
 receipt = ".kanon-ci.toml in aletheia, thumos, harmonia, akroasis, logismos, and hamma"
 
 [extra.demo]
@@ -102,13 +103,13 @@ $ # not shown: kanon's own source - the engine ran against a public clone
 
 Every repository in this fleet answers to the same control plane. kanon carries it - a lint engine, a CI-exact gate system, a code-intelligence layer, and a PR/issue-orchestration MCP server. Its source is private. The public receipt is narrower and directly inspectable - the six featured public system repositories carry `.kanon-ci.toml`, while each repository chooses its own enforcement scope. Presence of configuration is not a claim that every repository runs the same checks or blocks on the same rules.
 
-Concretely, `kanon lint` finds mechanical rule violations across a repo (`--fix` auto-resolves the fixable class; diff-aware use supplies both `--diff-base <base>` and `--diff-head <head>`, or one `--rev-range <base>..<head>`), and `kanon gate` runs the fast-feedback check (format, compile check, lint), with a `--full` mode that adds clippy, the full test suite, and a Gate-Passed commit trailer once everything's clean.
+Concretely, `kanon lint` finds mechanical rule violations across a repo (`--fix` auto-resolves the fixable class, and diff-aware use supplies both `--diff-base <base>` and `--diff-head <head>`, or one `--rev-range <base>..<head>`), and `kanon gate` runs the fast-feedback check (format, compile check, lint), with a `--full` mode that adds clippy, the full test suite, and a Gate-Passed commit trailer once everything's clean.
 
 ## Decisions and trade-offs
 
-### Private by choice, not by necessity
+### Why the source stays private
 
-kanon stays private not because the source is sensitive, but because it isn't yet hardened for public traffic the way the fleet's other repos are. Systems built in employment are a different case entirely - employer property, described on this site only as experience. A public repo with real stars and real issues would be the stronger portfolio artifact - just not yet, not until the tool is ready for that audience.
+Publishing a control plane commits me to an issue tracker and a contribution path I am not carrying today. Sensitivity has nothing to do with it. Systems built in employment are a different case, employer property, described on this site only as experience.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -119,7 +120,7 @@ kanon stays private not because the source is sensitive, but because it isn't ye
 
 **Solid:** `kanon lint` and `kanon lint --fix` for mechanical rule violations, `kanon gate` and `kanon gate --full` for fast-feedback and full-verification paths, an MCP server surface for PR/issue orchestration and code intelligence, and repository-owned `.kanon-ci.toml` configuration in the six featured public system repositories.
 
-**Open:** not yet hardened for public traffic, which is the entire reason it stays private. No public issue tracker or contribution path exists while that's true.
+**Open:** the source is unpublished, so every number below rests on a dated artifact rather than a repository you can clone. No public issue tracker or contribution path exists.
 
 ## Numbers, and how they were measured
 

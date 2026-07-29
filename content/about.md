@@ -12,11 +12,11 @@ Most of what I've built since is a personal stack - the [full catalog](/systems/
 
 ## Built in employment
 
-They appear here as background from that job, without a source link.
+They appear here as background from that job, without a source link. Figures for both are rounded and current as of 2026-07-29. These are client systems now, and the exact counts are theirs.
 
-The first is a Rust platform - over 200,000 lines, roughly 150 MCP tools - sitting on a healthcare-analytics data warehouse and gated by a machine-enforced standards layer: fourteen rule registries, more than four hundred rules, and a verified zero-override record. It is agent-native in the full sense: role-scoped subagents on an explicit trust ladder, SQL validation with a SELECT-only database policy, a hard block on raw writes against production health data, and a local nine-stage CI the agents themselves run. The figures are rounded and current as of 2026-07-29; it is a client system now, and the exact counts are theirs.
+The first is a Rust platform - over 200,000 lines, roughly 150 MCP tools - sitting on a healthcare-analytics data warehouse and gated by a machine-enforced standards layer: fourteen rule registries, more than four hundred rules, and a zero-override record. Agents operate it directly - role-scoped subagents on an explicit trust ladder, SQL validation with a SELECT-only database policy, a hard block on raw writes against production health data, and a local nine-stage CI the agents themselves run.
 
-The second is a medical-code taxonomy engine built over eight days in March 2026 after upstream research and planning - a from-scratch Rust embedding pipeline over 301,000 medical codes, deduplicated to 220,945 and projected into a four-level, 7,771-node hierarchy in about twelve seconds. Its anatomical layer replaced a structurally broken ten-category legacy scheme with a sixteen-category taxonomy synthesized from eight independent classification standards.
+The second is a medical-code taxonomy engine built over eight days in March 2026 after upstream research and planning - a from-scratch Rust embedding pipeline over 301,000 medical codes, deduplicated to 220,945 and projected into a four-level, 7,771-node hierarchy in about twelve seconds. Its anatomical layer replaced a ten-category legacy scheme with a sixteen-category taxonomy synthesized from eight independent classification standards.
 
 Ardent Tools shares its name with [Ardent Leatherworks](https://ardentleatherworks.com), small-batch leather goods built under the motto "the hand remembers what the mind tries to forget."
 

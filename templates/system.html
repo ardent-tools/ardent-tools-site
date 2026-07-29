@@ -34,6 +34,9 @@
 {% block content %}
 <header class="dossier-header reveal">
   <h1 class="vtn-{{ page.slug }}">{{ page.title }}</h1>
+  {%- if page.extra.gloss %}
+  <p class="dossier-gloss">{{ page.extra.gloss }}</p>
+  {%- endif %}
   {%- if page.description %}
   <p class="page-lede">{{ page.description }}</p>
   {%- endif %}
@@ -46,6 +49,9 @@
     {%- endif %}
     {%- if page.extra.stack %}
     <span>{{ page.extra.stack }}</span>
+    {%- endif %}
+    {%- if page.extra.license %}
+    <span>{{ page.extra.license }}</span>
     {%- endif %}
     {%- if page.extra.headline_claim %}
     <span><span class="claim">{{ page.extra.headline_claim.claim }}</span> <span class="receipt">&middot; {{ page.extra.headline_claim.receipt }}</span></span>

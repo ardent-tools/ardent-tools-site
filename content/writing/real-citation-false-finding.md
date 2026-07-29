@@ -4,7 +4,7 @@ description = "Citation-verification confirms a quoted line exists at the place 
 date = 2026-07-24
 
 [extra]
-components = "A citation can check out at the substring level while the conclusion built on it stays false."
+components = "The gap between a verified citation and a true conclusion."
 tier = "research"
 words = "~1150 words"
 +++
@@ -25,7 +25,7 @@ Crypto and kernel-adjacent code produced the worst of it, the surface where a pl
 
 ---
 
-The judge names its own refutations, and the three most common line up with three ways a citation stays honest while the conclusion built on it goes false. An inverted_claim cites a real guard clause and reads it backward - the finding calls a validated path unvalidated, and the cited line is the validation. A hallucinated_location cites a real line whose text happens to match the finding's wording without being the line the finding is actually about, so the defect described, if it exists at all, lives somewhere the citation never points to. An over_rated finding gets the defect right and the blast radius wrong - a real gap gated by a caller three functions up, filed as though nothing stood between it and production. All three pass citation-verification identically. Matching a substring says nothing about whether a reading runs backward, whether a citation lands in the right neighborhood, or whether a gap is actually reachable.
+The judge names its own refutations, and the three most common line up with three ways a citation stays honest while the conclusion built on it goes false. An inverted_claim cites a real guard clause and reads it backward - the finding calls a validated path unvalidated, and the cited line is the validation. A hallucinated_location cites a real line whose text happens to match the finding's wording without being the line the finding is actually about, so the defect described, if it exists at all, lives somewhere the citation never points to. An over_rated finding gets the defect right and the blast radius wrong - a real gap gated by a caller three functions up, filed as though nothing stood between it and production. All three pass citation-verification identically. Matching a substring says nothing about whether a reading runs backward or a citation lands in the right neighborhood, and nothing about whether a gap is actually reachable.
 
 ---
 
@@ -35,8 +35,4 @@ The fix widens the window on demand - when a claim reads as whole-function in sc
 
 ---
 
-`audit_judge` and `audit_batch_judge` are both live, registered in angelos's tool router, callable today, doing exactly the context-assembly work described here. What they do not do is decide anything. The verdict - refute, uphold, correct the severity - stays an orchestrating model's judgment call, not a mechanical gate a bad answer cannot pass. A calibrated version, bound to per-claim evidence and checked by deterministic replay against a committed set of known-good and known-bad cases, is designed - the shape is written down - and not yet built. The severity a verdict carries has three values today - error, warning, info - and none of them means judged-and-calibrated. That gap is not an oversight. Forcing an uncalibrated judgment down into a hard gate would trade a visibly open question for one a green checkmark quietly answers wrong, the same trade the ladder in [The hardest honest rung](/writing/hardest-honest-rung/) refuses on principle.
-
----
-
-Every stage here - finder, citation check, judge, the further run that caught the judge's own blind spot - produces a self-report, and every one of those self-reports was checked against something outside itself before it got believed - the citation against the file, the verdict against a control set built to fail, the fix against the exact findings the earlier version got wrong. That is the same shape [Three ways to count the same thing](/writing/three-ways-to-count/) found in an unrelated question about counting tools on a running server - a self-report is not evidence about itself, no matter how confidently it cites its own sources. A pipeline that points a model at a codebase and asks it to file what it finds is making a bet citation-verification alone cannot cover - that a model able to quote a line correctly has also reasoned about that line correctly. Citation-verification was built to answer the first of those two questions. Nothing in the pipeline gets to skip the second one because the first one passed.
+`audit_judge` and `audit_batch_judge` are both live, registered in angelos's tool router, callable today, doing exactly the context-assembly work described here. They decide nothing. The verdict - refute, uphold, correct the severity - stays an orchestrating model's judgment call, not a mechanical gate a bad answer cannot pass. A calibrated version, bound to per-claim evidence and checked by deterministic replay against a committed set of known-good and known-bad cases, is designed - the shape is written down - and not yet built. The severity a verdict carries has three values today - error, warning, info - and none of them means judged-and-calibrated. That gap is not an oversight. Forcing an uncalibrated judgment down into a hard gate would trade a visibly open question for one a green checkmark quietly answers wrong, the same trade the ladder in [The hardest honest rung](/writing/hardest-honest-rung/) refuses on principle.

@@ -5,14 +5,16 @@ weight = 7
 template = "system.html"
 
 [extra]
+gloss = "ἅμμα - a knot, a tie, a fastening"
 badge = "PRE-ALPHA"
 repo = "https://github.com/forkwright/hamma"
 stack = "Rust · Noise protocol · WireGuard data plane planned"
 kanon_ci = true
+license = "MIT OR Apache-2.0"
 
 [extra.headline_claim]
 claim = "Noise handshake, control-protocol types, and TCP/TLS registration land in Phase A"
-receipt = "hamma/README.md, Status section"
+receipt = "connects_and_completes_noise_handshake and register_returns_authorized_with_preauth_key pass, 5/5 in crates/dictyon/tests/wire_integration.rs · /casts/hamma-tests.cast"
 
 [extra.demo]
 system = "hamma"
@@ -168,13 +170,13 @@ $ # not shown: two peers on a tailnet - no wireguard data plane here
 
 ## What it is
 
-No production-grade Rust implementation of Tailscale's protocol exists. hamma is built to fill that gap - the pieces needed to knot a set of devices into one flat network, speak WireGuard peer-to-peer, traverse NATs through DERP relays, and name each other through MagicDNS. It targets wire compatibility with the existing control plane, so a device running hamma can join the same tailnet as a device running the reference client. The work serves this practice's own systems first, and openly, anyone who wants a memory-safe, auditable mesh client.
+hamma speaks Tailscale's control protocol from the Rust side - the pieces needed to knot a set of devices into one flat network, speak WireGuard peer-to-peer, traverse NATs through DERP relays, and name each other through MagicDNS. It targets wire compatibility with the existing control plane, so a device running hamma can join the same tailnet as a device running the reference client. I build it for the systems in this fleet first. The license is MIT OR Apache-2.0, so anyone else can run it.
 
 ## Decisions and trade-offs
 
-### Clean-room, not a port
+### Written from the specification
 
-hamma is written from the protocol specification and public behavior, not translated line-by-line from Tailscale's Go client. Its current workspace denies unsafe code. BoringTun is only a commented Cargo placeholder for the planned WireGuard data plane, not a present dependency or a source of current unsafe code. The cost here is real. A clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
+hamma is written from the protocol specification and public behavior, not translated line-by-line from Tailscale's Go client. Its current workspace denies unsafe code. BoringTun is only a commented Cargo placeholder for the planned WireGuard data plane, not a present dependency or a source of current unsafe code. A clean-room implementation is slower to reach feature parity than a direct port would be, since nothing gets carried over for free.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -196,12 +198,12 @@ hamma is written from the protocol specification and public behavior, not transl
 | 4,088 Rust code lines; 5,109 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `2423485c5c48`, 2026-07-24 | run from that revision |
 | 2 Cargo workspace members (`dictyon` peer client, `hamma-core` shared types) | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `2423485c5c48` | run from that revision |
 
-</div>
+| No WireGuard data plane: BoringTun is a commented placeholder, not a dependency | grep the workspace manifests for `boringtun` | `Cargo.toml` at `2423485c5c48` |
 
-Fewer lines and fewer workspace members than any other system on this site, and the most recently started.
+</div>
 
 ## Where to look
 
 - Repo: [github.com/forkwright/hamma](https://github.com/forkwright/hamma)
 - Design principles, in the project's own words: `README.md`
-- The peer client: `crates/dictyon/`; shared protocol types: `crates/hamma-core/`
+- The peer client: `crates/dictyon/`. Shared protocol types: `crates/hamma-core/`
