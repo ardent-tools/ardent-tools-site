@@ -108,6 +108,10 @@ fi
 echo "==> canonical derivations and zola check"
 python3 bin/site.py check
 
+# Fleet counts stated in copy must agree with the derived catalog. A repository
+# flipping visibility falsifies three sentences at once; this is what notices.
+python3 bin/validate-fleet-counts.py
+
 echo "==> integrity regression tests"
 python3 -m unittest discover -s tests -p 'test_*.py'
 node --test tests/smoke/pages-error-boundary.node.mjs
