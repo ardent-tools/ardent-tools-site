@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "e0b329ddc2366aa028dc6a70e13636582a15331b27c7308096511c9d371e6501",
+    "input_sha256": "24809216c8976169f2d6cceb7bbf896840b5a00313b68badb0236b1fb6c38eb0",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -16,7 +16,7 @@
       },
       {
         "path": "content/systems/aletheia.md",
-        "sha256": "8f8fd9384859cf29c7cab7c65113bc1d77e8339effb593125b0a60e514c3673e"
+        "sha256": "2b2543119aa976402dbbe3bea82aeecb81c10bfb1b8a4cf44e4f534ac3e130d9"
       },
       {
         "path": "content/systems/hamma.md",
@@ -36,7 +36,7 @@
       },
       {
         "path": "content/systems/thumos.md",
-        "sha256": "a3518c0ae90aa2803133e2fa361500e5ce45792376d58f8596d54c1d7d918837"
+        "sha256": "c6e2369c7b68a602c99bef5e5947c095b527b40272f0579c02002a837cecb42f"
       },
       {
         "path": "data/exact-system-licenses.json",

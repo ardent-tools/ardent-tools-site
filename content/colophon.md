@@ -14,7 +14,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | Generator | [Zola](https://www.getzola.org/) 0.22.1, static application with no dynamic backend. One bounded Pages Function enforces the error boundary |
 | Substrate | [typikon](https://github.com/forkwright/typikon), a shared Zola theme this site consumes as a git submodule and layers its own tokens and templates over |
 | Fonts | Spectral and IBM Plex Mono, both self-hosted from repository WOFF2 sources and served at physical full-digest paths, both OFL-licensed. No Google Fonts, no font CDN - the CSP's `font-src 'self'` blocks one even if referenced by mistake |
-| Résumé fonts | Nimbus Sans Regular and Bold are pinned with their hashes and AGPL-with-font-exception notices under `resume/fonts/`. Typst compiles with system and embedded fonts disabled, twice, and the gate byte-compares both PDFs |
+| Resume fonts | Nimbus Sans Regular and Bold are pinned with their hashes and AGPL-with-font-exception notices under `resume/fonts/`. Typst compiles with system and embedded fonts disabled, twice, and the gate byte-compares both PDFs |
 | Career claims | A closed typed authority gives selected repeated Marine Corps facts required IDs and value/unit/display bindings, records the operator-authorized truth-release basis, and sets a one-year review window. The receipt says the underlying service record was not inspected by this audit. The gate checks exact About, Typst, and shipped-PDF renderings and rejects residual claim-domain values outside them |
 | Recording contract | [asciinema-player](https://github.com/asciinema/asciinema-player) v3.17.0 is vendored and self-hosted. Its CSS and JavaScript load only on a system page that publishes a real `cast`. Every other system requests no player asset. Each cast ships with its reproduction recipe and a full text transcript |
 | Deploy | Cloudflare Pages, via GitHub Actions on green pushes to `main` |
@@ -42,7 +42,7 @@ Pushes to `main` and pull requests targeting `main` run the same sequence before
 2. Retention authority - require the trusted base revision's ledger as an exact append-only prefix (or a hash-chained checkpoint of it), then verify every retained filename, byte digest, media type, and bound
 3. `bin/site.py check` - reject derivation drift, then run Zola's internal-link and asset check
 4. Python and Node regressions - release, runtime, cache, evidence, and error-boundary contracts
-5. Résumé authority - compile twice from pinned fonts, byte-compare the PDFs, inspect embedded fonts, validate extracted text, and check the career manifest
+5. Resume authority - compile twice from pinned fonts, byte-compare the PDFs, inspect embedded fonts, validate extracted text, and check the career manifest
 6. `bin/site.py build` - build the production tree, derive its HTML, runtime, and resource authorities, then run the pinned CSP preflight and strict XML/content/header/claim audit
 7. `lychee` - external link integrity against that production tree
 8. Local-origin build and browser gate - serve a second build, then run all-route WCAG 2.1 AA and Playwright checks at every configured width

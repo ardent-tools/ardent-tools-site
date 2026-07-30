@@ -58,6 +58,7 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 | 49 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `1a0ee8a29cb2` | run from that revision |
 | 12,133 test-attribute occurrences | `rg -o '#\[(tokio::)?test' --glob '*.rs' | wc -l` at `1a0ee8a29cb2`, 2026-07-22 | run from that revision |
 | Zero unsolicited outbound connections; fully offline only with local LLM, cached models, and network tools/channels disabled | enumerated network posture | `docs/NETWORK.md` in the repo |
+| No published receipt demonstrates cross-session recall | the rows above measure size and network posture, and this system publishes no cast | [/evidence/](/evidence/) lists every published cast |
 
 </div>
 
