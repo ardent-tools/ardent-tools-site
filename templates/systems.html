@@ -55,7 +55,7 @@
 
 <div class="catalog-group zone-systems" id="systems">
   <h2><span class="group-index">01</span> &mdash; Flagship systems <span class="group-count">&middot; {{ section.pages | length }}</span></h2>
-  <p class="group-caption">The flagship layer — an OS, an agent runtime, a standards engine, a media platform, an RF toolkit, a GPU inference stack, a mesh client.</p>
+  <p class="group-caption">The flagship layer - an OS, an agent runtime, a standards engine, a media platform, an RF toolkit, a GPU inference stack, a mesh client.</p>
   <ul class="catalog">
     {%- for p in section.pages %}
     {{ catalog_row::row(page=p) }}
@@ -81,7 +81,7 @@
 
 <div class="catalog-group" id="in-design">
   <h2><span class="group-index">04</span> &mdash; In design <span class="group-count">&middot; {{ design_count }}</span></h2>
-  <p class="group-caption">Specification before code — locked design decisions, no shipped implementation yet.</p>
+  <p class="group-caption">Specification before code - locked design decisions, no shipped implementation yet.</p>
   {%- set_global designs = [] %}
   {%- for item in section.extra.ledger %}{% if item.group == "in-design" %}{% set_global designs = designs | concat(with=item) %}{% endif %}{% endfor %}
   {{ ledger::register(items=designs) }}

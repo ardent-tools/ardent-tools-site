@@ -6,7 +6,7 @@
 {%- set author_name = config.extra.author.name | default(value=config.title) -%}
 {%- set author_uri = config.extra.author.uri | default(value=config.base_url) -%}
 <feed xmlns="http://www.w3.org/2005/Atom"{% if lang %} xml:lang="{{ lang }}"{% endif %}>
-  <title>{{ config.title }} — Writing</title>
+  <title>{{ config.title }} - Writing</title>
   <subtitle>{{ writing.description }}</subtitle>
   <link href="{{ feed_url | safe }}" rel="self" type="application/atom+xml"/>
   <link href="{{ writing.permalink | safe }}"/>
