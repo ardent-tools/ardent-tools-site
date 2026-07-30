@@ -67,6 +67,10 @@
 
 #section("EXPERIENCE")
 
+#role("Ardent Works LLC", "2026–", subtitle: "Independent Practice — Agent Infrastructure")
+
+- Retained by Summus Global after employment to complete hardening and handoff of the Rust agent platform built there: continuous integration enablement, remediation of a full-codebase audit, and an operating runbook their own engineer can run unaided.
+
 #role("Summus Global", "2023–2026", subtitle: "Data Scientist & AI Systems Architect")
 
 - Architected an agent-native internal analytics platform in Rust: a governed MCP tool server with 137 tools over the data warehouse, protected by SQL validation, SELECT-only database policy, and a hard block on raw-CLI writes against production PHI.
