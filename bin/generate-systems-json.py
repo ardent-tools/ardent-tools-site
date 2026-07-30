@@ -103,6 +103,8 @@ def tier1_rows(
                 "license": exact_license(slug, extra.get("license"), licenses),
                 "stack": extra.get("stack"),
                 "private": extra.get("private", False),
+                "gloss": extra.get("gloss"),
+                "kanon_ci": bool(extra.get("kanon_ci", False)),
             }
         )
     return rows

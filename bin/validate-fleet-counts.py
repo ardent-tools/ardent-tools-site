@@ -16,6 +16,14 @@ gate.
 
 A site whose subject is verification cannot carry an unverified count. That is
 the specific self-refutation its own voice contract names.
+
+Two legs, because the portable one is weaker than the true one. The counts are
+derived from the catalog, which every checkout has, so the copy is checked
+everywhere including CI. Where a sibling clone happens to be reachable, the
+catalog's own `kanon_ci` declaration is additionally checked against a real
+`.kanon-ci.toml`, because a declaration agreeing with a declaration proves
+nothing about the repository. The second leg is skipped when no clone is
+present, and its absence is reported rather than passed over.
 """
 
 from __future__ import annotations
@@ -64,11 +72,11 @@ CLAIMS = (
 
 
 def derive() -> dict[str, int]:
-    """Ground truth, from the derived catalog.
+    """Ground truth for the stated counts, from the derived catalog.
 
-    The catalog is the authority for all three numbers: it carries a `group` per
-    entry and a `private` flag, which is exactly the shape the claims describe.
-    The meta-repos never enter it, so no exclusion list is needed here.
+    Every checkout has the catalog, so all three counts resolve in CI. The
+    control-plane count reads the `kanon_ci` field the catalog carries per
+    entry; `audit_declarations` is what tests that field against reality.
     """
     systems = json.loads(CATALOG.read_text())["systems"]
 
@@ -76,25 +84,41 @@ def derive() -> dict[str, int]:
     public = [s for s in systems if not s.get("private")]
     featured_public = [s for s in featured if not s.get("private")]
 
-    # The control-plane config is a fact about the repository, not the catalog,
-    # so it is read from the working tree when present. Absent a clone, the
-    # claim cannot be checked and saying so is the honest result.
-    with_config = 0
-    unreadable = 0
-    for s in featured_public:
-        repo = ROOT.parent / s["name"]
-        if not repo.is_dir():
-            unreadable += 1
-            continue
-        if (repo / CONTROL_PLANE_CONFIG).is_file():
-            with_config += 1
-
     return {
         "featured_systems": len(featured),
         "public_repos": len(public),
-        "featured_public_with_control_plane": with_config,
-        "_unreadable_repos": unreadable,
+        "featured_public_with_control_plane":
+            sum(1 for s in featured_public if s.get("kanon_ci")),
     }
+
+
+def audit_declarations() -> tuple[list[str], int]:
+    """Test the catalog's control-plane declaration against the repositories.
+
+    A count derived from a field the same author typed is a consistency check,
+    not a verification. This is the leg that makes it one, and it can only run
+    where the repository is on disk.
+    """
+    systems = json.loads(CATALOG.read_text())["systems"]
+    problems: list[str] = []
+    checked = 0
+
+    for s in systems:
+        if s.get("group") != "systems" or s.get("private"):
+            continue
+        repo = ROOT.parent / s["name"]
+        if not repo.is_dir():
+            continue
+        checked += 1
+        actual = (repo / CONTROL_PLANE_CONFIG).is_file()
+        declared = bool(s.get("kanon_ci"))
+        if actual != declared:
+            problems.append(
+                f"{s['name']}: catalog declares kanon_ci={declared} but "
+                f"{CONTROL_PLANE_CONFIG} is "
+                f"{'present' if actual else 'absent'} in {repo}")
+
+    return problems, checked
 
 
 def surfaces() -> list[Path]:
@@ -111,8 +135,7 @@ def main() -> int:
         return 1
 
     truth = derive()
-    unreadable = truth.pop("_unreadable_repos", 0)
-    problems: list[str] = []
+    problems, ground_truthed = audit_declarations()
     seen: dict[str, int] = {name: 0 for name, _ in CLAIMS}
 
     for path in surfaces():
@@ -139,9 +162,13 @@ def main() -> int:
 
     for name, value in truth.items():
         print(f"  {name} = {value} ({seen[name]} statement(s) in copy)")
-    if unreadable:
-        print(f"  note: {unreadable} featured repo(s) not present locally, so their "
-              f"control-plane config could not be read; the count above is a floor")
+    if ground_truthed:
+        print(f"  {ground_truthed} control-plane declaration(s) checked against a "
+              f"real {CONTROL_PLANE_CONFIG}")
+    else:
+        print(f"  note: no sibling clone reachable, so no control-plane declaration "
+              f"was checked against a real {CONTROL_PLANE_CONFIG}; the count above "
+              f"rests on the catalog's own field")
 
     if problems:
         print(f"\nFAIL: {len(problems)} fleet-count problem(s):", file=sys.stderr)
