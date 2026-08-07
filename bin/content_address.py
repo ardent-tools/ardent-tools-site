@@ -95,7 +95,10 @@ ATOM_URL_TEXT_ELEMENTS = frozenset({"icon", "id", "logo", "uri"})
 ATOM_TEXT_CONSTRUCTS = frozenset({"content", "rights", "subtitle", "summary", "title"})
 SITEMAP_URL_ATTRIBUTES = {"link": frozenset({"href"})}
 SITEMAP_URL_TEXT_ELEMENTS = frozenset({"loc"})
-SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
+# WARNING: this string is an XML namespace identifier, not an endpoint. It is compared against
+# element namespaces and never dereferenced, and the sitemap spec fixes the http:// form — changing
+# it to https:// would stop matching every conforming sitemap.
+SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"  # kanon:ignore SECURITY/insecure-transport -- namespace identifier, never fetched
 JAVASCRIPT_AUTHORITIES = {
     # Reviewed self-contained enhancement scripts. Updating any executable byte
     # is an explicit authority change, not something a heuristic URL scanner
@@ -1218,7 +1221,7 @@ def build_map(
         owner = physical_owners.get(output_path)
         if owner is not None and owner != logical_path:
             raise ValueError(
-                f"two logical resources collapse to one physical identity: "
+                "two logical resources collapse to one physical identity: "
                 f"{owner!r}, {logical_path!r} -> {output_path!r}"
             )
         physical_owners[output_path] = logical_path

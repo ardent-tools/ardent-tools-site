@@ -1,5 +1,4 @@
 ---
-created: 2026-07-21
 tags:
   - site-design
   - voice

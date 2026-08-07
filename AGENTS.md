@@ -12,6 +12,8 @@ Consumer of typikon (`forkwright/typikon`, pinned by commit under `themes/typiko
 
 Authoring rules live in typikon's `docs/AGENTIC.md`. Read those before editing content here. Frontmatter must validate against the appropriate schema in `themes/typikon/schemas/` (page / section / journal-entry / faq). Run `themes/typikon/bin/typikon-validate .` to verify.
 
+Voice binds all site copy — content pages, captions, microcopy, the consulting page. The contract is [docs/VOICE.md](docs/VOICE.md).
+
 ## Locked decisions
 
 - **Theme**: `forkwright/typikon` via git submodule under `themes/typikon/`, pinned by commit (same SHA `ardent-site` pins as of this repo's scaffold — re-diff on refresh, don't assume the two stay in lockstep).
