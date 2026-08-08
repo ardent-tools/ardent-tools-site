@@ -1,15 +1,15 @@
-# GitHub Actions workflow for typikon-consuming sites.
+# GitHub Actions deploy workflow for ardent-tools.
 #
-# This file is a TEMPLATE. typikon-init copies it to a consumer site as
-# .github/workflows/deploy.yml during scaffolding, substituting the two
-# placeholders below.
+# Runs the strict gate, then deploys to the `ardent-tools` Cloudflare Pages
+# project on green pushes to main and on recovery dispatches. Zola is pinned
+# to 0.22.1; wrangler, pa11y-ci and playwright are pinned in package.json and
+# installed from the lockfile.
 #
-# Placeholders (typikon-init replaces during scaffolding):
-#   ardent-tools   — Cloudflare Pages project slug (e.g. ardent-site)
-#   0.22.1   — pinned Zola version (current: 0.22.1)
-#
-# After substitution the workflow performs the strict gate, then deploys
-# to Cloudflare Pages on green pushes or recovery dispatches from main.
+# NOTE: originally generated from typikon's ci/github-workflow.yml.tmpl, and
+# since extended well beyond it. Do NOT run typikon-refresh against this file
+# — refresh overwrites its target unconditionally and would discard the
+# additions here (see forkwright/typikon#94). Upstream-shaped changes still
+# belong in the template as well as here.
 #
 # Secrets the consumer must set in GitHub repo settings:
 #   - CLOUDFLARE_API_TOKEN
