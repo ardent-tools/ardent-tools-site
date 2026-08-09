@@ -103,7 +103,7 @@ JAVASCRIPT_AUTHORITIES = {
     # Reviewed self-contained enhancement scripts. Updating any executable byte
     # is an explicit authority change, not something a heuristic URL scanner
     # may silently accept.
-    "js/site.js": "6ed9caedc28f581b7e345ceeec6577b9b6af18099aa9623f9f36d97b4dd68adc",
+    "js/site.js": "84bc40ef96da7f949e0f1c87a6365c903fbd308058d0e91cc9cc24a42d5b27a1",
     "js/triad.js": "a38e394c7d5c963e7494cd88c9fa49f586c81a27661c9997f50456f3d4275492",
     # Vendored player accepts recording URLs supplied by already-validated HTML;
     # its reviewed minified distribution is otherwise immutable here.
