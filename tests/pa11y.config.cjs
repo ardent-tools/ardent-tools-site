@@ -11,7 +11,6 @@ module.exports = {
     timeout: 30000,
     wait: 200,
     chromeLaunchConfig: { args: ['--no-sandbox', '--disable-dev-shm-usage'] },
-    ignore: ['WCAG2AA.Principle1.Guideline1_3.1_3_1.H49.AlignAttr'],
     hideElements: '',
   },
   urls,
