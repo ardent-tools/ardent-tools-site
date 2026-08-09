@@ -163,40 +163,7 @@ themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
 python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 
 echo "==> external links"
-BASE_URL="$SITE_BASE_URL"
-BASE_HOST=${BASE_URL#http://}
-BASE_HOST=${BASE_HOST#https://}
-BASE_HOST=${BASE_HOST%%/*}
-ESCAPED_HOST=${BASE_HOST//./\\.}
-# A third party's 5xx, timeout, or DNS blip is not link rot, and a deploy must
-# not be hostage to another host's uptime. lychee's own max_retries covers
-# transport failures but not a rejected status, so a single GitHub 502 fails the
-# whole gate. Retry the pass once, then fail only if an error that survives is a
-# 4xx - the status class that actually means the link is dead.
-link_check() {
-  lychee --config themes/typikon/ci/lychee.toml \
-    --cache=false \
-    --root-dir "$PROD_OUTPUT" \
-    --exclude "^https?://${ESCAPED_HOST}/" \
-    "$PROD_OUTPUT"
-}
-LYCHEE_LOG="$CHECK_ROOT/lychee.log"
-if ! link_check >"$LYCHEE_LOG" 2>&1; then
-  cat "$LYCHEE_LOG"
-  echo "==> external links: first pass failed; retrying once in 20s"
-  sleep 20
-  if ! link_check >"$LYCHEE_LOG" 2>&1; then
-    cat "$LYCHEE_LOG"
-    # Only the issues section, so an OK [200] line can never be read as an error.
-    ROT=$(sed -n '/Issues found in/,$p' "$LYCHEE_LOG" | grep -oE '\[4[0-9]{2}\]' | sort -u | tr -d '[]' | tr '\n' ' ')
-    if [ -n "$ROT" ]; then
-      echo "ERROR: dead external link(s); status: $ROT" >&2
-      exit 1
-    fi
-    echo "WARNING: external-link errors survived a retry but none is a 4xx." >&2
-    echo "WARNING: treating as upstream unavailability, not link rot. Continuing." >&2
-  fi
-fi
+bin/check-external-links.sh "$PROD_OUTPUT" "$SITE_BASE_URL" "$CHECK_ROOT"
 
 echo "==> local browser build"
 python3 bin/site.py build --base-url "$LOCAL_BASE_URL" --output-dir "$LOCAL_OUTPUT"

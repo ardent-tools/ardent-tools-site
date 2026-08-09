@@ -42,6 +42,7 @@ catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 career = load_script("ardent_career_claims", "validate-career-claims.py")
 site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
+link_check_contract = load_script("ardent_link_check_contract", "link_check_contract.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
 content_address = load_script("ardent_content_address", "content_address.py")
 asset_retention = load_script("ardent_asset_retention", "asset_retention.py")
@@ -5148,6 +5149,310 @@ class ResumeFontContractTests(unittest.TestCase):
         self.assertTrue(
             any("embedded font set differs" in error for error in errors), errors
         )
+
+
+class LinkCheckContractTests(unittest.TestCase):
+    """Classification fixtures for lychee's own JSON report shape (v0.24.2)."""
+
+    def _run(self, report_body, receipt: Path | None = None) -> tuple[int, str, str]:
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "lychee.json"
+            report_path.write_bytes(
+                report_body
+                if isinstance(report_body, bytes)
+                else json.dumps(report_body).encode()
+            )
+            stdout, stderr = io.StringIO(), io.StringIO()
+            result = link_check_contract.run(report_path, receipt, stdout, stderr)
+            return result, stdout.getvalue(), stderr.getvalue()
+
+    def test_404_fails_closed(self) -> None:
+        report = {
+            "error_map": {
+                "index.html": [
+                    {
+                        "url": "https://example.com/dead",
+                        "status": {"text": "Rejected status code: 404 Not Found", "code": 404},
+                    }
+                ]
+            },
+            "timeout_map": {},
+        }
+        result, _, stderr = self._run(report)
+        self.assertEqual(result, 1)
+        self.assertIn("https://example.com/dead", stderr)
+        self.assertIn("[404]", stderr)
+
+    def test_502_degrades_with_receipt(self) -> None:
+        report = {
+            "error_map": {
+                "index.html": [
+                    {
+                        "url": "https://example.com/flaky",
+                        "status": {"text": "Rejected status code: 502 Bad Gateway", "code": 502},
+                    }
+                ]
+            },
+            "timeout_map": {},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            receipt_path = Path(directory) / "receipt.json"
+            result, _, stderr = self._run(report, receipt=receipt_path)
+            self.assertEqual(result, 0)
+            self.assertIn("degraded", stderr)
+            receipt = json.loads(receipt_path.read_text())
+        self.assertEqual(receipt["degraded_count"], 1)
+        self.assertEqual(receipt["findings"][0]["reason"], "server-5xx")
+
+    def test_timeout_degrades(self) -> None:
+        report = {
+            "error_map": {},
+            "timeout_map": {
+                "index.html": [
+                    {
+                        "url": "https://example.com/slow",
+                        "status": {"text": "Timeout", "details": "Request timed out"},
+                    }
+                ]
+            },
+        }
+        result, _, stderr = self._run(report)
+        self.assertEqual(result, 0)
+        self.assertIn("timeout", stderr)
+
+    def test_dns_failure_with_no_status_code_fails_closed(self) -> None:
+        report = {
+            "error_map": {
+                "index.html": [
+                    {
+                        "url": "https://nonexistent-domain.example/",
+                        "status": {
+                            "text": (
+                                "Network error: Connection failed. Check network "
+                                "connectivity and firewall settings"
+                            ),
+                            "details": (
+                                "Connection failed. Check network connectivity and "
+                                "firewall settings"
+                            ),
+                        },
+                    }
+                ]
+            },
+            "timeout_map": {},
+        }
+        result, _, stderr = self._run(report)
+        self.assertEqual(result, 1)
+        self.assertIn("[connection]", stderr)
+
+    def test_tls_failure_fails_closed(self) -> None:
+        report = {
+            "error_map": {
+                "index.html": [
+                    {
+                        "url": "https://expired.example/",
+                        "status": {
+                            "text": "Network error: SSL certificate expired",
+                            "details": "SSL certificate expired. Site needs to renew certificate",
+                        },
+                    }
+                ]
+            },
+            "timeout_map": {},
+        }
+        result, _, stderr = self._run(report)
+        self.assertEqual(result, 1)
+        self.assertIn("certificate", stderr)
+
+    def test_malformed_output_fails_closed(self) -> None:
+        result, _, stderr = self._run(b"not json at all")
+        self.assertEqual(result, 1)
+        self.assertIn("not valid JSON", stderr)
+
+    def test_structural_drift_fails_closed(self) -> None:
+        result, _, stderr = self._run({"total": 0, "successful": 0})
+        self.assertEqual(result, 1)
+        self.assertIn("error_map", stderr)
+
+    def test_missing_report_fails_closed(self) -> None:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        result = link_check_contract.run(
+            Path("/nonexistent/lychee.json"), None, stdout, stderr
+        )
+        self.assertEqual(result, 1)
+        self.assertIn("missing or unreadable", stderr.getvalue())
+
+    def test_clean_report_passes_with_empty_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt_path = Path(directory) / "receipt.json"
+            result, _, stderr = self._run(
+                {"error_map": {}, "timeout_map": {}}, receipt=receipt_path
+            )
+            self.assertEqual(result, 0)
+            self.assertEqual(stderr, "")
+            receipt = json.loads(receipt_path.read_text())
+        self.assertEqual(receipt, {"degraded_count": 0, "findings": []})
+
+    def test_hard_failure_takes_precedence_over_a_concurrent_degradable_finding(
+        self,
+    ) -> None:
+        report = {
+            "error_map": {
+                "index.html": [
+                    {
+                        "url": "https://example.com/flaky",
+                        "status": {"text": "Rejected status code: 502 Bad Gateway", "code": 502},
+                    },
+                    {
+                        "url": "https://example.com/dead",
+                        "status": {"text": "Rejected status code: 404 Not Found", "code": 404},
+                    },
+                ]
+            },
+            "timeout_map": {},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            receipt_path = Path(directory) / "receipt.json"
+            result, _, stderr = self._run(report, receipt=receipt_path)
+            self.assertEqual(result, 1)
+            self.assertIn("https://example.com/dead", stderr)
+            self.assertFalse(receipt_path.exists())
+
+
+class ExternalLinkCheckScriptTests(unittest.TestCase):
+    """Behavioral fixtures for bin/check-external-links.sh's fail-closed retry."""
+
+    SCRIPT = ROOT / "bin" / "check-external-links.sh"
+
+    def _run_with_stub_lychee(self, stub_body: str) -> subprocess.CompletedProcess:
+        with tempfile.TemporaryDirectory() as directory:
+            stub_dir = Path(directory) / "stub-bin"
+            stub_dir.mkdir()
+            stub_lychee = stub_dir / "lychee"
+            stub_lychee.write_text(stub_body)
+            stub_lychee.chmod(0o755)
+            prod_output = Path(directory) / "public"
+            prod_output.mkdir()
+            check_root = Path(directory) / "check-root"
+            check_root.mkdir()
+            env = {
+                "PATH": f"{stub_dir}:/usr/bin:/bin",
+                "LINK_CHECK_RETRY_DELAY": "0",
+            }
+            return subprocess.run(
+                [
+                    str(self.SCRIPT),
+                    str(prod_output),
+                    "https://ardent.tools",
+                    str(check_root),
+                ],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+    def test_missing_binary_fails_closed(self) -> None:
+        # WHY: no stub is written at all; lychee is absent from PATH.
+        with tempfile.TemporaryDirectory() as directory:
+            check_root = Path(directory) / "check-root"
+            check_root.mkdir()
+            prod_output = Path(directory) / "public"
+            prod_output.mkdir()
+            result = subprocess.run(
+                [
+                    str(self.SCRIPT),
+                    str(prod_output),
+                    "https://ardent.tools",
+                    str(check_root),
+                ],
+                cwd=ROOT,
+                env={"PATH": "/usr/bin:/bin", "LINK_CHECK_RETRY_DELAY": "0"},
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checker fault, not link rot", result.stderr)
+
+    def test_invalid_configuration_fails_closed(self) -> None:
+        # WHY: mirrors real lychee's own contract - a config error writes
+        # nothing to -o and exits with a non-2, non-0 status.
+        stub = "#!/usr/bin/env bash\necho 'bad config' >&2\nexit 3\n"
+        result = self._run_with_stub_lychee(stub)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("lychee exited 3", result.stderr)
+
+    # WHY: real lychee's --output value is a flag argument, not the last
+    # positional (that slot is $PROD_OUTPUT). Every stub below parses it out
+    # explicitly rather than assuming argument position.
+    PARSE_OUTPUT_FLAG = (
+        'OUT=""\n'
+        'while [[ $# -gt 0 ]]; do\n'
+        '  if [[ "$1" == "--output" ]]; then OUT="$2"; fi\n'
+        "  shift\n"
+        "done\n"
+    )
+
+    def test_transient_failure_recovers_on_retry(self) -> None:
+        # WHY: proves the retry-then-recover path (a true one-off blip) still
+        # passes without ever reaching the classifier.
+        stub = (
+            "#!/usr/bin/env bash\n"
+            + self.PARSE_OUTPUT_FLAG
+            + 'marker="${STUB_MARKER:?}"\n'
+            'if [[ -f "$marker" ]]; then\n'
+            '  echo \'{"error_map": {}, "timeout_map": {}}\' > "$OUT"\n'
+            "  exit 0\n"
+            "fi\n"
+            'touch "$marker"\n'
+            "echo 'transient crash' >&2\n"
+            "exit 1\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            stub_dir = Path(directory) / "stub-bin"
+            stub_dir.mkdir()
+            stub_lychee = stub_dir / "lychee"
+            stub_lychee.write_text(stub)
+            stub_lychee.chmod(0o755)
+            prod_output = Path(directory) / "public"
+            prod_output.mkdir()
+            check_root = Path(directory) / "check-root"
+            check_root.mkdir()
+            marker = Path(directory) / "attempted-once"
+            env = {
+                "PATH": f"{stub_dir}:/usr/bin:/bin",
+                "LINK_CHECK_RETRY_DELAY": "0",
+                "STUB_MARKER": str(marker),
+            }
+            result = subprocess.run(
+                [
+                    str(self.SCRIPT),
+                    str(prod_output),
+                    "https://ardent.tools",
+                    str(check_root),
+                ],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_404_found_on_both_attempts_fails_closed(self) -> None:
+        stub = (
+            "#!/usr/bin/env bash\n"
+            + self.PARSE_OUTPUT_FLAG
+            + 'echo \'{"error_map": {"i": [{"url": "https://example.com/dead", '
+            '"status": {"text": "Rejected status code: 404 Not Found", "code": 404}}]}, '
+            '"timeout_map": {}}\' > "$OUT"\n'
+            "exit 2\n"
+        )
+        result = self._run_with_stub_lychee(stub)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("https://example.com/dead", result.stderr)
 
 
 if __name__ == "__main__":
