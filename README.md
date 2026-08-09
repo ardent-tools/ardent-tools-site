@@ -118,7 +118,7 @@ Function compile and deploy both use Wrangler 4.112.0 and that same config, so
 runtime behavior does not silently depend on the day or external dashboard
 defaults.
 
-The complete six-rule `_redirects` file is a strict local contract. The live
+The complete `_redirects` file is a strict local contract. The live
 verifier requests a safe representative for every declaration without following
 it; the two system wildcard probes are revision-specific, while the exact
 `/demos` rule and its catch-all use their fixed non-destructive paths. Exact
