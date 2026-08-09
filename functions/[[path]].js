@@ -301,21 +301,48 @@ export async function onRequest(context) {
   }
 
   if (!GUARDED_ERROR_STATUSES.has(response.status)) {
-    // Only exact aliases derived from the retained HTML authority may preserve
-    // Pages' native redirect. An unowned or stale redirect is another missing
-    // path and must not escape the authoritative error boundary.
-    if (response.status >= 300 && response.status < 400) {
-      const speculationRulesUrl = await retainedSpeculationRulesUrl(context);
-      if (await isOwnedHtmlAlias(context, response)) {
-        return contractResponse(
-          response,
-          context.request.method,
-          speculationRulesUrl,
-        );
+    // WHY one try around this whole branch: every path below needs the retained
+    // speculation-rules URL, and resolving it reaches the ASSETS binding, as
+    // does isOwnedHtmlAlias. The 2xx/304/404 path above already degrades when
+    // that binding is unreachable; this branch threw for the same transient
+    // condition, surfacing the platform's raw error page instead of the site's
+    // own degraded 404.
+    let speculationRulesUrl;
+    try {
+      speculationRulesUrl = await retainedSpeculationRulesUrl(context);
+
+      // Only exact aliases derived from the retained HTML authority may preserve
+      // Pages' native redirect. An unowned or stale redirect is another missing
+      // path and must not escape the authoritative error boundary.
+      if (response.status >= 300 && response.status < 400) {
+        if (await isOwnedHtmlAlias(context, response)) {
+          return contractResponse(
+            response,
+            context.request.method,
+            speculationRulesUrl,
+          );
+        }
+        return authoritativeNotFound(context, speculationRulesUrl);
       }
-      return authoritativeNotFound(context, speculationRulesUrl);
+    } catch (error) {
+      if (error instanceof RetainedAssetUnavailableError) {
+        return degradedNotFound(context.request.method);
+      }
+      throw error;
     }
-    return response;
+
+    // WHY this is contractResponse and not a bare `return response`: every
+    // status reaching here is browser-rendered — 400, 401, 403, 405, 429, 5xx —
+    // and returning the platform's response raw hands the visitor a document
+    // outside the repository-owned header boundary. Cloudflare's _headers file
+    // does not apply to Function responses, so this is the only place those
+    // headers can be set, and an error path is exactly where a body of unknown
+    // provenance is most likely to appear.
+    return contractResponse(
+      response,
+      context.request.method,
+      speculationRulesUrl,
+    );
   }
 
   // Asset-server responses have immutable headers in the Workers runtime.
