@@ -5,7 +5,7 @@ template = "index.html"
 [extra]
 seo_title = "Ardent Tools - Agent infrastructure engineering"
 kicker = "Cody Kickertz · AI systems architect · Austin, Texas"
-h1 = "Agent systems you can inspect."
+h1 = "Agent infrastructure, inspectable."
 lede = "I build agent infrastructure someone other than its builder can verify - gates that block on real rules, and the memory a review trail is written into."
 selected_work = ["aletheia", "harmonia", "thumos"]
 proof_system = "kanon"
