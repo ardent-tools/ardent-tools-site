@@ -1,9 +1,9 @@
 {# Consumer shadow of typikon's partials/footer.html. Typikon's stock
    footer renders one brand line + one flat footer_links row — this site
-   needs three mono clusters + a sibling-brand line (DESIGN §3.7), which
+   needs three mono clusters + a sibling-brand line, which
    a flat link list can't produce. Reads config.toml [extra.person] and
-   [extra.footer]. Each cluster carries a one-word kicker label (§W9 —
-   the designed close): Reach / Site. #}
+   [extra.footer]. Each cluster carries a one-word kicker label —
+   the designed close: Reach / Site. #}
 <footer>
   <div class="site-footer-clusters">
     {%- if config.extra.person %}

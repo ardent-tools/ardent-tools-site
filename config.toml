@@ -15,8 +15,8 @@ smart_punctuation = true
 # Class-based highlighting only. Zola's default (`style = "inline"`)
 # emits style="color:#xxxxxx" per token, which ci/csp-enforce.sh
 # hard-fails (strict CSP carries no style-src 'unsafe-inline'). NOTE:
-# DESIGN.md and typikon-capabilities.md both name this as a flat
-# `[markdown] highlight_code = true, highlight_theme = "css"` pair  -
+# a flat `[markdown] highlight_code = true, highlight_theme = "css"`
+# pair looks like the obvious alternative but is wrong here -
 # that was Zola's pre-0.22 syntect-based config. Zola 0.22 replaced the
 # highlighter with Giallo (VSCode TextMate grammars) and moved
 # everything under this nested [markdown.highlighting] table with
@@ -76,7 +76,7 @@ nav_items = [
 # partials/ld-person.html for the added Person JSON-LD) reads this key
 # for Organization.sameAs. This site's footer is a consumer shadow using
 # [extra.footer] instead (below), so this stays empty - sameAs lives on
-# the Person entity via [extra.person] instead, per DESIGN §1.
+# the Person entity via [extra.person] instead.
 footer_links = []
 
 # Author - used by typikon's Article JSON-LD (journal entries) and the
@@ -96,9 +96,8 @@ email = "cody@ardent.tools"
 github = "https://github.com/forkwright"
 linkedin = "https://www.linkedin.com/in/Cody-Kickertz/"
 
-# Footer (partials/footer.html, consumer-shadowed - three mono clusters
-# per DESIGN §3.7, more structure than typikon's stock flat footer_links
-# list can carry).
+# Footer (partials/footer.html, consumer-shadowed - three mono clusters,
+# more structure than typikon's stock flat footer_links list can carry).
 #
 # legal_owner: the registered entity. Drives the footer © line and the
 # Organization JSON-LD legalName from this one value.
@@ -125,10 +124,8 @@ label = "Atom"
 # regardless of cadence (same class of false positive as lychee.toml's
 # existing Instagram skip, kept there for the CI-side lychee pass - this
 # is the equivalent for zola's own built-in `zola check` external-link
-# validation, a Zola capability newer than what DESIGN.md/
-# typikon-capabilities.md describe zola check as covering; verified by
-# actually running it). The link works for a human visitor; this is
-# link-checker reality, not link rot.
+# validation; verified by actually running it). The link works for a
+# human visitor; this is link-checker reality, not link rot.
 skip_prefixes = ["https://www.linkedin.com/"]
 
 # WHY: external-link failures WARN rather than ERROR in `zola check`. External

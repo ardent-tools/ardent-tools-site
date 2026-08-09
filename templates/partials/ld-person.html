@@ -1,17 +1,17 @@
 {# Schema.org/Person JSON-LD (consumer-added, same ld-*.html pattern
    typikon ships six of). A solo portfolio is a person; recruiters search
-   the person, not the brand string (DESIGN §1). Included by default from
+   the person, not the brand string. Included by default from
    the base.html ld_json block alongside typikon's stock Organization
    partial — both ship in v1 per the consulting-surface addendum.
 
    Inputs from config.toml [extra.person]:
      name, job_title, email, github, linkedin
 
-   sameAs (DESIGN-v1.3 §4 item 8) adds the site itself alongside GitHub
+   sameAs adds the site itself alongside GitHub
    and LinkedIn — a third representation of the same identity, not a
    duplicate of the `url` field above (which is the /about/ page).
 
-   knowsAbout (DESIGN-v1.3 §4 item 8, research-agent-friendly §3.2) links
+   knowsAbout (research-agent-friendly) links
    to the site's own seven system pages — the receipt for each topic
    claimed, not an adjective — plus the one real external reference every
    tier-1 `stack` line shares (grep-verified: all seven start "Rust").
