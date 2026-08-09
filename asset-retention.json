@@ -3413,18 +3413,18 @@
         },
         {
           "logical_path": "casts/thumos-boot.cast",
-          "output_path": "a/2c7ce6b3bb70db65eff2f9f4ba93f855634b1224dab40a9dffdec5e1883e9161.cast",
-          "sha256": "2c7ce6b3bb70db65eff2f9f4ba93f855634b1224dab40a9dffdec5e1883e9161"
+          "output_path": "a/9e38f094623389967984d28e3a84d3aa240b843146cd0c28451dbe081b1d534c.cast",
+          "sha256": "9e38f094623389967984d28e3a84d3aa240b843146cd0c28451dbe081b1d534c"
         },
         {
           "logical_path": "css/fonts.css",
-          "output_path": "a/982974ff7cdbaadea85c5e7119267389db45e3dd76e5570cc27c191c52ce467e.css",
-          "sha256": "982974ff7cdbaadea85c5e7119267389db45e3dd76e5570cc27c191c52ce467e"
+          "output_path": "a/57551c5043106008d75a93a6aad760dc82f650937b3c6ec3a514648a34443984.css",
+          "sha256": "57551c5043106008d75a93a6aad760dc82f650937b3c6ec3a514648a34443984"
         },
         {
           "logical_path": "css/site.css",
-          "output_path": "a/1b85b6d27ce2f70aba63c849d00850f14bab1c528f679d0e020c89b0d10dec23.css",
-          "sha256": "1b85b6d27ce2f70aba63c849d00850f14bab1c528f679d0e020c89b0d10dec23"
+          "output_path": "a/b6477a6986439614e17493c90845c9055a674246f41e0410db75a0e29f234d5c.css",
+          "sha256": "b6477a6986439614e17493c90845c9055a674246f41e0410db75a0e29f234d5c"
         },
         {
           "logical_path": "css/style.css",
@@ -3548,8 +3548,8 @@
         },
         {
           "logical_path": "js/site.js",
-          "output_path": "a/6ed9caedc28f581b7e345ceeec6577b9b6af18099aa9623f9f36d97b4dd68adc.js",
-          "sha256": "6ed9caedc28f581b7e345ceeec6577b9b6af18099aa9623f9f36d97b4dd68adc"
+          "output_path": "a/84bc40ef96da7f949e0f1c87a6365c903fbd308058d0e91cc9cc24a42d5b27a1.js",
+          "sha256": "84bc40ef96da7f949e0f1c87a6365c903fbd308058d0e91cc9cc24a42d5b27a1"
         },
         {
           "logical_path": "js/triad.js",
