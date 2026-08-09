@@ -367,13 +367,50 @@ test("an invalid retained speculation identity fails closed", async () => {
 });
 
 
-test("non-tombstone server errors are not rewritten", async () => {
+test("non-tombstone server errors carry the direct-response contract", async () => {
+  // This test previously asserted `actual === response` — that a 503 was
+  // returned untouched. That was the defect, not the contract: _headers does
+  // not apply to Function responses, so a raw return hands the visitor a
+  // browser-rendered document outside the repository-owned header boundary.
   const response = new Response("failure", {
     status: 503,
     headers: { "Cache-Control": "no-store" },
   });
   const actual = await onRequest(context(response));
 
-  assert.equal(actual, response);
-  assert.equal(actual.headers.get("Cache-Control"), "no-store");
+  assert.notEqual(actual, response);
+  assert.equal(actual.status, 503);
+  assert.equal(await actual.text(), "failure");
+  assertSecurityHeaders(actual);
+  // The contract's cache directive is stricter than the one it replaces, so
+  // the no-store intent of the original response survives rather than being
+  // relaxed.
+  assert.equal(actual.headers.get("Cache-Control"), "no-store, no-transform");
+});
+
+
+test("an unreachable ASSETS binding degrades on the redirect path too", async () => {
+  // The 2xx/304/404 path degrades when the binding is unreachable; this path
+  // used to throw for the same transient condition, surfacing the platform's
+  // raw error page instead of the site's own 404.
+  const response = new Response(null, {
+    status: 308,
+    headers: { Location: "https://ardent.tools/somewhere/" },
+  });
+  const actual = await onRequest({
+    request: new Request("https://ardent.tools/somewhere", { method: "GET" }),
+    next: async () => response,
+    env: {
+      ASSETS: {
+        fetch: async () => {
+          throw new TypeError("network connection lost");
+        },
+      },
+    },
+  });
+
+  assert.equal(actual.status, 404);
+  assert.equal(actual.statusText, "Not Found");
+  assertSecurityHeaders(actual);
+  assert.match(await actual.text(), /404/);
 });
