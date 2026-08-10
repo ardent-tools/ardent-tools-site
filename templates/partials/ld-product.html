@@ -42,7 +42,14 @@
     "@type": "Offer",
     "price": {{ price_numeric | json_encode | safe }},
     "priceCurrency": "USD",
-    "availability": "https://schema.org/InStock",
+    {#- WARNING: availability is emitted only when the frontmatter carries BOTH
+        page.extra.availability and page.extra.availability_source. Never default
+        it — an unverified stock claim in structured data misleads search engines
+        about a product nobody has confirmed is in stock. -#}
+    {%- if page.extra.availability and page.extra.availability_source -%}
+    {%- set availability_url = "https://schema.org/" ~ page.extra.availability -%}
+    "availability": {{ availability_url | json_encode | safe }},
+    {%- endif %}
     "url": {{ page.extra.stripe_url | json_encode | safe }}
   }
   {%- if image_url -%},

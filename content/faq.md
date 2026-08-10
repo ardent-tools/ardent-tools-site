@@ -3,6 +3,9 @@ title = "FAQ"
 description = "Direct answers to the questions this site's format tends to raise: private repos, maturity labels, location, availability, why so many systems, and agent readability."
 template = "faq.html"
 
+[extra]
+audience = "Someone weighing this work who needs the format's conventions explained first."
+
 [[extra.questions]]
 q = "Why are some repos private?"
 a = "Two different reasons. kanon is private by choice. Its source is unpublished, so it carries no public issue tracker or contribution path. The six featured public system repositories carry .kanon-ci.toml, but each repository declares its own enforcement scope. [Its case-study page](/systems/kanon/) makes that narrower relationship inspectable without exposing the source. Systems I built in employment belong to that employer and are described only as professional experience, never presented as portfolio."
