@@ -11,7 +11,17 @@
   <link href="{{ feed_url | safe }}" rel="self" type="application/atom+xml"/>
   <link href="{{ writing.permalink | safe }}"/>
   <generator uri="https://www.getzola.org/">Zola</generator>
-  <updated>{{ last_updated | default(value=now()) | date(format="%+") }}</updated>
+  {#- WARNING: derive the feed timestamp from the newest entry, not from Zola's
+      last_updated. This feed is scoped to the writing section, while last_updated
+      is site-wide — a change anywhere else would move the feed's <updated> without
+      any entry having changed, which tells readers to refetch for nothing. -#}
+  {%- if pages | length > 0 -%}
+  {%- set newest = pages | sort(attribute="date") | last -%}
+  {%- set feed_updated = newest.updated | default(value=newest.date) -%}
+  {%- else -%}
+  {%- set feed_updated = last_updated | default(value=now()) -%}
+  {%- endif %}
+  <updated>{{ feed_updated | date(format="%+") }}</updated>
   <id>{{ feed_url | safe }}</id>
   <author><name>{{ author_name }}</name><uri>{{ author_uri | safe }}</uri></author>
   {%- for page in pages %}
