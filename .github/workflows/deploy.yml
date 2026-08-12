@@ -185,6 +185,13 @@ jobs:
           # local runs remain temporary and leave the worktree unchanged.
           ARDENT_RETAIN_VALIDATED_PUBLIC: '1'
           ARDENT_BUILD_REVISION: ${{ github.sha }}
+          # lychee reads this for github.com requests. Unauthenticated, GitHub
+          # allows 60 requests an hour per IP; the site carries 87 github.com
+          # links, so an unauthenticated run cannot finish the check and the
+          # overflow arrives as connection-level errors rather than as 429s -
+          # which link_check_contract.py fails closed on by design, since a
+          # connection failure is indistinguishable from a dead host.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 bin/site.py gate
 
       - name: Compile the Pages error boundary
