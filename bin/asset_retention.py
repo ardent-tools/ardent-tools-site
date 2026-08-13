@@ -61,6 +61,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import stat
 import sys
 import tempfile
@@ -362,6 +363,7 @@ def record_snapshot(
     snapshot = snapshot_resources(resources)
     if not snapshot:
         raise ValueError("cannot record an empty asset-retention snapshot")
+    asset_root_created = False
     if ledger_path.exists() or asset_root.exists():
         document, _retained = validate_ledger(ledger_path, asset_root)
     else:
@@ -371,6 +373,7 @@ def record_snapshot(
             "entries": [],
         }
         asset_root.mkdir(parents=True)
+        asset_root_created = True
     entries = document["entries"]
     if entries and entries[-1]["resources"] == snapshot:
         return document
@@ -381,22 +384,39 @@ def record_snapshot(
             f"`{COMPACT_COMMAND}` to squash history into one checkpoint entry "
             "before recording another snapshot"
         )
-    for item in snapshot:
-        output = item["output_path"]
-        body = bodies.get(output)
-        if body is None or sha256_bytes(body) != item["sha256"]:
-            raise ValueError(
-                f"current physical body is unavailable for retention: {output}"
-            )
-        require_static_file_size(len(body), f"current physical asset {output}")
-        destination = asset_root / output
-        if destination.exists():
-            if not destination.is_file() or destination.is_symlink():
-                raise ValueError(f"retained asset destination is not regular: {output}")
-            if destination.read_bytes() != body:
-                raise ValueError(f"retained asset collision: {output}")
-        else:
-            write_atomic(destination, body)
+    # WARNING: this loop must stay transactional against its own mid-loop
+    # failure. Every write_atomic() call it performs is tracked in `written`
+    # and undone on any exception before re-raising, because
+    # validate_ledger()'s strict set-equality check would otherwise reject
+    # an orphan file left by an earlier iteration on the very next call --
+    # dead-ending an ordinary retry instead of recovering from it.
+    written: list[Path] = []
+    try:
+        for item in snapshot:
+            output = item["output_path"]
+            body = bodies.get(output)
+            if body is None or sha256_bytes(body) != item["sha256"]:
+                raise ValueError(
+                    f"current physical body is unavailable for retention: {output}"
+                )
+            require_static_file_size(len(body), f"current physical asset {output}")
+            destination = asset_root / output
+            if destination.exists():
+                if not destination.is_file() or destination.is_symlink():
+                    raise ValueError(
+                        f"retained asset destination is not regular: {output}"
+                    )
+                if destination.read_bytes() != body:
+                    raise ValueError(f"retained asset collision: {output}")
+            else:
+                write_atomic(destination, body)
+                written.append(destination)
+    except BaseException:
+        for destination in written:
+            destination.unlink(missing_ok=True)
+        if asset_root_created:
+            shutil.rmtree(asset_root, ignore_errors=True)
+        raise
     previous = entry_digest(entries[-1]) if entries else None
     entry = {
         "kind": "snapshot",
