@@ -1,16 +1,30 @@
 #!/usr/bin/env python3
 """Extract the last-known-good production Pages deployment id + commit sha.
 
-Parses `wrangler pages deployment list --project-name <project>
---environment production --json` output captured to a file, and emits
-GITHUB_OUTPUT-formatted `key=value` lines: `had_prior_deployment`, plus
-`last_good_deployment_id` and `last_good_revision` when a prior production
-deployment exists.
+Parses a JSON array of Cloudflare Pages deployment objects (the paginated
+`GET .../pages/projects/<project>/deployments` response, combined and
+captured to a file by the caller) and emits GITHUB_OUTPUT-formatted
+`key=value` lines: `had_prior_deployment`, plus `last_good_deployment_id`
+and `last_good_revision` when a prior production deployment exists.
+`wrangler pages deployment list --json` is NOT this input - its PascalCase
+display mapping fails validation here by design; see
+`test_wrangler_pascal_case_shape_is_rejected`.
 
 WHY a project's first-ever production deploy is not an error: there is no
 last-known-good to roll back to yet. The AT-01 auto-restore workflow step
 consumes `had_prior_deployment` to skip the rollback call itself, not to
 fail this extraction.
+
+WHY the newest production entry is not enough (AT-02): `environment ==
+"production"` alone proves nothing about whether that deployment actually
+succeeded, ran at all, or belongs to this project. A candidate must also
+carry `latest_stage.status == "success"`, `is_skipped == false`, and
+`project_name` matching the trusted `--project` authority. A production
+history that exists but contains no such candidate (all failed, all
+skipped, or misattributed) fails closed rather than silently promoting a
+newer bad entry or falling back to an older one that was never verified as
+selectable - see `extract_last_good`. Schema verified against
+https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/list/.
 """
 
 from __future__ import annotations
@@ -78,13 +92,40 @@ def extract_last_good(path: Path, *, project: str) -> tuple[str | None, str | No
     except (OSError, UnicodeDecodeError) as exc:
         raise ValueError(f"deployment list receipt is not strict UTF-8: {exc}") from exc
     deployments = strict_array(raw)
-    candidates = [
+    production_entries = [
         entry
         for entry in deployments
         if isinstance(entry, dict) and entry.get("environment") == "production"
     ]
-    if not candidates:
+    if not production_entries:
+        # WHY this is not an error: a genuinely empty production history is
+        # a first-ever deploy, not an ambiguous state - there is nothing to
+        # have rolled back to.
         return None, None
+
+    def is_explicit_successful_non_skipped(entry: dict) -> bool:
+        if entry.get("project_name") != project:
+            return False
+        if entry.get("is_skipped") is not False:
+            return False
+        latest_stage = entry.get("latest_stage")
+        return (
+            isinstance(latest_stage, dict) and latest_stage.get("status") == "success"
+        )
+
+    candidates = [
+        entry for entry in production_entries if is_explicit_successful_non_skipped(entry)
+    ]
+    if not candidates:
+        # WHY this raises instead of returning (None, None): production
+        # history exists but nothing in it qualifies (all failed/active/
+        # skipped, or none attributed to this project) - that is ambiguous,
+        # not "no prior deployment", so it must fail before promotion
+        # rather than silently proceed unprotected.
+        raise ValueError(
+            "no explicit successful, non-skipped, canonical-production "
+            f"deployment found for project {project!r}"
+        )
 
     def created_on(entry: dict) -> str:
         value = entry.get("created_on")
