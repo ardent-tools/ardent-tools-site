@@ -42,6 +42,21 @@ readonly SITE_BASE_URL
   echo "ERROR: Node.js 22 is required for the WHATWG URL release authority" >&2
   exit 1
 }
+# WHY optional: kanon has no public release binary and no cross-repo
+# credential exists to fetch one (#93), so it is present on operator
+# machines but absent on .github/workflows/deploy.yml runners. It is
+# therefore never a hard preflight requirement - the writing-floor stage
+# below runs it when found and reports UNVERIFIED, never silently, when
+# it is not (docs/VOICE.md).
+KANON_AVAILABLE=0
+if command -v kanon >/dev/null 2>&1; then
+  KANON_AVAILABLE=1
+  [[ "$(kanon --version)" == "kanon 0.11.0" ]] || {
+    echo "ERROR: kanon 0.11.0 is required for the pinned writing-floor lint (docs/VOICE.md); found $(kanon --version)" >&2
+    exit 1
+  }
+fi
+readonly KANON_AVAILABLE
 
 RETAIN_VALIDATED_PUBLIC=${ARDENT_RETAIN_VALIDATED_PUBLIC:-0}
 case "$RETAIN_VALIDATED_PUBLIC" in
@@ -96,6 +111,19 @@ PLAYWRIGHT_CONFIG_BEFORE=$(sha256sum playwright.config.ts)
 
 echo "==> frontmatter"
 themes/typikon/bin/typikon-validate .
+
+echo "==> kanon writing floor (docs/VOICE.md)"
+if [[ "$KANON_AVAILABLE" == 1 ]]; then
+  # WHY these two exclusions: themes/typikon is a separate repository gated on
+  # its own pin, and tests/fixtures/kanon-writing holds a deliberately-banned
+  # fixture the regression suite lints directly (KanonWritingGateTests) - both
+  # would otherwise be swept into this repository's own lint target.
+  KANON_LINT_PATHS="$CHECK_ROOT/kanon-lint-paths.txt"
+  git ls-files -- . ":!themes/typikon" ":!tests/fixtures/kanon-writing" > "$KANON_LINT_PATHS"
+  kanon lint --writing --paths-from "$KANON_LINT_PATHS" .
+else
+  echo "UNVERIFIED: kanon is not installed in this environment; the docs/VOICE.md writing-floor ban list was not checked against this run (kanon has no public release binary yet - #93)." >&2
+fi
 
 if [[ -n "${ARDENT_RETENTION_BASE_LEDGER:-}" ]]; then
   echo "==> append-only asset-retention history"
@@ -231,4 +259,8 @@ if [[ "$RETAIN_VALIDATED_PUBLIC" == 1 ]]; then
   echo "==> retained the validated production artifact at public/"
 fi
 
-echo "PASS: strict site gate; playwright.config.ts preserved; pre-retention worktree state unchanged"
+if [[ "$KANON_AVAILABLE" == 1 ]]; then
+  echo "PASS: strict site gate; writing floor verified; playwright.config.ts preserved; pre-retention worktree state unchanged"
+else
+  echo "PASS: strict site gate; writing floor UNVERIFIED (kanon not installed); playwright.config.ts preserved; pre-retention worktree state unchanged"
+fi

@@ -1,0 +1,310 @@
+[baseline]
+created = "2026-08-13"
+remove_after = "2026-11-11"
+reason = "Pre-existing WRITING debt exposed when the kanon writing-floor gate (issue #105) went live; rewriting site prose is an authorial decision, tracked for burn-down in #132."
+
+[[baseline.entry]]
+rule = "WRITING/ai-trope:additionally"
+file = "README.md"
+line = 157
+hash = "ddcd076e305d7dfb37a0bc0f9eee5bcd4e15d08d6de993df905000cc8b0d9440"
+
+[[baseline.entry]]
+rule = "WRITING/ai-trope:delve"
+file = "docs/VOICE.md"
+line = 78
+hash = "0ebb01dbe4475501a4e64689cffc82d6e8263bc9fb353e3a647b3158582d125a"
+
+[[baseline.entry]]
+rule = "WRITING/ai-trope:harness"
+file = "content/systems/logismos.md"
+line = 34
+hash = "a3cd333b8622f253e33e028234357bf49d083d23c35ea3e31041fe970c1ba8ac"
+
+[[baseline.entry]]
+rule = "WRITING/ai-trope:harness"
+file = "content/systems/logismos.md"
+line = 66
+hash = "a942bae0ff32713690b7f29f0967e2df244517822b85777045c8005c66a4ea12"
+
+[[baseline.entry]]
+rule = "WRITING/ai-trope:specifically"
+file = "content/writing/gnomon-falsification-tests.md"
+line = 43
+hash = "9b80fd5345269758d0231af4cbe32e0a0f651278f5b32db8b25eca1848616242"
+
+[[baseline.entry]]
+rule = "WRITING/bookend-summary"
+file = "content/writing/binding-not-preservation.md"
+line = 48
+hash = "4599b255d560adb1bdce88434fceb3991b5c90c2d884288296802ad1f0153d5f"
+
+[[baseline.entry]]
+rule = "WRITING/bookend-summary"
+file = "content/writing/binding-not-preservation.md"
+line = 49
+hash = "dec7d77f902efd68d76c8b7a80bc79e14c11eea298395a018632cff2d9913b09"
+
+[[baseline.entry]]
+rule = "WRITING/elegant-variation"
+file = "README.md"
+line = 13
+hash = "5e8685d0151a0c7e1a4681bdd760c3cf9ea8f57cb3feadf19e9ed815599bf0fe"
+
+[[baseline.entry]]
+rule = "WRITING/elegant-variation"
+file = "content/consulting.md"
+line = 37
+hash = "24f78162c00bdeceac5de180456c335b1a0fe63eb4280d834d784662e2e8da20"
+
+[[baseline.entry]]
+rule = "WRITING/filler-phrase"
+file = "docs/VOICE.md"
+line = 52
+hash = "33025ca39fd487e1a4de1ceb36e3e66b09df4f364c24017de8728f6f3b6aef4b"
+
+[[baseline.entry]]
+rule = "WRITING/filler-phrase"
+file = "docs/VOICE.md"
+line = 76
+hash = "04abe31ef847f586284511afb0afe41f89df9275a78eaba12ee4374627439675"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "README.md"
+line = 71
+hash = "361a963bb9dea240663f026ce7b23842432dd1f178f198d4cd33dc9413540ca8"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "README.md"
+line = 104
+hash = "4b0704b9c118609c7ff3f7e9b976dbab6b85851fdeb1f4398dd1b6f5ca884b81"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "README.md"
+line = 159
+hash = "2d3d3d4e5f2458eab69f2646356e7aa20c928ae96fd4f8fd19eeb3a35652df1f"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/systems/hamma.md"
+line = 50
+hash = "b16ba89e6d198e6a4b0610a4d312ab455c27088b8cf27ed7d21c346d15875f99"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/systems/hamma.md"
+line = 78
+hash = "04a69f3ca6016b405c0f651d1e993ec7f363127d6356beef6afb23d44b8bfea1"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/systems/hamma.md"
+line = 105
+hash = "a748a6203f875c16a9cead87723b1da190db532bc5b7cf7aaaeecffd7e340e18"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/systems/thumos.md"
+line = 170
+hash = "00af6f8a66afdbbe0a00d0d2e8e2c4d7df86f1df6d3f8cde767d4006a012c4d7"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/writing/binding-not-preservation.md"
+line = 38
+hash = "79bff467db974e1b0a8c933d4153df111037b302c3446b89c4a848a91c2b8f94"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/writing/compressed-signal-cannot-prove.md"
+line = 49
+hash = "fdb934fa860bd5cac75bcf845fe034f1f224105e74e0dbb6fa89a39559e9fc04"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/writing/coordination-that-isnt-voting.md"
+line = 52
+hash = "62661bbfa0802a25d5f25cd058347c28585396cd67fb5ca73d4a7aa287c416f1"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/writing/real-citation-false-finding.md"
+line = 38
+hash = "150864c78d67df5aef8433b9e496ce640a20316f53be9962a16c9900e5d57620"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/writing/three-ways-to-count.md"
+line = 12
+hash = "6eb651a81674d3a91174144b6207df08ce5ff7638a36c8623c4537c5b69b743f"
+
+[[baseline.entry]]
+rule = "WRITING/paragraph-length"
+file = "content/writing/three-ways-to-count.md"
+line = 18
+hash = "c76100fa3694273a7ec38d8761a39efd1b2efe675e9fd1cd6caa4a50333dab10"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/about.md"
+line = 9
+hash = "0b87d4487ca0a732a7dce230bcb5cb1da1383be738e44807618b84db0b580901"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/systems/aletheia.md"
+line = 49
+hash = "f8f408aba213967d1adf315c7ac54ed04f954fabdbcffc39e7a81951d319191c"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/systems/hamma.md"
+line = 50
+hash = "b16ba89e6d198e6a4b0610a4d312ab455c27088b8cf27ed7d21c346d15875f99"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/systems/hamma.md"
+line = 78
+hash = "04a69f3ca6016b405c0f651d1e993ec7f363127d6356beef6afb23d44b8bfea1"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/systems/hamma.md"
+line = 105
+hash = "a748a6203f875c16a9cead87723b1da190db532bc5b7cf7aaaeecffd7e340e18"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/systems/hamma.md"
+line = 150
+hash = "f156862a57956e140a890988ea560d54605fae545ee0280c9d53d69698793000"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/writing/coordination-that-isnt-voting.md"
+line = 20
+hash = "9480cc23fdbf75238fed4274ac3c3ae721f2609a3ec14538c955a310f3460330"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/writing/coordination-that-isnt-voting.md"
+line = 26
+hash = "be5777e3dac6d427619d79ae9f6ddc7ef42277678889476895e637e920de80e9"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/writing/real-citation-false-finding.md"
+line = 18
+hash = "98336aab243e55a29f083b0a1a0578bb641331674efdee567a2a651e60023132"
+
+[[baseline.entry]]
+rule = "WRITING/repeated-sentence-start"
+file = "content/writing/three-ways-to-count.md"
+line = 32
+hash = "12a02cf6fc826cd1f1e1dfc9eaebe2341f0d8fa0ad053a8c9deeb36473e3fe9f"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "README.md"
+line = 141
+hash = "c1218bc92d8b964b136ba4afa6a1d665b46a8b790cc052dd544eb987104a9500"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/consulting.md"
+line = 33
+hash = "ed5541cfcd385b679ad49b97e302daefb65880699c1e606efbae22a93a56a844"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/systems/akroasis.md"
+line = 35
+hash = "87d463ba6c55da25129f678d09d5886f268c32aaf36d7a621b439582d83289e5"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/systems/aletheia.md"
+line = 38
+hash = "a0651433a278cad1264720cd4ba5ffcf1c45a6ded3f3f7aa626617214db2359e"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/systems/harmonia.md"
+line = 36
+hash = "5b641679b8a2a5ed8d886d5bb9fb8a3c92a069cc2ba341a08507197be738623c"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/systems/kanon.md"
+line = 123
+hash = "a1bf0d38a17e80e6e8f3590afa50824637f620cf511e57cb06b783d2ec75e6d8"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/systems/logismos.md"
+line = 24
+hash = "f8d3b22b4dee485c20f445ae439405417d28e7ab8a4ab095daced359b0c6b270"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/binding-not-preservation.md"
+line = 57
+hash = "54095c0f951b7423ce0e350fac6b6a72883f716556167fea7748960aea31824c"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/compressed-signal-cannot-prove.md"
+line = 12
+hash = "4a483b1a1dc138ee908d934ecc731aca9a68572deba96d868532bc1d53f655f6"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/compressed-signal-cannot-prove.md"
+line = 31
+hash = "ecc4009bd1b527db1d8623a327810d073413dcdbc6202d68a22ea4b4c5d20f49"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/coordination-that-isnt-voting.md"
+line = 52
+hash = "62661bbfa0802a25d5f25cd058347c28585396cd67fb5ca73d4a7aa287c416f1"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/gnomon-falsification-tests.md"
+line = 37
+hash = "986a7e9538504844ea6fd768175ce7cb7f1edbd5f299c64e65fd6050352bc2fc"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/gnomon-falsification-tests.md"
+line = 43
+hash = "9b80fd5345269758d0231af4cbe32e0a0f651278f5b32db8b25eca1848616242"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/gnomon-falsification-tests.md"
+line = 53
+hash = "7a20bdcbda6279249749bee4bb76d4a427c8b3a0cc285902e83200cae59a6101"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/hardest-honest-rung.md"
+line = 63
+hash = "dab9abb413d749f9f60dd7e338b7ae1fc19655d1785190f0dc4840e34a28b54d"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/three-ways-to-count.md"
+line = 18
+hash = "c76100fa3694273a7ec38d8761a39efd1b2efe675e9fd1cd6caa4a50333dab10"
+
+[[baseline.entry]]
+rule = "WRITING/weasel-word"
+file = "content/writing/three-ways-to-count.md"
+line = 53
+hash = "f6696591b0d6507bc519ba66ad08e9943043fc0ddb1fac74e217ef902a069acc"
