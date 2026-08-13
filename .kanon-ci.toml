@@ -7,11 +7,13 @@
 # slice of "kanon-lint" below is not dormant, though: bin/check-site.sh runs
 # the pinned equivalent (`kanon lint --writing`, kanon 0.11.0) directly as a
 # stage of the same strict gate .github/workflows/deploy.yml and a local
-# `python3 bin/site.py gate` both invoke, which is what makes docs/VOICE.md's
-# "enforced by kanon lint" claim true today independent of forge onboarding.
-# The full multi-category "kanon-lint" stage below (Rust/shell/Python beyond
-# writing) and the "site-gate" stage stay unconsumed as a pipeline until #93
-# lands and a post-receive hook exists to run them.
+# `python3 bin/site.py gate` both invoke - wherever kanon is installed. kanon
+# has no public release binary and no CI credential to fetch one (#93), so
+# the deploy.yml runner never has it; there the stage reports docs/VOICE.md's
+# ban list as UNVERIFIED instead of enforcing it. The full multi-category
+# "kanon-lint" stage below (Rust/shell/Python beyond writing) and the
+# "site-gate" stage stay unconsumed as a pipeline until #93 lands and a
+# post-receive hook exists to run them.
 #
 # The full strict gate (derivation verification + typikon-validate + zola check + zola build +
 # csp-enforce + lychee + pa11y + playwright + Cloudflare Pages deploy)

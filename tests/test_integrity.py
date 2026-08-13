@@ -5460,13 +5460,15 @@ class KanonWritingGateTests(unittest.TestCase):
 
     FIXTURES = ROOT / "tests/fixtures/kanon-writing"
     PINNED_VERSION = "kanon 0.11.0"
+    BASH = shutil.which("bash") or "/bin/bash"
 
-    def setUp(self) -> None:
-        # WHY fail rather than skip: a check that cannot verify the writing
-        # floor must say so loudly, not report a quiet pass because the tool
-        # it depends on happened to be absent.
+    def _require_kanon(self) -> None:
+        # WHY skip, not fail: kanon has no public release binary (#93), so
+        # its absence here is the documented UNVERIFIED path, not a defect.
+        # A test that hard-fails on a legitimately-absent optional tool is
+        # exactly the bug this class now guards against at the gate level.
         if shutil.which("kanon") is None:
-            self.fail("kanon is not on PATH; cannot verify the writing-floor gate")
+            self.skipTest("kanon is not on PATH; writing-floor lint is UNVERIFIED here by design")
 
     def _lint(self, fixture: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -5485,6 +5487,8 @@ class KanonWritingGateTests(unittest.TestCase):
         self.assertIn("kanon lint --writing", voice)
         self.assertIn(self.PINNED_VERSION, voice)
         self.assertIn("bin/check-site.sh", voice)
+        self.assertIn("UNVERIFIED", gate)
+        self.assertIn("UNVERIFIED", voice)
 
     def test_content_surface_is_configured_for_enforcement(self) -> None:
         # WHY: without this mapping every page under content/ resolves to
@@ -5501,14 +5505,70 @@ class KanonWritingGateTests(unittest.TestCase):
             self.assertIn(":!tests/fixtures/kanon-writing", text)
 
     def test_banned_construction_fixture_fails_kanon_lint(self) -> None:
+        self._require_kanon()
         result = self._lint("violation.md")
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("WRITING/ai-trope:comprehensive", result.stdout)
         self.assertIn("WRITING/ai-trope:robust", result.stdout)
 
     def test_compliant_fixture_passes_kanon_lint(self) -> None:
+        self._require_kanon()
         result = self._lint("clean.md")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_preflight_loop_never_hard_requires_kanon(self) -> None:
+        """Regression: kanon has no public release binary and no CI credential
+        (#93), so a bare-PATH runner (the GitHub Actions gate-and-deploy job)
+        must still clear the required-tool preflight. Every tool the loop
+        actually lists is stubbed except kanon, so if kanon is ever re-added
+        to the list, this test fails exactly the way the real CI run did."""
+        gate_text = (ROOT / "bin/check-site.sh").read_text()
+        match = re.search(r"for tool in ([^;]+); do\n(?:.*\n)*?done\n", gate_text)
+        self.assertIsNotNone(match, "could not locate the tool-preflight loop in bin/check-site.sh")
+        loop_source = match.group(0)
+        tools = match.group(1).split()
+        self.assertNotIn("kanon", tools)
+
+        with tempfile.TemporaryDirectory() as stub_bin:
+            for tool in tools:
+                stub = Path(stub_bin) / tool
+                stub.write_text("#!/bin/sh\nexit 0\n")
+                stub.chmod(0o755)
+            result = subprocess.run(
+                [self.BASH, "-c", loop_source],
+                env={"PATH": stub_bin},
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        self.assertEqual(
+            result.returncode,
+            0,
+            f"preflight loop failed with every listed tool present and no kanon on PATH: {result.stderr}",
+        )
+
+    def test_writing_floor_reports_unverified_without_kanon(self) -> None:
+        """Regression for the defect itself: the gate-and-deploy job runs
+        with no kanon on PATH. This must never hard-fail the gate or skip
+        the check silently - it must say UNVERIFIED (issue #105)."""
+        gate_text = (ROOT / "bin/check-site.sh").read_text()
+        start = gate_text.index('echo "==> kanon writing floor')
+        end = gate_text.index("\nfi\n", start) + len("\nfi\n")
+        block = gate_text[start:end]
+        self.assertIn('if [[ "$KANON_AVAILABLE" == 1 ]]; then', block)
+        self.assertIn("UNVERIFIED", block)
+
+        script = f"set -euo pipefail\nKANON_AVAILABLE=0\n{block}\n"
+        result = subprocess.run(
+            [self.BASH, "-c", script],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("UNVERIFIED", result.stderr)
+        self.assertNotIn("required tool is missing: kanon", result.stderr)
 
 
 if __name__ == "__main__":
