@@ -47,6 +47,17 @@ def strict_object(raw: str, label: str) -> dict:
     return value
 
 
+def validate_branch_name(branch: str, *, label: str) -> str:
+    if (
+        not BRANCH_RE.fullmatch(branch)
+        or branch.startswith(("/", "."))
+        or "//" in branch
+        or ".." in branch.split("/")
+    ):
+        raise ValueError(f"{label} branch name is invalid")
+    return branch
+
+
 def validate_url(value: object, project: str) -> str:
     if not isinstance(value, str):
         raise ValueError("Wrangler deployment URL must be a string")
@@ -92,13 +103,7 @@ def extract_deployment_receipt(
         raise ValueError("Pages project name is invalid")
     if environment not in {"production", "preview"}:
         raise ValueError("environment must be exactly 'production' or 'preview'")
-    if (
-        not BRANCH_RE.fullmatch(production_branch)
-        or production_branch.startswith(("/", "."))
-        or "//" in production_branch
-        or ".." in production_branch.split("/")
-    ):
-        raise ValueError("production branch name is invalid")
+    validate_branch_name(production_branch, label="production")
     try:
         metadata = path.lstat()
     except OSError as exc:

@@ -53,6 +53,7 @@ last_deployment = load_script(
     "ardent_pages_last_deployment", "pages_last_deployment.py"
 )
 verify_restore = load_script("ardent_verify_restore", "verify_restore.py")
+pages_reconcile = load_script("ardent_pages_reconcile", "pages_reconcile.py")
 
 BASE_URL = "https://ardent.tools"
 EXPECTED_REVISION = "2" * 40
@@ -3201,6 +3202,7 @@ class DeployWorkflowContractTests(unittest.TestCase):
             "Promote verified preview to production",
             "Purge Cloudflare cache so shared-header changes reach immutable resources",
             "Verify canonical domain after production cutover",
+            "Reconcile Cloudflare deployment state",
             "Restore last-known-good production deployment",
         )
         for earlier, later in zip(ordered_steps, ordered_steps[1:]):
@@ -3257,10 +3259,16 @@ class DeployWorkflowContractTests(unittest.TestCase):
         preview_validate = preview_run.index(
             'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
         )
+        preview_attempted = preview_run.index('echo "attempted=true" >> "$GITHUB_OUTPUT"')
         preview_upload = preview_run.index(
             'wrangler pages deploy --branch="ci-preview-$GITHUB_SHA"'
         )
-        self.assertLess(preview_validate, preview_upload)
+        # AT-02: attempted is recorded after the local pre-flight check but
+        # strictly before the mutation itself, so it is set precisely when
+        # a mutation was actually tried against Cloudflare - never on a
+        # validate-site.py failure that never reached wrangler at all.
+        self.assertLess(preview_validate, preview_attempted)
+        self.assertLess(preview_attempted, preview_upload)
         self.assertIn('--commit-hash "$GITHUB_SHA"', preview_run)
         self.assertIn("WRANGLER_OUTPUT_FILE_PATH", preview_deploy_step["env"])
         self.assertNotEqual(
@@ -3270,11 +3278,14 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertIn("bin/pages_deployment_receipt.py", preview_run)
         self.assertIn("--environment preview", preview_run)
         self.assertIn("ARDENT_PREVIEW_URL", preview_run)
-        # The preview deployment id is captured too (consumed by the
-        # best-effort preview-cleanup step) - one call selects each field.
         self.assertIn("--field url", preview_run)
-        self.assertIn("--field id", preview_run)
-        self.assertIn("ARDENT_PREVIEW_DEPLOYMENT_ID", preview_run)
+        # AT-02 follow-up: the preview deployment id used to be extracted
+        # here for the cleanup step, but a receipt-parse failure after a
+        # real upload silently defeated cleanup (issue #95) - cleanup now
+        # gets its id(s) from steps.reconcile, which asks Cloudflare
+        # directly, so this step no longer needs to parse an id at all.
+        self.assertNotIn("--field id", preview_run)
+        self.assertNotIn("ARDENT_PREVIEW_DEPLOYMENT_ID", workflow_text)
 
         preview_verify_step = workflow_step(steps, "Verify preview deployment")
         self.assertEqual(preview_verify_step.get("id"), "preview_verify")
@@ -3294,8 +3305,10 @@ class DeployWorkflowContractTests(unittest.TestCase):
         promote_validate = promote_run.index(
             'python3 bin/validate-site.py public --expected-revision "$GITHUB_SHA"'
         )
+        promote_attempted = promote_run.index('echo "attempted=true" >> "$GITHUB_OUTPUT"')
         promote_upload = promote_run.index("wrangler pages deploy --branch=main")
-        self.assertLess(promote_validate, promote_upload)
+        self.assertLess(promote_validate, promote_attempted)
+        self.assertLess(promote_attempted, promote_upload)
         self.assertEqual(promote_step["env"]["GITHUB_SHA"], "${{ github.sha }}")
         self.assertIn('--commit-hash "$GITHUB_SHA"', promote_run)
         # AT-01 follow-up: promote's own receipt-parse had no consumer
@@ -3353,6 +3366,41 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("--require-logical-alias-tombstones", canonical_run)
         self.assertIn("--attempts 13 --delay 10", canonical_run)
 
+        reconcile_step = workflow_step(steps, "Reconcile Cloudflare deployment state")
+        self.assertEqual(reconcile_step.get("id"), "reconcile")
+        reconcile_if = reconcile_step["if"]
+        # AT-02: reconciliation runs under always(), gated only on whether a
+        # mutation was ever attempted - never on any step's own outcome, so
+        # a client failure after Cloudflare accepted the mutation cannot
+        # hide the resulting state from it.
+        self.assertIn("always()", reconcile_if)
+        self.assertIn("steps.preview_deploy.outputs.attempted == 'true'", reconcile_if)
+        self.assertIn("steps.promote.outputs.attempted == 'true'", reconcile_if)
+        self.assertNotIn("outcome", reconcile_if)
+        reconcile_run = reconcile_step["run"]
+        self.assertIn(
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}"
+            "/pages/projects/ardent-tools/deployments?page=",
+            reconcile_run,
+        )
+        self.assertIn("max_pages", reconcile_run)
+        self.assertIn('"$page_count" -eq 0', reconcile_run)
+        self.assertIn("bin/pages_reconcile.py", reconcile_run)
+        self.assertIn('--revision "$GITHUB_SHA"', reconcile_run)
+        self.assertIn('--preview-branch "ci-preview-$GITHUB_SHA"', reconcile_run)
+        self.assertIn("--production-branch main", reconcile_run)
+        self.assertIn('>> "$GITHUB_OUTPUT"', reconcile_run)
+
+        unresolved_step = workflow_step(
+            steps, "Cloudflare deployment state is unresolved after this run"
+        )
+        unresolved_if = unresolved_step["if"]
+        self.assertIn("failure()", unresolved_if)
+        self.assertIn("steps.reconcile.outcome != 'success'", unresolved_if)
+        self.assertIn("steps.preview_deploy.outputs.attempted == 'true'", unresolved_if)
+        self.assertIn("steps.promote.outputs.attempted == 'true'", unresolved_if)
+        self.assertIn("exit 1", unresolved_step["run"])
+
     def test_concurrency_group_is_dedicated_and_non_cancelable_for_production(
         self,
     ) -> None:
@@ -3373,7 +3421,9 @@ class DeployWorkflowContractTests(unittest.TestCase):
             "github.ref == 'refs/heads/main'", concurrency["cancel-in-progress"]
         )
 
-    def test_auto_restore_fires_only_after_a_successful_promote(self) -> None:
+    def test_auto_restore_fires_only_when_cloudflare_confirms_production_landed(
+        self,
+    ) -> None:
         workflow_text = (ROOT / ".github/workflows/deploy.yml").read_text()
         workflow = parse_workflow_yaml(workflow_text)
         steps = workflow["jobs"]["gate-and-deploy"]["steps"]
@@ -3383,7 +3433,11 @@ class DeployWorkflowContractTests(unittest.TestCase):
         )
         restore_if = restore_step["if"]
         self.assertIn("failure()", restore_if)
-        self.assertIn("steps.promote.outcome == 'success'", restore_if)
+        # AT-02: gated on Cloudflare's own reconciled state, never on
+        # steps.promote.outcome - a client failure after Cloudflare
+        # accepted the promotion must still trigger restore.
+        self.assertIn("steps.reconcile.outputs.production_accepted == 'true'", restore_if)
+        self.assertNotIn("steps.promote.outcome", restore_if)
         self.assertIn(
             "steps.capture_last_good.outputs.had_prior_deployment == 'true'",
             restore_if,
@@ -3412,7 +3466,10 @@ class DeployWorkflowContractTests(unittest.TestCase):
         )
         no_prior_if = no_prior_step["if"]
         self.assertIn("failure()", no_prior_if)
-        self.assertIn("steps.promote.outcome == 'success'", no_prior_if)
+        self.assertIn(
+            "steps.reconcile.outputs.production_accepted == 'true'", no_prior_if
+        )
+        self.assertNotIn("steps.promote.outcome", no_prior_if)
         self.assertIn(
             "steps.capture_last_good.outputs.had_prior_deployment != 'true'",
             no_prior_if,
@@ -3440,28 +3497,40 @@ class DeployWorkflowContractTests(unittest.TestCase):
         cleanup_if = cleanup_step["if"]
         # always() so the preview is deleted whether the run went on to
         # succeed, fail preview_verify, fail promote, or fail-and-restore -
-        # but only when preview_deploy itself actually created one.
+        # gated on Cloudflare's own reconciled state (AT-02), never on
+        # steps.preview_deploy.outcome, so a receipt-parse failure after a
+        # real upload cannot suppress cleanup (issue #95).
         self.assertIn("always()", cleanup_if)
-        self.assertIn("steps.preview_deploy.outcome == 'success'", cleanup_if)
+        self.assertIn("steps.reconcile.outputs.preview_accepted == 'true'", cleanup_if)
+        self.assertNotIn("steps.preview_deploy.outcome", cleanup_if)
 
         cleanup_run = cleanup_step["run"]
         self.assertIn(
             "-X DELETE "
             '"https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}'
             "/pages/projects/ardent-tools/deployments/"
-            '${ARDENT_PREVIEW_DEPLOYMENT_ID}?force=true"',
+            '${id}?force=true"',
             cleanup_run,
         )
         self.assertIn("Authorization: Bearer ${CLOUDFLARE_API_TOKEN}", cleanup_run)
+        self.assertEqual(
+            cleanup_step["env"]["PREVIEW_DEPLOYMENT_IDS"],
+            "${{ steps.reconcile.outputs.preview_deployment_ids }}",
+        )
+        self.assertNotIn("ARDENT_PREVIEW_DEPLOYMENT_ID", cleanup_run)
+        # Loops over every id reconcile found - an interrupted earlier
+        # cleanup can leave more than one live preview for the same commit.
+        self.assertIn("IFS=',' read -ra ids", cleanup_run)
+        self.assertIn('for id in "${ids[@]}"', cleanup_run)
         # Best-effort: cleanup failure is swallowed, never an `exit 1` that
         # would fail an already-decided deploy/restore outcome.
         self.assertNotIn("exit 1", cleanup_run)
         self.assertIn("|| echo", cleanup_run)
 
-        # Cleanup must run after the preview id exists and after the
+        # Cleanup must run after reconcile (its id source) and after the
         # restore-decision steps, so it observes their outcome.
         self.assertLess(
-            step_names.index("Deploy preview to Cloudflare Pages"),
+            step_names.index("Reconcile Cloudflare deployment state"),
             step_names.index("Delete preview deployment"),
         )
         self.assertLess(
@@ -3696,13 +3765,21 @@ class PagesLastDeploymentTests(unittest.TestCase):
         revision: str,
         created_on: str,
         environment: str = "production",
+        project_name: str | None = None,
+        is_skipped: bool = False,
+        latest_stage_status: str | None = "success",
     ) -> dict:
-        return {
+        entry: dict = {
             "id": deployment_id,
             "environment": environment,
             "created_on": created_on,
             "deployment_trigger": {"metadata": {"commit_hash": revision}},
+            "project_name": self.PROJECT if project_name is None else project_name,
+            "is_skipped": is_skipped,
         }
+        if latest_stage_status is not None:
+            entry["latest_stage"] = {"status": latest_stage_status}
+        return entry
 
     def write(self, root: Path, entries: list) -> Path:
         path = root / "deployments.json"
@@ -3891,6 +3968,179 @@ class PagesLastDeploymentTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(captured.getvalue(), "had_prior_deployment=false\n")
 
+    def test_skips_a_newer_failed_or_active_entry_for_an_older_success(self) -> None:
+        for bad_status in ("failure", "active", "idle", "canceled"):
+            with self.subTest(status=bad_status):
+                entries = [
+                    self.entry(
+                        deployment_id=self.OLDER_DEPLOYMENT_ID,
+                        revision=self.OLDER_REVISION,
+                        created_on="2026-07-01T00:00:00Z",
+                    ),
+                    self.entry(
+                        deployment_id=self.DEPLOYMENT_ID,
+                        revision=self.REVISION,
+                        created_on="2026-07-20T00:00:00Z",
+                        latest_stage_status=bad_status,
+                    ),
+                ]
+                with tempfile.TemporaryDirectory() as directory:
+                    path = self.write(Path(directory), entries)
+                    deployment_id, revision = last_deployment.extract_last_good(
+                        path, project=self.PROJECT
+                    )
+                self.assertEqual(deployment_id, self.OLDER_DEPLOYMENT_ID)
+                self.assertEqual(revision, self.OLDER_REVISION)
+
+    def test_skips_a_newer_skipped_entry_for_an_older_non_skipped_one(self) -> None:
+        entries = [
+            self.entry(
+                deployment_id=self.OLDER_DEPLOYMENT_ID,
+                revision=self.OLDER_REVISION,
+                created_on="2026-07-01T00:00:00Z",
+            ),
+            self.entry(
+                deployment_id=self.DEPLOYMENT_ID,
+                revision=self.REVISION,
+                created_on="2026-07-20T00:00:00Z",
+                is_skipped=True,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), entries)
+            deployment_id, revision = last_deployment.extract_last_good(
+                path, project=self.PROJECT
+            )
+        self.assertEqual(deployment_id, self.OLDER_DEPLOYMENT_ID)
+        self.assertEqual(revision, self.OLDER_REVISION)
+
+    def test_unordered_pagination_still_selects_the_true_newest_qualified_entry(
+        self,
+    ) -> None:
+        # Pages combined across pages carry no guaranteed order; the
+        # newest-qualified pick must not depend on input order.
+        middle_id = "11111111-2222-3333-4444-555555555555"
+        middle_revision = "c" * 40
+        entries = [
+            self.entry(
+                deployment_id=self.DEPLOYMENT_ID,
+                revision=self.REVISION,
+                created_on="2026-07-20T00:00:00Z",
+            ),
+            self.entry(
+                deployment_id=self.OLDER_DEPLOYMENT_ID,
+                revision=self.OLDER_REVISION,
+                created_on="2026-07-01T00:00:00Z",
+            ),
+            self.entry(
+                deployment_id=middle_id,
+                revision=middle_revision,
+                created_on="2026-07-10T00:00:00Z",
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), entries)
+            deployment_id, revision = last_deployment.extract_last_good(
+                path, project=self.PROJECT
+            )
+        self.assertEqual(deployment_id, self.DEPLOYMENT_ID)
+        self.assertEqual(revision, self.REVISION)
+
+    def test_no_qualifying_candidate_fails_closed_rather_than_reporting_no_prior(
+        self,
+    ) -> None:
+        # Production history exists (a real deploy history), but every
+        # entry in it is either failed, active, or skipped - there is no
+        # known-good target, and that must never be conflated with "this is
+        # the first production deploy" (which silently proceeds unprotected).
+        entries = [
+            self.entry(
+                deployment_id=self.OLDER_DEPLOYMENT_ID,
+                revision=self.OLDER_REVISION,
+                created_on="2026-07-01T00:00:00Z",
+                latest_stage_status="failure",
+            ),
+            self.entry(
+                deployment_id=self.DEPLOYMENT_ID,
+                revision=self.REVISION,
+                created_on="2026-07-20T00:00:00Z",
+                is_skipped=True,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), entries)
+            with self.assertRaises(ValueError):
+                last_deployment.extract_last_good(path, project=self.PROJECT)
+
+    def test_missing_status_or_skip_fields_exclude_a_candidate(self) -> None:
+        newer_missing_latest_stage = self.entry(
+            deployment_id=self.DEPLOYMENT_ID,
+            revision=self.REVISION,
+            created_on="2026-07-20T00:00:00Z",
+            latest_stage_status=None,
+        )
+        newer_missing_is_skipped = self.entry(
+            deployment_id=self.DEPLOYMENT_ID,
+            revision=self.REVISION,
+            created_on="2026-07-20T00:00:00Z",
+        )
+        del newer_missing_is_skipped["is_skipped"]
+        older_good = self.entry(
+            deployment_id=self.OLDER_DEPLOYMENT_ID,
+            revision=self.OLDER_REVISION,
+            created_on="2026-07-01T00:00:00Z",
+        )
+        for label, newer in (
+            ("missing latest_stage", newer_missing_latest_stage),
+            ("missing is_skipped", newer_missing_is_skipped),
+        ):
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                path = self.write(Path(directory), [older_good, newer])
+                deployment_id, revision = last_deployment.extract_last_good(
+                    path, project=self.PROJECT
+                )
+            self.assertEqual(deployment_id, self.OLDER_DEPLOYMENT_ID)
+            self.assertEqual(revision, self.OLDER_REVISION)
+
+        # And when the only entry present has missing fields, there is
+        # nothing left to qualify - fail closed rather than report absence.
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), [newer_missing_latest_stage])
+            with self.assertRaises(ValueError):
+                last_deployment.extract_last_good(path, project=self.PROJECT)
+
+    def test_deployment_attributed_to_a_different_project_is_excluded(self) -> None:
+        # A production entry whose project_name does not match the trusted
+        # --project authority must never be selectable, even if it is
+        # otherwise a well-formed successful, non-skipped deployment.
+        entries = [
+            self.entry(
+                deployment_id=self.DEPLOYMENT_ID,
+                revision=self.REVISION,
+                created_on="2026-07-20T00:00:00Z",
+                project_name="a-different-project",
+            )
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), entries)
+            with self.assertRaises(ValueError):
+                last_deployment.extract_last_good(path, project=self.PROJECT)
+
+        # With a qualifying older entry present, the mismatched one is
+        # simply excluded rather than poisoning the whole selection.
+        older_good = self.entry(
+            deployment_id=self.OLDER_DEPLOYMENT_ID,
+            revision=self.OLDER_REVISION,
+            created_on="2026-07-01T00:00:00Z",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), [older_good, *entries])
+            deployment_id, revision = last_deployment.extract_last_good(
+                path, project=self.PROJECT
+            )
+        self.assertEqual(deployment_id, self.OLDER_DEPLOYMENT_ID)
+        self.assertEqual(revision, self.OLDER_REVISION)
+
 
 class VerifyRestoreTests(unittest.TestCase):
     REVISION = "c" * 40
@@ -3966,6 +4216,253 @@ class VerifyRestoreTests(unittest.TestCase):
         ):
             with self.assertRaises(SystemExit):
                 verify_restore.main()
+
+
+class PagesReconcileTests(unittest.TestCase):
+    PROJECT = "ardent-tools"
+    REVISION = "d" * 40
+    OTHER_REVISION = "e" * 40
+    PREVIEW_BRANCH = f"ci-preview-{REVISION}"
+    PREVIEW_ID = "12345678-1234-1234-1234-123456789abc"
+    OTHER_PREVIEW_ID = "87654321-4321-4321-4321-cba987654321"
+    PRODUCTION_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    def entry(
+        self,
+        *,
+        deployment_id: str,
+        environment: str,
+        branch: str,
+        revision: str,
+        project_name: str | None = None,
+    ) -> dict:
+        return {
+            "id": deployment_id,
+            "environment": environment,
+            "project_name": self.PROJECT if project_name is None else project_name,
+            "deployment_trigger": {
+                "metadata": {"branch": branch, "commit_hash": revision}
+            },
+        }
+
+    def write(self, root: Path, entries: list) -> Path:
+        path = root / "deployments.json"
+        path.write_text(json.dumps(entries))
+        return path
+
+    def reconcile(self, path: Path) -> tuple[list[str], bool]:
+        return pages_reconcile.reconcile(
+            path,
+            project=self.PROJECT,
+            revision=self.REVISION,
+            preview_branch=self.PREVIEW_BRANCH,
+        )
+
+    def test_true_no_mutation_reports_nothing_accepted(self) -> None:
+        # Cloudflare never received this run's commit on either branch - a
+        # freshly captured list that only carries unrelated history.
+        entries = [
+            self.entry(
+                deployment_id=self.OTHER_PREVIEW_ID,
+                environment="preview",
+                branch=f"ci-preview-{self.OTHER_REVISION}",
+                revision=self.OTHER_REVISION,
+            ),
+            self.entry(
+                deployment_id=self.PRODUCTION_ID,
+                environment="production",
+                branch="main",
+                revision=self.OTHER_REVISION,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            preview_ids, production_accepted = self.reconcile(
+                self.write(Path(directory), entries)
+            )
+        self.assertEqual(preview_ids, [])
+        self.assertFalse(production_accepted)
+
+    def test_accepted_but_client_failed_is_still_detected(self) -> None:
+        # Cloudflare recorded both mutations for this exact commit+branch;
+        # this module never looks at wrangler's exit code or a parsed
+        # receipt, only at what Cloudflare itself reports.
+        entries = [
+            self.entry(
+                deployment_id=self.PREVIEW_ID,
+                environment="preview",
+                branch=self.PREVIEW_BRANCH,
+                revision=self.REVISION,
+            ),
+            self.entry(
+                deployment_id=self.PRODUCTION_ID,
+                environment="production",
+                branch="main",
+                revision=self.REVISION,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            preview_ids, production_accepted = self.reconcile(
+                self.write(Path(directory), entries)
+            )
+        self.assertEqual(preview_ids, [self.PREVIEW_ID])
+        self.assertTrue(production_accepted)
+
+    def test_multiple_matching_preview_deployments_are_all_returned(self) -> None:
+        # An earlier run's cleanup never completed; a same-commit re-run
+        # must not leave any of them behind.
+        entries = [
+            self.entry(
+                deployment_id=self.PREVIEW_ID,
+                environment="preview",
+                branch=self.PREVIEW_BRANCH,
+                revision=self.REVISION,
+            ),
+            self.entry(
+                deployment_id=self.OTHER_PREVIEW_ID,
+                environment="preview",
+                branch=self.PREVIEW_BRANCH,
+                revision=self.REVISION,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            preview_ids, production_accepted = self.reconcile(
+                self.write(Path(directory), entries)
+            )
+        self.assertCountEqual(preview_ids, [self.PREVIEW_ID, self.OTHER_PREVIEW_ID])
+        self.assertFalse(production_accepted)
+
+    def test_wrong_project_or_branch_never_matches(self) -> None:
+        entries = [
+            self.entry(
+                deployment_id=self.PREVIEW_ID,
+                environment="preview",
+                branch=self.PREVIEW_BRANCH,
+                revision=self.REVISION,
+                project_name="a-different-project",
+            ),
+            self.entry(
+                deployment_id=self.PRODUCTION_ID,
+                environment="production",
+                branch="not-main",
+                revision=self.REVISION,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            preview_ids, production_accepted = self.reconcile(
+                self.write(Path(directory), entries)
+            )
+        self.assertEqual(preview_ids, [])
+        self.assertFalse(production_accepted)
+
+    def test_malformed_matched_deployment_id_fails_closed(self) -> None:
+        entries = [
+            self.entry(
+                deployment_id="not-a-uuid",
+                environment="preview",
+                branch=self.PREVIEW_BRANCH,
+                revision=self.REVISION,
+            )
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                self.reconcile(self.write(Path(directory), entries))
+
+    def test_main_emits_github_output_lines(self) -> None:
+        entries = [
+            self.entry(
+                deployment_id=self.PREVIEW_ID,
+                environment="preview",
+                branch=self.PREVIEW_BRANCH,
+                revision=self.REVISION,
+            ),
+            self.entry(
+                deployment_id=self.PRODUCTION_ID,
+                environment="production",
+                branch="main",
+                revision=self.REVISION,
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), entries)
+            captured = io.StringIO()
+            with (
+                mock.patch.object(
+                    pages_reconcile.sys, "argv",
+                    [
+                        "pages_reconcile.py", str(path),
+                        "--project", self.PROJECT,
+                        "--revision", self.REVISION,
+                        "--preview-branch", self.PREVIEW_BRANCH,
+                    ],
+                ),
+                mock.patch.object(pages_reconcile.sys, "stdout", captured),
+            ):
+                result = pages_reconcile.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            captured.getvalue(),
+            "preview_accepted=true\n"
+            f"preview_deployment_ids={self.PREVIEW_ID}\n"
+            "production_accepted=true\n",
+        )
+
+    def test_main_reports_nothing_accepted_for_unrelated_history(self) -> None:
+        entries = [
+            self.entry(
+                deployment_id=self.OTHER_PREVIEW_ID,
+                environment="preview",
+                branch=f"ci-preview-{self.OTHER_REVISION}",
+                revision=self.OTHER_REVISION,
+            )
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), entries)
+            captured = io.StringIO()
+            with (
+                mock.patch.object(
+                    pages_reconcile.sys, "argv",
+                    [
+                        "pages_reconcile.py", str(path),
+                        "--project", self.PROJECT,
+                        "--revision", self.REVISION,
+                        "--preview-branch", self.PREVIEW_BRANCH,
+                    ],
+                ),
+                mock.patch.object(pages_reconcile.sys, "stdout", captured),
+            ):
+                result = pages_reconcile.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            captured.getvalue(),
+            "preview_accepted=false\n"
+            "preview_deployment_ids=\n"
+            "production_accepted=false\n",
+        )
+
+    def test_rejects_invalid_project_revision_or_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write(Path(directory), [])
+            with self.assertRaises(ValueError):
+                pages_reconcile.reconcile(
+                    path,
+                    project="Not Valid",
+                    revision=self.REVISION,
+                    preview_branch=self.PREVIEW_BRANCH,
+                )
+            with self.assertRaises(ValueError):
+                pages_reconcile.reconcile(
+                    path,
+                    project=self.PROJECT,
+                    revision="not-hex",
+                    preview_branch=self.PREVIEW_BRANCH,
+                )
+            with self.assertRaises(ValueError):
+                pages_reconcile.reconcile(
+                    path,
+                    project=self.PROJECT,
+                    revision=self.REVISION,
+                    preview_branch="",
+                )
 
 
 class PagesRuntimeContractTests(unittest.TestCase):
