@@ -191,6 +191,9 @@ jobs:
           # overflow arrives as connection-level errors rather than as 429s -
           # which link_check_contract.py fails closed on by design, since a
           # connection failure is indistinguishable from a dead host.
+          # validate-fleet-counts.py also reads this, to witness the fleet's
+          # declared repository visibility and control-plane adoption against
+          # the GitHub API directly rather than against the site's own copy.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 bin/site.py gate
 
