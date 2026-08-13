@@ -22,7 +22,7 @@ RESOLVED_REVISION=$(git rev-parse --verify "${BUILD_REVISION}^{commit}" 2>/dev/n
 }
 readonly BUILD_REVISION
 
-for tool in git python3 zola node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext pdffonts; do
+for tool in git python3 zola node npm npx pa11y-ci lychee curl sha256sum cmp typst pdftotext pdffonts kanon; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "ERROR: required tool is missing: $tool" >&2
     exit 1
@@ -40,6 +40,10 @@ readonly SITE_BASE_URL
 }
 [[ "$(node --version)" == v22.* ]] || {
   echo "ERROR: Node.js 22 is required for the WHATWG URL release authority" >&2
+  exit 1
+}
+[[ "$(kanon --version)" == "kanon 0.11.0" ]] || {
+  echo "ERROR: kanon 0.11.0 is required for the pinned writing-floor lint (docs/VOICE.md)" >&2
   exit 1
 }
 
@@ -96,6 +100,15 @@ PLAYWRIGHT_CONFIG_BEFORE=$(sha256sum playwright.config.ts)
 
 echo "==> frontmatter"
 themes/typikon/bin/typikon-validate .
+
+echo "==> kanon writing floor (docs/VOICE.md)"
+# WHY these two exclusions: themes/typikon is a separate repository gated on
+# its own pin, and tests/fixtures/kanon-writing holds a deliberately-banned
+# fixture the regression suite lints directly (KanonWritingGateTests) - both
+# would otherwise be swept into this repository's own lint target.
+KANON_LINT_PATHS="$CHECK_ROOT/kanon-lint-paths.txt"
+git ls-files -- . ":!themes/typikon" ":!tests/fixtures/kanon-writing" > "$KANON_LINT_PATHS"
+kanon lint --writing --paths-from "$KANON_LINT_PATHS" .
 
 if [[ -n "${ARDENT_RETENTION_BASE_LEDGER:-}" ]]; then
   echo "==> append-only asset-retention history"

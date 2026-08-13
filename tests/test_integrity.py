@@ -5455,5 +5455,61 @@ class ExternalLinkCheckScriptTests(unittest.TestCase):
         self.assertIn("https://example.com/dead", result.stderr)
 
 
+class KanonWritingGateTests(unittest.TestCase):
+    """docs/VOICE.md's ban list must be a real gate, not a claim (#105)."""
+
+    FIXTURES = ROOT / "tests/fixtures/kanon-writing"
+    PINNED_VERSION = "kanon 0.11.0"
+
+    def setUp(self) -> None:
+        # WHY fail rather than skip: a check that cannot verify the writing
+        # floor must say so loudly, not report a quiet pass because the tool
+        # it depends on happened to be absent.
+        if shutil.which("kanon") is None:
+            self.fail("kanon is not on PATH; cannot verify the writing-floor gate")
+
+    def _lint(self, fixture: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["kanon", "lint", "--writing", str(self.FIXTURES / fixture)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+    def test_gate_names_the_pinned_mechanism_and_version(self) -> None:
+        gate = (ROOT / "bin/check-site.sh").read_text()
+        voice = (ROOT / "docs/VOICE.md").read_text()
+        self.assertIn("kanon lint --writing", gate)
+        self.assertIn(f'"{self.PINNED_VERSION}"', gate)
+        self.assertIn("kanon lint --writing", voice)
+        self.assertIn(self.PINNED_VERSION, voice)
+        self.assertIn("bin/check-site.sh", voice)
+
+    def test_content_surface_is_configured_for_enforcement(self) -> None:
+        # WHY: without this mapping every page under content/ resolves to
+        # kanon's internal-utility default, and the WRITING rules silently
+        # never fire on real site prose regardless of what the gate invokes.
+        config = (ROOT / ".kanon.yml").read_text()
+        self.assertIn('"content/**/*.md": outward-essay', config)
+
+    def test_fixture_and_theme_exclusions_match_between_entrypoints(self) -> None:
+        gate = (ROOT / "bin/check-site.sh").read_text()
+        kanon_ci = (ROOT / ".kanon-ci.toml").read_text()
+        for text in (gate, kanon_ci):
+            self.assertIn(":!themes/typikon", text)
+            self.assertIn(":!tests/fixtures/kanon-writing", text)
+
+    def test_banned_construction_fixture_fails_kanon_lint(self) -> None:
+        result = self._lint("violation.md")
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("WRITING/ai-trope:comprehensive", result.stdout)
+        self.assertIn("WRITING/ai-trope:robust", result.stdout)
+
+    def test_compliant_fixture_passes_kanon_lint(self) -> None:
+        result = self._lint("clean.md")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,3 @@
+writing:
+  surfaces:
+    "content/**/*.md": outward-essay
