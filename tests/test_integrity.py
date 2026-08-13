@@ -39,6 +39,7 @@ html_contract = load_script("ardent_html_authority", "html_authority.py")
 pages_runtime = load_script("ardent_pages_runtime", "pages_runtime.py")
 pages_limits = sys.modules["pages_limits"]
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
+fleet_counts = load_script("ardent_fleet_counts", "validate-fleet-counts.py")
 career = load_script("ardent_career_claims", "validate-career-claims.py")
 site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
@@ -5193,6 +5194,141 @@ class CatalogContractTests(unittest.TestCase):
             "ERROR: stale generated artifact: static/systems.json",
             completed.stderr,
         )
+
+
+class FleetCountWitnessContractTests(unittest.TestCase):
+    """A catalog and its copy can agree with each other while both lie about
+    the repositories they describe. These tests hold the GitHub witness fixed
+    and vary only the authored side to prove that agreement alone never
+    reaches PASS."""
+
+    OWNER = "forkwright"
+    REPO = "widget"
+    REPO_URL = f"https://github.com/{OWNER}/{REPO}"
+    COPY = (
+        "One systems, the libraries below. One public repository is "
+        "featured, and one featured public system repository carries "
+        "kanon_ci.\n"
+    )
+
+    def build_fixture(self, root: Path, *, declared_private: bool, declared_kanon_ci: bool = True) -> None:
+        (root / "content/systems").mkdir(parents=True)
+        (root / "static").mkdir(parents=True, exist_ok=True)
+        catalog_document = {
+            "systems": [
+                {
+                    "name": "widget",
+                    "group": "systems",
+                    "repo": self.REPO_URL,
+                    "private": declared_private,
+                    "kanon_ci": declared_kanon_ci,
+                }
+            ]
+        }
+        (root / "static/systems.json").write_text(json.dumps(catalog_document))
+        (root / "content/systems/widget.md").write_text(self.COPY)
+        (root / "static/llms.txt").write_text("")
+
+    def metadata_url(self) -> str:
+        return f"{fleet_counts.GITHUB_API}/repos/{self.OWNER}/{self.REPO}"
+
+    def contents_url(self) -> str:
+        return (
+            f"{fleet_counts.GITHUB_API}/repos/{self.OWNER}/{self.REPO}"
+            f"/contents/{fleet_counts.CONTROL_PLANE_CONFIG}"
+        )
+
+    def make_fetch(self, responses: dict[str, tuple[int | None, bytes]]):
+        def fake_fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+            self.assertIsNone(token)
+            if url not in responses:
+                raise AssertionError(f"unexpected GitHub API request: {url}")
+            return responses[url]
+
+        return fake_fetch
+
+    def run_main(self, root: Path, fetch_side_effect) -> tuple[int, str, str]:
+        captured_out, captured_err = io.StringIO(), io.StringIO()
+        with (
+            mock.patch.object(fleet_counts, "ROOT", root),
+            mock.patch.object(fleet_counts, "CATALOG", root / "static/systems.json"),
+            mock.patch.object(fleet_counts, "fetch", side_effect=fetch_side_effect),
+            mock.patch.dict(fleet_counts.os.environ, {}, clear=True),
+            mock.patch.object(fleet_counts.sys, "stdout", captured_out),
+            mock.patch.object(fleet_counts.sys, "stderr", captured_err),
+        ):
+            result = fleet_counts.main()
+        return result, captured_out.getvalue(), captured_err.getvalue()
+
+    def test_fully_agreeing_state_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build_fixture(root, declared_private=False)
+            fetch = self.make_fetch({
+                self.metadata_url(): (200, json.dumps({"private": False}).encode()),
+                self.contents_url(): (200, b"{}"),
+            })
+            result, out, _ = self.run_main(root, fetch)
+        self.assertEqual(result, 0)
+        self.assertIn("PASS:", out)
+
+    def test_frontmatter_only_privacy_flip_cannot_reach_pass(self) -> None:
+        """The catalog and copy both declare the repository public - a
+        self-consistent, frontmatter-only edit. GitHub still reports it
+        private, so agreement between the authored surfaces must not be
+        enough to pass."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build_fixture(root, declared_private=False)
+            fetch = self.make_fetch({
+                self.metadata_url(): (200, json.dumps({"private": True}).encode()),
+                self.contents_url(): (200, b"{}"),
+            })
+            result, out, err = self.run_main(root, fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("catalog declares private=False", err)
+        self.assertIn("GitHub reports forkwright/widget private=True", err)
+
+    def test_declared_control_plane_adoption_without_the_file_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build_fixture(root, declared_private=False, declared_kanon_ci=True)
+            fetch = self.make_fetch({
+                self.metadata_url(): (200, json.dumps({"private": False}).encode()),
+                self.contents_url(): (404, b""),
+            })
+            result, out, err = self.run_main(root, fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("catalog declares kanon_ci=True but GitHub shows", err)
+
+    def test_unreachable_witness_never_passes(self) -> None:
+        """The exact failure this check exists to close: CI cannot acquire an
+        independent source, so the prior version fell back to PASS. This one
+        must fail closed instead."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build_fixture(root, declared_private=False)
+            fetch = self.make_fetch({
+                self.metadata_url(): (None, b"Name or service not known"),
+            })
+            result, out, err = self.run_main(root, fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("UNVERIFIED", err)
+        self.assertIn("GitHub API unreachable", err)
+
+    def test_rate_limited_witness_never_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build_fixture(root, declared_private=False)
+            fetch = self.make_fetch({self.metadata_url(): (403, b"")})
+            result, out, err = self.run_main(root, fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("UNVERIFIED", err)
+        self.assertIn("rate-limited or forbidden", err)
 
 
 class CareerClaimContractTests(unittest.TestCase):

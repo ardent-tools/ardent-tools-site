@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove the fleet counts stated in prose against the catalog they describe.
+"""Prove the fleet counts stated in prose against an independent witness.
 
 Usage: python3 bin/validate-fleet-counts.py
 
@@ -17,32 +17,33 @@ gate.
 A site whose subject is verification cannot carry an unverified count. That is
 the specific self-refutation its own voice contract names.
 
-Two legs, because the portable one is weaker than the true one. The counts are
-derived from the catalog, which every checkout has, so the copy is checked
-everywhere including CI. Where a sibling clone happens to be reachable, the
-catalog's own `kanon_ci` declaration is additionally checked against a real
-`.kanon-ci.toml`, because a declaration agreeing with a declaration proves
-nothing about the repository. The second leg is skipped when no clone is
-present, and its absence is reported rather than passed over.
+Two legs. The first is consistency: the counts are derived from the catalog,
+which every checkout has, so the copy is checked everywhere including CI. The
+second is witness: the catalog's own `private` and `kanon_ci` fields are
+authored in the same frontmatter the copy is checked against, so agreement
+between them proves nothing about the repositories themselves. Every declared
+public repository is checked directly against the GitHub API - real visibility,
+and for featured systems, real presence of `.kanon-ci.toml` - not a second
+reading of the same authored claim. A repository this cannot reach counts as
+unwitnessed, not as agreement; this never reports PASS on an unwitnessed count.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
-import tomllib
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "static/systems.json"
-SYSTEMS_DIR = ROOT / "content/systems"
 CONTROL_PLANE_CONFIG = ".kanon-ci.toml"
-
-# Repositories that exist to hold org furniture rather than a system: the org
-# profile and the shared-workflow repo. A count of "the fleet" that includes
-# them is counting the filing cabinet.
-META_REPOS = {".github", "forkwright"}
+GITHUB_API = "https://api.github.com"
+REQUEST_TIMEOUT = 15.0
+REPO_URL_RE = re.compile(r"^https://github\.com/([\w.-]+)/([\w.-]+)$")
 
 NUMBER_WORDS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
@@ -74,9 +75,9 @@ CLAIMS = (
 def derive() -> dict[str, int]:
     """Ground truth for the stated counts, from the derived catalog.
 
-    Every checkout has the catalog, so all three counts resolve in CI. The
-    control-plane count reads the `kanon_ci` field the catalog carries per
-    entry; `audit_declarations` is what tests that field against reality.
+    Every checkout has the catalog, so all three counts resolve in CI. This is
+    the consistency leg - it proves the copy agrees with the catalog, not that
+    the catalog agrees with reality. `witness()` is the leg that does that.
     """
     systems = json.loads(CATALOG.read_text())["systems"]
 
@@ -92,31 +93,125 @@ def derive() -> dict[str, int]:
     }
 
 
-def audit_declarations() -> tuple[list[str], int]:
-    """Test the catalog's control-plane declaration against the repositories.
+def fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+    """One GitHub REST API request. Isolated so tests can replace it with a
+    fixture instead of reaching the network; status None means the request
+    never reached GitHub at all (DNS, TLS, connection failure)."""
+    headers = {
+        "User-Agent": "ardent-tools-fleet-count-witness/1",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = Request(url, headers=headers)
+    try:
+        with urlopen(req, timeout=REQUEST_TIMEOUT) as response:  # noqa: S310
+            return response.status, response.read()
+    except HTTPError as exc:
+        return exc.code, exc.read()
+    except URLError as exc:
+        return None, str(exc.reason).encode()
 
-    A count derived from a field the same author typed is a consistency check,
-    not a verification. This is the leg that makes it one, and it can only run
-    where the repository is on disk.
+
+def witness_repo(
+    owner: str, repo: str, *, check_kanon_ci: bool, token: str | None
+) -> tuple[bool | None, bool | None, str | None]:
+    """Ask GitHub directly what one fleet repository's own state is.
+
+    Returns (actual_private, actual_kanon_ci, error). `actual_kanon_ci` stays
+    None when `check_kanon_ci` is False - the contents lookup would cost an API
+    call to answer a fact this claim set does not use. A non-None `error` means
+    neither field was witnessed, regardless of what the tuple otherwise carries.
     """
-    systems = json.loads(CATALOG.read_text())["systems"]
+    status, body = fetch(f"{GITHUB_API}/repos/{owner}/{repo}", token)
+    if status is None:
+        return None, None, f"GitHub API unreachable: {body.decode(errors='replace')}"
+    if status == 403:
+        return None, None, "GitHub API rate-limited or forbidden (403)"
+    if status == 404:
+        return None, None, "repository not found or not visible to this token (404)"
+    if status != 200:
+        return None, None, f"unexpected GitHub API status {status}"
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as exc:
+        return None, None, f"GitHub API returned non-JSON: {exc}"
+    if not isinstance(payload, dict) or not isinstance(payload.get("private"), bool):
+        return None, None, "GitHub API response missing a boolean 'private' field"
+    actual_private = payload["private"]
+
+    if not check_kanon_ci:
+        return actual_private, None, None
+
+    ci_status, ci_body = fetch(
+        f"{GITHUB_API}/repos/{owner}/{repo}/contents/{CONTROL_PLANE_CONFIG}", token
+    )
+    if ci_status == 200:
+        return actual_private, True, None
+    if ci_status == 404:
+        return actual_private, False, None
+    if ci_status is None:
+        return actual_private, None, (
+            f"GitHub API unreachable checking {CONTROL_PLANE_CONFIG}: "
+            f"{ci_body.decode(errors='replace')}"
+        )
+    return actual_private, None, (
+        f"unexpected GitHub API status {ci_status} checking {CONTROL_PLANE_CONFIG}"
+    )
+
+
+def witness(systems: list[dict], token: str | None) -> tuple[list[str], int]:
+    """Independent GitHub-sourced ground truth for repository visibility and
+    control-plane adoption - the two facts `derive()` can only read from the
+    same authored frontmatter the copy itself is checked against. Every
+    catalog entry naming a repository is checked, public or declared private,
+    so a repository quietly flipped either direction is caught either way.
+    """
     problems: list[str] = []
     checked = 0
 
     for s in systems:
-        if s.get("group") != "systems" or s.get("private"):
+        repo_url = s.get("repo")
+        if not repo_url:
             continue
-        repo = ROOT.parent / s["name"]
-        if not repo.is_dir():
+        match = REPO_URL_RE.fullmatch(repo_url)
+        if not match:
+            problems.append(
+                f"{s['name']}: repo URL {repo_url!r} is not an exact "
+                "https://github.com/<owner>/<repo> form"
+            )
+            continue
+        owner, repo = match.groups()
+        check_ci = s.get("group") == "systems"
+        actual_private, actual_kanon_ci, error = witness_repo(
+            owner, repo, check_kanon_ci=check_ci, token=token
+        )
+        if error:
+            problems.append(f"UNVERIFIED: {s['name']} ({owner}/{repo}): {error}")
             continue
         checked += 1
-        actual = (repo / CONTROL_PLANE_CONFIG).is_file()
-        declared = bool(s.get("kanon_ci"))
-        if actual != declared:
+
+        declared_private = bool(s.get("private", False))
+        if actual_private != declared_private:
             problems.append(
-                f"{s['name']}: catalog declares kanon_ci={declared} but "
-                f"{CONTROL_PLANE_CONFIG} is "
-                f"{'present' if actual else 'absent'} in {repo}")
+                f"{s['name']}: catalog declares private={declared_private} but "
+                f"GitHub reports {owner}/{repo} private={actual_private}"
+            )
+        if check_ci:
+            declared_ci = bool(s.get("kanon_ci", False))
+            if actual_kanon_ci != declared_ci:
+                problems.append(
+                    f"{s['name']}: catalog declares kanon_ci={declared_ci} but "
+                    f"GitHub shows {CONTROL_PLANE_CONFIG} is "
+                    f"{'present' if actual_kanon_ci else 'absent'} in {owner}/{repo}"
+                )
+
+    if checked == 0:
+        problems.append(
+            "UNVERIFIED: no repository was witnessed against GitHub - either the "
+            "catalog lost its repo fields or the witness stopped running"
+        )
 
     return problems, checked
 
@@ -135,7 +230,8 @@ def main() -> int:
         return 1
 
     truth = derive()
-    problems, ground_truthed = audit_declarations()
+    systems = json.loads(CATALOG.read_text())["systems"]
+    problems, witnessed = witness(systems, os.environ.get("GITHUB_TOKEN"))
     seen: dict[str, int] = {name: 0 for name, _ in CLAIMS}
 
     for path in surfaces():
@@ -162,13 +258,8 @@ def main() -> int:
 
     for name, value in truth.items():
         print(f"  {name} = {value} ({seen[name]} statement(s) in copy)")
-    if ground_truthed:
-        print(f"  {ground_truthed} control-plane declaration(s) checked against a "
-              f"real {CONTROL_PLANE_CONFIG}")
-    else:
-        print(f"  note: no sibling clone reachable, so no control-plane declaration "
-              f"was checked against a real {CONTROL_PLANE_CONFIG}; the count above "
-              f"rests on the catalog's own field")
+    print(f"  {witnessed} repositor{'y' if witnessed == 1 else 'ies'} witnessed "
+          f"directly against the GitHub API")
 
     if problems:
         print(f"\nFAIL: {len(problems)} fleet-count problem(s):", file=sys.stderr)
@@ -176,7 +267,8 @@ def main() -> int:
             print(f"  - {p}", file=sys.stderr)
         return 1
 
-    print("PASS: fleet counts in copy agree with the derived catalog")
+    print("PASS: fleet counts in copy agree with the derived catalog and are "
+          "witnessed against GitHub")
     return 0
 
 
