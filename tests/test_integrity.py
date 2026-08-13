@@ -5330,6 +5330,55 @@ class FleetCountWitnessContractTests(unittest.TestCase):
         self.assertIn("UNVERIFIED", err)
         self.assertIn("rate-limited or forbidden", err)
 
+    def test_public_entry_with_no_repo_field_cannot_reach_pass(self) -> None:
+        """A second catalog entry declares itself public, featured, and
+        kanon_ci-adopting - but carries no 'repo' field at all. derive()
+        still counts it into public_repos and featured_public_with_
+        control_plane; nothing can witness it against GitHub. One genuinely
+        witnessed entry alongside it must not be enough to reach PASS -
+        the repo-less entry has to fail the run, not vanish from it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "content/systems").mkdir(parents=True)
+            (root / "static").mkdir(parents=True, exist_ok=True)
+            catalog_document = {
+                "systems": [
+                    {
+                        "name": "widget",
+                        "group": "systems",
+                        "repo": self.REPO_URL,
+                        "private": False,
+                        "kanon_ci": True,
+                    },
+                    {
+                        "name": "ghost",
+                        "group": "systems",
+                        "private": False,
+                        "kanon_ci": True,
+                    },
+                ]
+            }
+            (root / "static/systems.json").write_text(json.dumps(catalog_document))
+            (root / "content/systems/widget.md").write_text(
+                "Two systems, the libraries below. Two public repositories "
+                "are featured, and two featured public system repositories "
+                "carry kanon_ci.\n"
+            )
+            (root / "static/llms.txt").write_text("")
+            fetch = self.make_fetch({
+                self.metadata_url(): (200, json.dumps({"private": False}).encode()),
+                self.contents_url(): (200, b"{}"),
+            })
+            result, out, err = self.run_main(root, fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn(
+            "UNVERIFIED: ghost: catalog declares this public but has no "
+            "'repo' field to witness it against GitHub",
+            err,
+        )
+        self.assertIn("1 repository witnessed directly against the GitHub API", out)
+
 
 class CareerClaimContractTests(unittest.TestCase):
     @classmethod

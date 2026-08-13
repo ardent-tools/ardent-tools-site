@@ -166,14 +166,30 @@ def witness(systems: list[dict], token: str | None) -> tuple[list[str], int]:
     control-plane adoption - the two facts `derive()` can only read from the
     same authored frontmatter the copy itself is checked against. Every
     catalog entry naming a repository is checked, public or declared private,
-    so a repository quietly flipped either direction is caught either way.
+    so a repository quietly flipped either direction is caught either way. An
+    entry declared public with no 'repo' field at all still contributes to
+    `derive()`'s counts, so it is UNVERIFIED rather than silently skipped - a
+    declared-private entry with no repo contributes to nothing and is skipped.
     """
     problems: list[str] = []
     checked = 0
 
     for s in systems:
         repo_url = s.get("repo")
+        declared_private = bool(s.get("private", False))
         if not repo_url:
+            # A private entry with no repo field never contributes to any
+            # derived count (derive() only counts `not private`), so there is
+            # nothing here that needs witnessing. A public entry with no repo
+            # DOES contribute to public_repos - and to the control-plane
+            # count too when featured - so skipping it silently would let an
+            # entry inflate the trusted counts while never being checked
+            # against anything. That must be UNVERIFIED, not skipped.
+            if not declared_private:
+                problems.append(
+                    f"UNVERIFIED: {s['name']}: catalog declares this public "
+                    "but has no 'repo' field to witness it against GitHub"
+                )
             continue
         match = REPO_URL_RE.fullmatch(repo_url)
         if not match:
@@ -192,7 +208,6 @@ def witness(systems: list[dict], token: str | None) -> tuple[list[str], int]:
             continue
         checked += 1
 
-        declared_private = bool(s.get("private", False))
         if actual_private != declared_private:
             problems.append(
                 f"{s['name']}: catalog declares private={declared_private} but "
