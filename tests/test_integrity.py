@@ -6877,5 +6877,32 @@ class KanonLintDebtTests(unittest.TestCase):
         self.assertNotIn("PYTHON/empty-fstring", result.stdout, result.stdout)
 
 
+class CssCommentNarrationRegressionTests(unittest.TestCase):
+    """site.css comments must state a current rule, not narrate how it got
+    there (#108). git log already owns that history."""
+
+    # WHY these exact markers: each names a phrase this repo's own history
+    # actually shipped in site.css before #108 trimmed it (a superseded
+    # design-phase label, or a "was X, now Y" / "never shipped until now"
+    # narration of a past decision), so a hit here is a real regression,
+    # not a coincidental match on ordinary prose.
+    BANNED_PATTERNS = (
+        r"\bpreviously\b",
+        r"\bformerly\b",
+        r"\bno longer\b",
+        r"\bphase [0-9]\b",
+        r"DESIGN-v[0-9]",
+        r"\bretired\b",
+        r"never shipped until now",
+        r"never reached CSS",
+        r"\bDELTA from\b",
+    )
+
+    def test_no_historical_phase_narration(self) -> None:
+        css = (ROOT / "static/css/site.css").read_text()
+        hits = [pattern for pattern in self.BANNED_PATTERNS if re.search(pattern, css, re.IGNORECASE)]
+        self.assertEqual(hits, [], f"historical-phase narration reintroduced: {hits}")
+
+
 if __name__ == "__main__":
     unittest.main()
