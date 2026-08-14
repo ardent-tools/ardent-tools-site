@@ -167,7 +167,9 @@ On QEMU's `virt` board, the kernel reaches its service loop under `qemu-system-a
 
 **Solid, under emulation only:** the same QEMU CI boot observes a nonblank rendered screen, a Home → Search → Home UI round trip, and the Bluetooth audio state machine configured for A2DP at 44.1 kHz stereo. Those are real service-loop paths against emulated or synthetic devices, not proof of the physical display or radio silicon.
 
-**Open:** encrypted storage, the audit log, and passphrase entry are gated on secure boot, which needs a boot medium QEMU does not model - the published cast shows all three fail closed. IMSI-catcher detection and MAC/IMEI randomization have no boot-path receipt. The modem firewall does (`kardia: firewall rules=1 allowed=1 denied=1 chain=ok`). Hardware validation on a physical AGM M7 has not run yet. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. GPS initialization exists, but its userspace device path remains a stub. Mesh/inbox has no service-loop path. Real radio I/O is hardware work, and the boot degrades to a fail-closed loopback path when the data path is absent. A live aletheia runtime bridge (`metaxu`) is future work - the protocol surface exists, nothing embeds a live agent runtime yet.
+**Open:** encrypted storage, the audit log, and passphrase entry are gated on secure boot, which needs a boot medium QEMU does not model - the published cast shows all three fail closed. IMSI-catcher detection and MAC/IMEI randomization have no boot-path receipt. The modem firewall does (`kardia: firewall rules=1 allowed=1 denied=1 chain=ok`).
+
+Hardware validation on a physical AGM M7 has not run yet. QEMU exercises the boot path, not the MT6739's binary-only modem/WiFi/BT/GPS blobs. GPS initialization exists, but its userspace device path remains a stub. Mesh/inbox has no service-loop path. Real radio I/O is hardware work, and the boot degrades to a fail-closed loopback path when the data path is absent. A live aletheia runtime bridge (`metaxu`) is future work - the protocol surface exists, nothing embeds a live agent runtime yet.
 
 ## Numbers, and how they were measured
 

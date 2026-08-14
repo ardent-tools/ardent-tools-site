@@ -76,7 +76,9 @@ regular resources in that exact tree, excluding the three Cloudflare Pages
 control files and the resource manifest itself. The HTML authority and
 `runtime-boundary.json` are resources: the latter binds the Pages Function
 source, generated `_routes.json`, and production `wrangler.toml` to exact
-SHA-256 digests. Non-canonical resources - including the web manifest and
+SHA-256 digests.
+
+Non-canonical resources - including the web manifest and
 speculation rules - are finalized under `/a/<full-sha256>.<extension>`. CSS,
 element-specific HTML fields, owned JSON-LD URL properties, and Web App
 Manifest URL fields are rewritten by their actual grammars; literal text and
@@ -109,7 +111,9 @@ custom-domain pass does not make that claim because an earlier immutable edge
 object can outlive the deployment that removed its path. Both passes compare
 full response-body digests and the complete configured direct-response header
 boundary, including the derived physical `Speculation-Rules` URL and its media
-type. Before upload, the deploy job
+type.
+
+Before upload, the deploy job
 revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
 Repository-owned Wrangler config makes the project name, validated output
@@ -161,7 +165,9 @@ asset even after a Pages deployment. The release therefore never relies on a
 query string or purge to distinguish changed bytes: every current asset uses a
 new physical full-digest path, including dependencies inside CSS and the Web
 App Manifest and list-source URLs in speculation rules. URLPattern fields remain
-route patterns. Already-held responses at legacy logical paths
+route patterns.
+
+Already-held responses at legacy logical paths
 cannot be revoked by repository code, so current HTML never references those
 paths. They can remain externally retrievable until their old freshness lifetime
 ends, but they are not members of or dependencies of the current release. The
