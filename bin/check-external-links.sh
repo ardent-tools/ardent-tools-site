@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # Fail-closed external-link check. A reachable third party's 5xx or a genuine
 # request timeout is not link rot, and a deploy must not be hostage to
 # another host's transient error. Every other outcome - a rejected 4xx (the
@@ -8,7 +9,6 @@
 # bad config, missing binary, unparseable output) - fails the gate. Retry
 # the pass once; classify only lychee's own structured JSON report
 # (bin/link_check_contract.py), never its human-readable log.
-set -euo pipefail
 
 PROD_OUTPUT=$1
 SITE_BASE_URL=$2

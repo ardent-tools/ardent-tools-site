@@ -6253,5 +6253,51 @@ class KanonWritingGateTests(unittest.TestCase):
         self.assertNotIn("required tool is missing: kanon", result.stderr)
 
 
+class KanonLintDebtTests(unittest.TestCase):
+    """Full-category `kanon lint .` findings triaged in #128."""
+
+    def _require_kanon(self) -> None:
+        # WHY skip, not fail: same UNVERIFIED-by-design posture as
+        # KanonWritingGateTests._require_kanon above (#93).
+        if shutil.which("kanon") is None:
+            self.skipTest("kanon is not on PATH; lint-debt regression is UNVERIFIED here by design")
+
+    def _lint(self, *paths: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["kanon", "lint", *paths],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+    def test_ignore_file_scopes_out_published_artifact_directories(self) -> None:
+        # WHY: retained-assets/ and static/tapes/ are site content (published
+        # cast driver scripts and their reproduction recipes), not repo
+        # tooling - SHELL/* findings there are a category error, not a defect.
+        ignore = (ROOT / ".kanon-lint-ignore").read_text()
+        self.assertIn("SHELL/*:retained-assets/**", ignore)
+        self.assertIn("SHELL/*:static/tapes/**", ignore)
+        self.assertIn("#128", ignore)
+
+    def test_no_shell_findings_in_published_artifact_directories(self) -> None:
+        self._require_kanon()
+        result = self._lint(".")
+        for scope in ("retained-assets/", "static/tapes/"):
+            for line in result.stdout.splitlines():
+                if scope in line:
+                    self.assertNotIn("[SHELL/", line, result.stdout)
+
+    def test_check_external_links_has_no_shell_findings(self) -> None:
+        self._require_kanon()
+        result = self._lint("bin/check-external-links.sh")
+        self.assertNotIn("[SHELL/", result.stdout, result.stdout)
+
+    def test_validate_fleet_counts_has_no_empty_fstring_findings(self) -> None:
+        self._require_kanon()
+        result = self._lint("bin/validate-fleet-counts.py")
+        self.assertNotIn("PYTHON/empty-fstring", result.stdout, result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -268,13 +268,13 @@ def main() -> int:
         if count == 0:
             problems.append(
                 f"no surface states `{name}` - either the copy was rewritten and "
-                f"this validator no longer reads it, or the claim was dropped. "
+                "this validator no longer reads it, or the claim was dropped. "
                 f"Derived value is {truth[name]}.")
 
     for name, value in truth.items():
         print(f"  {name} = {value} ({seen[name]} statement(s) in copy)")
     print(f"  {witnessed} repositor{'y' if witnessed == 1 else 'ies'} witnessed "
-          f"directly against the GitHub API")
+          "directly against the GitHub API")
 
     if problems:
         print(f"\nFAIL: {len(problems)} fleet-count problem(s):", file=sys.stderr)
