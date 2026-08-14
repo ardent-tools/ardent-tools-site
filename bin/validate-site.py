@@ -476,6 +476,7 @@ def validate_player_contract(
         )
     catalog = html.get(output / "systems/index.html", "")
     evidence = html.get(output / "evidence/index.html", "")
+    cast_pages = {output / "systems" / source.stem / "index.html" for source, _ in casts}
     for source, cast in casts:
         cast_file = static_root / cast.lstrip("/")
         if not cast_file.is_file():
@@ -510,6 +511,13 @@ def validate_player_contract(
             fail(errors, f"{source}: systems catalog lacks a visible recording link")
         if not (system_href in evidence or relative_href in evidence):
             fail(errors, f"{source}: evidence register lacks a visible recording link")
+
+    # The per-cast loop above proves presence on cast pages; a page requesting
+    # either physical asset that is not one of those pages is a leak, and prior
+    # to this check it went unnoticed once any cast existed at all.
+    leaked = sorted(request for request in player_requests if Path(request) not in cast_pages)
+    if leaked:
+        fail(errors, f"player asset pair leaks onto non-cast routes: {leaked}")
 
 
 def main() -> int:

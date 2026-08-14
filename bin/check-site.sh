@@ -142,7 +142,7 @@ python3 bin/validate-fleet-counts.py
 
 echo "==> integrity regression tests"
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/smoke/pages-error-boundary.node.mjs
+node --test tests/smoke/pages-error-boundary.node.mjs tests/smoke/player-asset-audit.node.mjs
 
 echo "==> resume reproducibility and factual authorities"
 python3 bin/validate-resume-fonts.py --font-dir resume/fonts

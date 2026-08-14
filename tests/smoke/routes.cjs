@@ -44,4 +44,51 @@ function deriveCastRoutes(systemsContentDir) {
   return routes;
 }
 
-module.exports = { deriveRoutes, deriveCastRoutes };
+// Zola/content_address finalizes the vendored player CSS/JS into content-addressed
+// `/a/<sha256>.<ext>` URLs (see bin/content_address.py ADDRESS_PREFIX); no served
+// URL contains the literal string "asciinema-player" once a build is finalized.
+// The exact physical pair is the release manifest's own record of what those
+// logical resources became, so it is the only correct match target for both
+// markup selectors and intercepted network requests.
+function resolvePlayerAssetUrls(outputDir) {
+  const manifestPath = path.join(path.resolve(outputDir), 'release-resources.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const resourceUrls = new Map();
+  for (const item of manifest.resources || []) {
+    if (item && typeof item.logical_path === 'string' && typeof item.request_url === 'string') {
+      resourceUrls.set(`/${item.logical_path}`, item.request_url);
+    }
+  }
+  const cssUrl = resourceUrls.get('/vendor/asciinema/asciinema-player.css');
+  const jsUrl = resourceUrls.get('/vendor/asciinema/asciinema-player.min.js');
+  if (!cssUrl || !jsUrl) {
+    throw new Error(`${manifestPath} does not resolve the asciinema player asset pair`);
+  }
+  return { cssUrl, jsUrl };
+}
+
+// Pure per-route verdict: a cast route must show the exact player asset pair
+// exactly once, in markup and in network requests; every other route must show
+// neither, in either signal. Kept independent of Playwright so the leak and
+// omission directions are unit-testable without a browser (player-asset-audit.node.mjs).
+function auditPlayerAssetPresence({
+  route,
+  isCastRoute,
+  cssMarkupCount,
+  jsMarkupCount,
+  cssRequestCount,
+  jsRequestCount,
+}) {
+  const expected = isCastRoute ? 1 : 0;
+  const signals = [
+    ['player CSS markup', cssMarkupCount],
+    ['player JS markup', jsMarkupCount],
+    ['player CSS request', cssRequestCount],
+    ['player JS request', jsRequestCount],
+  ];
+  return signals
+    .filter(([, count]) => count !== expected)
+    .map(([label, count]) => `${route}: expected ${expected} ${label}, found ${count}`);
+}
+
+module.exports = { deriveRoutes, deriveCastRoutes, resolvePlayerAssetUrls, auditPlayerAssetPresence };

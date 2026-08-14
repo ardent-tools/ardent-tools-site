@@ -5288,6 +5288,143 @@ class EvidencePageMarkerGateContractTests(unittest.TestCase):
 
 
 class RecordingContractTests(unittest.TestCase):
+    def _build_cast_fixture(self, directory: str) -> dict:
+        root = Path(directory)
+        output = root / "public"
+        static = root / "static"
+        system_page = output / "systems/demo/index.html"
+        catalog_page = output / "systems/index.html"
+        evidence_page = output / "evidence/index.html"
+        other_page = output / "about/index.html"
+        cast_file = static / "casts/demo.cast"
+        cast_body = b"{}\n"
+        cast_output = addressed_output("casts/demo.cast", cast_body)
+        player_css_output = addressed_output(
+            "vendor/asciinema/asciinema-player.css", CSS_BODY
+        )
+        player_js_output = addressed_output(
+            "vendor/asciinema/asciinema-player.min.js", JS_BODY
+        )
+        player_css = output / player_css_output
+        player_js = output / player_js_output
+        deployed_cast = output / cast_output
+        for path in (
+            system_page,
+            catalog_page,
+            evidence_page,
+            other_page,
+            cast_file,
+            deployed_cast,
+            player_css,
+            player_js,
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+        cast_file.write_bytes(cast_body)
+        deployed_cast.write_bytes(cast_body)
+        player_css.write_bytes(CSS_BODY)
+        player_js.write_bytes(JS_BODY)
+        cast = "/casts/demo.cast"
+        cast_url = f"{BASE_URL}/{cast_output}"
+        data_cast = f'<div data-cast="{cast_url}"></div>'
+        css_link = f'<link rel="stylesheet" href="/{player_css_output}">'
+        js_script = f'<script src="/{player_js_output}"></script>'
+        html = {
+            system_page: data_cast + css_link + js_script,
+            catalog_page: (
+                '<a href="https://ardent.tools/systems/demo/">WATCH RECORDING</a>'
+            ),
+            evidence_page: (
+                '<a href="https://ardent.tools/systems/demo/">demo recording</a>'
+            ),
+            other_page: "<p>unrelated route</p>",
+        }
+        resources = [
+            {
+                "logical_path": logical_path,
+                "output_path": output_path,
+                "request_url": f"/{output_path}",
+                "sha256": hashlib.sha256(body).hexdigest(),
+                "cache_class": "addressed",
+            }
+            for logical_path, output_path, body in (
+                ("casts/demo.cast", cast_output, cast_body),
+                (
+                    "vendor/asciinema/asciinema-player.css",
+                    player_css_output,
+                    CSS_BODY,
+                ),
+                (
+                    "vendor/asciinema/asciinema-player.min.js",
+                    player_js_output,
+                    JS_BODY,
+                ),
+            )
+        ]
+        return {
+            "output": output,
+            "static": static,
+            "casts": [(Path("content/systems/demo.md"), cast)],
+            "manifest": {"resources": resources},
+            "html": html,
+            "system_page": system_page,
+            "other_page": other_page,
+            "data_cast": data_cast,
+            "css_link": css_link,
+            "js_script": js_script,
+        }
+
+    def test_leaking_either_player_asset_onto_a_non_cast_route_fails_closed(
+        self,
+    ) -> None:
+        for asset in ("css_link", "js_script"):
+            with self.subTest(asset=asset):
+                with tempfile.TemporaryDirectory() as directory:
+                    fixture = self._build_cast_fixture(directory)
+                    html = dict(fixture["html"])
+                    html[fixture["other_page"]] = fixture[asset]
+                    errors: list[str] = []
+                    site.validate_player_contract(
+                        errors,
+                        fixture["casts"],
+                        html,
+                        "script-src 'self' 'wasm-unsafe-eval'",
+                        fixture["output"],
+                        fixture["static"],
+                        release_manifest=fixture["manifest"],
+                    )
+                self.assertTrue(
+                    any("leaks onto non-cast routes" in error for error in errors),
+                    errors,
+                )
+                self.assertTrue(
+                    any(str(fixture["other_page"]) in error for error in errors),
+                    errors,
+                )
+
+    def test_omitting_either_player_asset_from_a_cast_route_fails_closed(
+        self,
+    ) -> None:
+        for kept in ("css_link", "js_script"):
+            with self.subTest(kept=kept):
+                with tempfile.TemporaryDirectory() as directory:
+                    fixture = self._build_cast_fixture(directory)
+                    html = dict(fixture["html"])
+                    html[fixture["system_page"]] = fixture["data_cast"] + fixture[kept]
+                    errors: list[str] = []
+                    site.validate_player_contract(
+                        errors,
+                        fixture["casts"],
+                        html,
+                        "script-src 'self' 'wasm-unsafe-eval'",
+                        fixture["output"],
+                        fixture["static"],
+                        release_manifest=fixture["manifest"],
+                    )
+                self.assertTrue(
+                    any("conditional player CSS/JS" in error for error in errors),
+                    errors,
+                )
+
     def test_unsafe_tape_and_typed_success_token_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             tape = Path(directory) / "hamma-tests.tape"
