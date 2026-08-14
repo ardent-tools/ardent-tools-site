@@ -3033,6 +3033,7 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             ("non-empty params", "https://ardent.tools/;p=1"),
             ("non-empty query", "https://ardent.tools?q=1"),
             ("non-empty fragment", "https://ardent.tools#frag"),
+            ("trailing slash", "https://ardent.tools/"),
             ("non-lowercase canonical form", "https://ArDent.tools"),
         ):
             with self.subTest(label=label):
