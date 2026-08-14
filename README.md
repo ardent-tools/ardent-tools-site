@@ -20,6 +20,18 @@ Requires Python 3.11+, [Zola](https://www.getzola.org/) 0.22.1, and [Typst](http
 git submodule update --init --recursive
 ```
 
+Then arm the in-tree git hooks (one-time per clone; idempotent):
+
+```bash
+bash bin/install-hooks.sh
+```
+
+This wires `bin/git-hooks/pre-commit`, which refuses a commit that edits
+`.github/workflows/deploy.yml` or another SBOM input and leaves
+`static/sbom.cdx.json` stale, naming the sync command instead of waiting for
+CI to say so three commits later. A commit that touches none of those inputs
+is untouched by the hook.
+
 Invoke Zola through the repository entrypoint:
 
 ```bash

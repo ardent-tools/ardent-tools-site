@@ -39,6 +39,7 @@ html_contract = load_script("ardent_html_authority", "html_authority.py")
 pages_runtime = load_script("ardent_pages_runtime", "pages_runtime.py")
 pages_limits = sys.modules["pages_limits"]
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
+sbom = load_script("ardent_generate_sbom", "generate-sbom.py")
 fleet_counts = load_script("ardent_fleet_counts", "validate-fleet-counts.py")
 career = load_script("ardent_career_claims", "validate-career-claims.py")
 site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
@@ -5641,6 +5642,136 @@ class SbomNpmBoundaryClaimContractTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(SystemExit, "npm boundary claim"):
                 generate_sbom.build_bom(root)
+
+
+
+def _write_sbom_fixture(root: Path) -> None:
+    """Populate a temp worktree with the real SBOM authority inputs and hook,
+    then generate a matching static/sbom.cdx.json (#136)."""
+    (root / "bin/git-hooks").mkdir(parents=True)
+    shutil.copy2(ROOT / "bin/generate-sbom.py", root / "bin/generate-sbom.py")
+    shutil.copy2(ROOT / "bin/git-hooks/pre-commit", root / "bin/git-hooks/pre-commit")
+    (root / ".github/workflows").mkdir(parents=True)
+    shutil.copy2(
+        ROOT / ".github/workflows/deploy.yml", root / ".github/workflows/deploy.yml"
+    )
+    shutil.copy2(ROOT / "package-lock.json", root / "package-lock.json")
+    shutil.copy2(ROOT / "bin/requirements.txt", root / "bin/requirements.txt")
+    (root / "content").mkdir()
+    shutil.copy2(ROOT / "content/colophon.md", root / "content/colophon.md")
+    (root / "static/vendor/asciinema").mkdir(parents=True)
+    shutil.copy2(
+        ROOT / "static/vendor/asciinema/asciinema-player.min.js",
+        root / "static/vendor/asciinema/asciinema-player.min.js",
+    )
+    shutil.copy2(
+        ROOT / "static/vendor/asciinema/asciinema-player.css",
+        root / "static/vendor/asciinema/asciinema-player.css",
+    )
+    subprocess.run(
+        [sys.executable, "bin/generate-sbom.py"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.email=test@example.com", "-c", "user.name=test", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+class SbomPreCommitHookContractTests(unittest.TestCase):
+    """bin/git-hooks/pre-commit (#136): a staged SBOM-input edit that leaves
+    static/sbom.cdx.json stale is refused at commit time, naming the sync
+    command; a commit outside that source set is never even checked."""
+
+    def _init_repo(self, root: Path) -> None:
+        _write_sbom_fixture(root)
+        _git(root, "init", "-q")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "init")
+
+    def test_list_sources_matches_the_declared_authority(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "bin/generate-sbom.py"), "--list-sources"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        expected = [relative.as_posix() for relative in sbom.SBOM_SOURCES]
+        self.assertEqual(completed.stdout.splitlines(), expected)
+
+    def test_hook_blocks_a_stale_sbom_after_a_deploy_yml_edit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._init_repo(root)
+            with (root / ".github/workflows/deploy.yml").open("a") as handle:
+                handle.write("# unrelated trailing comment\n")
+            _git(root, "add", ".github/workflows/deploy.yml")
+            hook = subprocess.run(
+                ["bash", "bin/git-hooks/pre-commit"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(hook.returncode, 1)
+        self.assertIn(
+            "ERROR: stale generated artifact: static/sbom.cdx.json", hook.stderr
+        )
+        self.assertIn("python3 bin/site.py sync", hook.stderr)
+
+    def test_hook_passes_once_the_sbom_is_regenerated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._init_repo(root)
+            with (root / ".github/workflows/deploy.yml").open("a") as handle:
+                handle.write("# unrelated trailing comment\n")
+            subprocess.run(
+                [sys.executable, "bin/generate-sbom.py"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            _git(
+                root,
+                "add",
+                ".github/workflows/deploy.yml",
+                "static/sbom.cdx.json",
+            )
+            hook = subprocess.run(
+                ["bash", "bin/git-hooks/pre-commit"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(hook.returncode, 0)
+
+    def test_hook_ignores_a_commit_that_does_not_touch_an_sbom_input(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._init_repo(root)
+            # Corrupt the committed SBOM on disk WITHOUT staging it, so the hook
+            # can only pass by never invoking --check for this commit — not by luck.
+            (root / "static/sbom.cdx.json").write_text("{}\n")
+            (root / "notes.txt").write_text("unrelated\n")
+            _git(root, "add", "notes.txt")
+            hook = subprocess.run(
+                ["bash", "bin/git-hooks/pre-commit"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(hook.returncode, 0)
+        self.assertEqual(hook.stdout, "")
+        self.assertEqual(hook.stderr, "")
 
 
 class FleetCountWitnessContractTests(unittest.TestCase):

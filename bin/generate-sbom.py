@@ -21,6 +21,18 @@ PYTHON_REQUIREMENTS = Path("bin/requirements.txt")
 COLOPHON = Path("content/colophon.md")
 PLAYER_JS = Path("static/vendor/asciinema/asciinema-player.min.js")
 PLAYER_CSS = Path("static/vendor/asciinema/asciinema-player.css")
+# WHY a named tuple, not inlined at each call site: bin/git-hooks/pre-commit queries
+# this exact set via --list-sources so a staged change outside it costs the hook
+# nothing (#136) - one authority for "what can make the SBOM stale", not a second
+# hand-maintained copy in the hook.
+SBOM_SOURCES = (
+    DEPLOY_WORKFLOW,
+    PACKAGE_LOCK,
+    PYTHON_REQUIREMENTS,
+    COLOPHON,
+    PLAYER_JS,
+    PLAYER_CSS,
+)
 
 # WHY: bin/requirements.txt is hash-locked but carries no license field;
 # these are verified against each package's own PyPI info.license_expression.
@@ -293,16 +305,8 @@ def python_dependency_components(root: Path) -> list[dict]:
 
 
 def source_provenance(root: Path) -> list[dict]:
-    sources = [
-        DEPLOY_WORKFLOW,
-        PACKAGE_LOCK,
-        PYTHON_REQUIREMENTS,
-        COLOPHON,
-        PLAYER_JS,
-        PLAYER_CSS,
-    ]
     properties = []
-    for relative in sources:
+    for relative in SBOM_SOURCES:
         digest = hashlib.sha256((root / relative).read_bytes()).hexdigest()
         properties.append(
             {"name": "ardent:source", "value": f"{relative.as_posix()}#sha256:{digest}"}
@@ -389,7 +393,16 @@ def main() -> int:
         action="store_true",
         help="compare the destination with a fresh derivation instead of writing",
     )
+    parser.add_argument(
+        "--list-sources",
+        action="store_true",
+        help="print the SBOM's source-authority paths, one per line, and exit",
+    )
     args = parser.parse_args()
+    if args.list_sources:
+        for relative in SBOM_SOURCES:
+            sys.stdout.write(f"{relative.as_posix()}\n")
+        return 0
     root = args.root.resolve()
     output = args.output if args.output.is_absolute() else root / args.output
     expected = serialize_bom(build_bom(root))
