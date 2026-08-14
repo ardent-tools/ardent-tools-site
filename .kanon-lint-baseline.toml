@@ -4,12 +4,6 @@ remove_after = "2026-11-11"
 reason = "Pre-existing WRITING debt exposed when the kanon writing-floor gate (issue #105) went live; rewriting site prose is an authorial decision, tracked for burn-down in #132."
 
 [[baseline.entry]]
-rule = "WRITING/ai-trope:additionally"
-file = "README.md"
-line = 157
-hash = "ddcd076e305d7dfb37a0bc0f9eee5bcd4e15d08d6de993df905000cc8b0d9440"
-
-[[baseline.entry]]
 rule = "WRITING/ai-trope:delve"
 file = "docs/VOICE.md"
 line = 78
@@ -149,18 +143,6 @@ hash = "c76100fa3694273a7ec38d8761a39efd1b2efe675e9fd1cd6caa4a50333dab10"
 
 [[baseline.entry]]
 rule = "WRITING/repeated-sentence-start"
-file = "content/about.md"
-line = 9
-hash = "0b87d4487ca0a732a7dce230bcb5cb1da1383be738e44807618b84db0b580901"
-
-[[baseline.entry]]
-rule = "WRITING/repeated-sentence-start"
-file = "content/systems/aletheia.md"
-line = 49
-hash = "f8f408aba213967d1adf315c7ac54ed04f954fabdbcffc39e7a81951d319191c"
-
-[[baseline.entry]]
-rule = "WRITING/repeated-sentence-start"
 file = "content/systems/hamma.md"
 line = 50
 hash = "b16ba89e6d198e6a4b0610a4d312ab455c27088b8cf27ed7d21c346d15875f99"
@@ -182,30 +164,6 @@ rule = "WRITING/repeated-sentence-start"
 file = "content/systems/hamma.md"
 line = 150
 hash = "f156862a57956e140a890988ea560d54605fae545ee0280c9d53d69698793000"
-
-[[baseline.entry]]
-rule = "WRITING/repeated-sentence-start"
-file = "content/writing/coordination-that-isnt-voting.md"
-line = 20
-hash = "9480cc23fdbf75238fed4274ac3c3ae721f2609a3ec14538c955a310f3460330"
-
-[[baseline.entry]]
-rule = "WRITING/repeated-sentence-start"
-file = "content/writing/coordination-that-isnt-voting.md"
-line = 26
-hash = "be5777e3dac6d427619d79ae9f6ddc7ef42277678889476895e637e920de80e9"
-
-[[baseline.entry]]
-rule = "WRITING/repeated-sentence-start"
-file = "content/writing/real-citation-false-finding.md"
-line = 18
-hash = "98336aab243e55a29f083b0a1a0578bb641331674efdee567a2a651e60023132"
-
-[[baseline.entry]]
-rule = "WRITING/repeated-sentence-start"
-file = "content/writing/three-ways-to-count.md"
-line = 32
-hash = "12a02cf6fc826cd1f1e1dfc9eaebe2341f0d8fa0ad053a8c9deeb36473e3fe9f"
 
 [[baseline.entry]]
 rule = "WRITING/weasel-word"
@@ -272,12 +230,6 @@ rule = "WRITING/weasel-word"
 file = "content/writing/coordination-that-isnt-voting.md"
 line = 52
 hash = "62661bbfa0802a25d5f25cd058347c28585396cd67fb5ca73d4a7aa287c416f1"
-
-[[baseline.entry]]
-rule = "WRITING/weasel-word"
-file = "content/writing/gnomon-falsification-tests.md"
-line = 37
-hash = "986a7e9538504844ea6fd768175ce7cb7f1edbd5f299c64e65fd6050352bc2fc"
 
 [[baseline.entry]]
 rule = "WRITING/weasel-word"

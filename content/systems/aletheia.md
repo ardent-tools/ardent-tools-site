@@ -46,7 +46,7 @@ Persistent memory, session state, and the knowledge graph all live inside the si
 
 **Solid:** persistent memory and working-memory continuity across sessions, multi-agent coordination, the built-in tool plane (file I/O, shell execution, web search, memory search, planning, agent coordination), the TUI, the HTTP/SSE API, Signal messaging with `!`-prefixed operator commands that don't consume LLM tokens, and the runtime guardrail layer described above.
 
-**Open:** no published receipt demonstrates cross-session recall. The health-check recording plan does not test it, and the receipt table below measures size and network posture, not memory. The desktop app is a v1.0-target preview, not the default path - it's installed separately from a source checkout today. The MCP bridge for runtime-discovered external tools is opt-in (`--features mcp`), not compiled in by default. Several capability groups (`energeia`, `bookkeeper`, `computer-use`, `z3`) are feature-gated additions layered on top of the base tool set, not universal defaults.
+**Open:** no published receipt demonstrates cross-session recall. The health-check recording plan does not test it, and the receipt table below measures size and network posture, not memory. The desktop app is a v1.0-target preview, not the default path - it's installed separately from a source checkout today. Runtime-discovered external tools reach it through an opt-in MCP bridge (`--features mcp`), not compiled in by default. Several capability groups (`energeia`, `bookkeeper`, `computer-use`, `z3`) are feature-gated additions layered on top of the base tool set, not universal defaults.
 
 ## Numbers, and how they were measured
 
