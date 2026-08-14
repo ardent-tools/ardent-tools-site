@@ -1089,7 +1089,11 @@ class ContentAddressContractTests(unittest.TestCase):
         # fast path for root-relative references instead of the pinned Node
         # WHATWG parser. The fast path must stay equivalent for the leading/
         # trailing C0-control-or-space stripping that step differs on; a
-        # trailing control byte survives urlparse but not a real browser.
+        # trailing control byte survives urlparse but not a real browser. A
+        # tab or newline sitting between two literal slashes is the sharper
+        # case: stripped, it reconstitutes a "//" network-path prefix that
+        # was never in the raw reference, so the pinned parser resolves a
+        # different origin entirely rather than a mismatched path.
         base = "https://ardent.tools/index.html"
         origin = "https://ardent.tools"
         for reference in (
@@ -1098,6 +1102,7 @@ class ContentAddressContractTests(unittest.TestCase):
             "/img/pixel.svg\x0b",
             "/img/pixel.svg\x00",
             "/img/pixel.svg ",
+            "/\t/evil.example/img/pixel.svg",
         ):
             with self.subTest(reference=reference):
                 fast_result = content_address.same_origin_path(reference, base, origin)
@@ -1105,9 +1110,12 @@ class ContentAddressContractTests(unittest.TestCase):
                 subprocess_resolved = release.resolve_browser_references(
                     [reference], [base]
                 )[0]
-                subprocess_result = release.canonical_resource_path(
-                    subprocess_resolved["pathname"]
-                ).lstrip("/")
+                if subprocess_resolved["hostname"] != "ardent.tools":
+                    subprocess_result = None
+                else:
+                    subprocess_result = release.canonical_resource_path(
+                        subprocess_resolved["pathname"]
+                    ).lstrip("/")
                 self.assertEqual(fast_result, subprocess_result)
 
     def test_root_relative_reference_with_trailing_control_byte_still_addresses(

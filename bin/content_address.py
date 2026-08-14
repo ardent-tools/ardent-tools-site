@@ -219,18 +219,28 @@ def resolved_consumer_url(
     reference: str, base: str, upgrade_insecure: bool
 ) -> dict[str, str] | None:
     if reference.startswith("/") and not reference.startswith("//"):
-        parsed_reference = urlparse(whatwg_input_cleanup(reference))
-        parsed_base = urlparse(base)
-        return {
-            "protocol": f"{parsed_base.scheme}:",
-            "hostname": parsed_base.hostname or "",
-            "port": str(parsed_base.port or ""),
-            "pathname": parsed_reference.path,
-            "search": f"?{parsed_reference.query}" if parsed_reference.query else "",
-            "hash": (
-                f"#{parsed_reference.fragment}" if parsed_reference.fragment else ""
-            ),
-        }
+        cleaned_reference = whatwg_input_cleanup(reference)
+        # WARNING: tab/newline removal runs on the whole string, so two literal
+        # slashes separated only by stripped characters (e.g. "/\t/evil/x")
+        # collapse into a network-path "//" prefix that was never in the raw
+        # reference. That changes the resolved authority, not just the path -
+        # fall through to the authoritative parser rather than assume this is
+        # still a same-origin, path-only reference.
+        if cleaned_reference.startswith("/") and not cleaned_reference.startswith("//"):
+            parsed_reference = urlparse(cleaned_reference)
+            parsed_base = urlparse(base)
+            return {
+                "protocol": f"{parsed_base.scheme}:",
+                "hostname": parsed_base.hostname or "",
+                "port": str(parsed_base.port or ""),
+                "pathname": parsed_reference.path,
+                "search": (
+                    f"?{parsed_reference.query}" if parsed_reference.query else ""
+                ),
+                "hash": (
+                    f"#{parsed_reference.fragment}" if parsed_reference.fragment else ""
+                ),
+            }
     return resolve_browser_references(
         [reference],
         [base],
