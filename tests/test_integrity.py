@@ -47,6 +47,7 @@ link_check_contract = load_script("ardent_link_check_contract", "link_check_cont
 release = load_script("ardent_release_manifest", "release_manifest.py")
 content_address = load_script("ardent_content_address", "content_address.py")
 asset_retention = load_script("ardent_asset_retention", "asset_retention.py")
+generate_sbom = load_script("ardent_generate_sbom", "generate-sbom.py")
 deployment_receipt = load_script(
     "ardent_pages_deployment_receipt", "pages_deployment_receipt.py"
 )
