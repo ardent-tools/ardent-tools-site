@@ -3030,6 +3030,7 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             ("embedded credentials", "https://user:pass@ardent.tools"),
             ("non-default port", "https://ardent.tools:8443"),
             ("non-empty path", "https://ardent.tools/path"),
+            ("non-empty params", "https://ardent.tools/;p=1"),
             ("non-empty query", "https://ardent.tools?q=1"),
             ("non-empty fragment", "https://ardent.tools#frag"),
             ("non-lowercase canonical form", "https://ArDent.tools"),
@@ -3040,6 +3041,18 @@ class HtmlAuthorityContractTests(unittest.TestCase):
                     "HTML authority base URL must be one lowercase HTTPS origin",
                 ):
                     html_contract.validate_base_url(malformed)
+
+    def test_validate_base_url_wraps_urlparse_failure(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError, "malformed HTML authority base URL"
+        ):
+            html_contract.validate_base_url("https://[::1")
+
+    def test_validate_base_url_accepts_the_one_true_shape(self) -> None:
+        self.assertEqual(
+            html_contract.validate_base_url("https://ardent.tools"),
+            "https://ardent.tools/",
+        )
 
     def test_sitemap_paths_rejects_each_malformed_shape(self) -> None:
         def write_sitemap(output: Path, *locs: str) -> None:
