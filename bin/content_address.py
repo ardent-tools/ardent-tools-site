@@ -21,7 +21,7 @@ import stat
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from functools import lru_cache
+from collections import OrderedDict
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin, urlparse
@@ -214,10 +214,47 @@ def whatwg_input_cleanup(value: str) -> str:
     return WHATWG_TAB_OR_NEWLINE_RE.sub("", edge_stripped)
 
 
-@lru_cache(maxsize=4096)
+_RESOLVED_CONSUMER_URL_CACHE: OrderedDict[tuple[str, str, bool], dict[str, str] | None] = (
+    OrderedDict()
+)
+RESOLVED_CONSUMER_URL_CACHE_MAXSIZE = 4096
+
+
+def _local_consumer_url(reference: str, base: str) -> dict[str, str]:
+    parsed_reference = urlparse(reference)
+    parsed_base = urlparse(base)
+    return {
+        "protocol": f"{parsed_base.scheme}:",
+        "hostname": parsed_base.hostname or "",
+        "port": str(parsed_base.port or ""),
+        "pathname": parsed_reference.path,
+        "search": f"?{parsed_reference.query}" if parsed_reference.query else "",
+        "hash": (f"#{parsed_reference.fragment}" if parsed_reference.fragment else ""),
+    }
+
+
+def _cache_resolved_consumer_url(
+    key: tuple[str, str, bool], resolved: dict[str, str] | None
+) -> None:
+    # PERF: bounded LRU, not an unbounded dict - a long-running build process
+    # (the dev server, or a batch job over many pages) resolves references
+    # from a working set that is large but not unbounded, so a plain dict
+    # here is a slow memory leak nobody attributes to this cache. Evict the
+    # least-recently-used entry once the bound is reached, same contract
+    # the prior @lru_cache(maxsize=4096) decorator gave this function.
+    _RESOLVED_CONSUMER_URL_CACHE[key] = resolved
+    _RESOLVED_CONSUMER_URL_CACHE.move_to_end(key)
+    if len(_RESOLVED_CONSUMER_URL_CACHE) > RESOLVED_CONSUMER_URL_CACHE_MAXSIZE:
+        _RESOLVED_CONSUMER_URL_CACHE.popitem(last=False)
+
+
 def resolved_consumer_url(
     reference: str, base: str, upgrade_insecure: bool
 ) -> dict[str, str] | None:
+    key = (reference, base, upgrade_insecure)
+    if key in _RESOLVED_CONSUMER_URL_CACHE:
+        _RESOLVED_CONSUMER_URL_CACHE.move_to_end(key)
+        return _RESOLVED_CONSUMER_URL_CACHE[key]
     if reference.startswith("/") and not reference.startswith("//"):
         cleaned_reference = whatwg_input_cleanup(reference)
         # WARNING: tab/newline removal runs on the whole string, so two literal
@@ -227,25 +264,55 @@ def resolved_consumer_url(
         # fall through to the authoritative parser rather than assume this is
         # still a same-origin, path-only reference.
         if cleaned_reference.startswith("/") and not cleaned_reference.startswith("//"):
-            parsed_reference = urlparse(cleaned_reference)
-            parsed_base = urlparse(base)
-            return {
-                "protocol": f"{parsed_base.scheme}:",
-                "hostname": parsed_base.hostname or "",
-                "port": str(parsed_base.port or ""),
-                "pathname": parsed_reference.path,
-                "search": (
-                    f"?{parsed_reference.query}" if parsed_reference.query else ""
-                ),
-                "hash": (
-                    f"#{parsed_reference.fragment}" if parsed_reference.fragment else ""
-                ),
-            }
-    return resolve_browser_references(
-        [reference],
-        [base],
-        upgrade_insecure=upgrade_insecure,
-    )[0]
+            resolved = _local_consumer_url(cleaned_reference, base)
+        else:
+            resolved = resolve_browser_references(
+                [reference],
+                [base],
+                upgrade_insecure=upgrade_insecure,
+            )[0]
+    else:
+        resolved = resolve_browser_references(
+            [reference],
+            [base],
+            upgrade_insecure=upgrade_insecure,
+        )[0]
+    _cache_resolved_consumer_url(key, resolved)
+    return resolved
+
+
+def prime_resolved_consumer_url_cache(
+    entries: list[tuple[str, str, bool]],
+) -> None:
+    """Resolve every not-yet-cached external reference in one batched call.
+
+    PERF: resolved_consumer_url()'s fallback spawns one Node subprocess per
+    call. A caller that loops over many references sharing one base/origin
+    (a CSS file's url()s, an HTML document's attributes, a JSON document's
+    URL fields) would otherwise pay one subprocess per unique reference.
+    Callers that already hold the full reference list before resolving any
+    of them (apply_reference_spans, rewrite_json, rewrite_url_tokens) prime
+    the cache first so resolve_browser_references() is called once per
+    upgrade_insecure group instead.
+    """
+    pending: dict[bool, list[tuple[str, str]]] = {}
+    seen: set[tuple[str, str, bool]] = set()
+    for reference, base, upgrade_insecure in entries:
+        key = (reference, base, upgrade_insecure)
+        if key in seen or key in _RESOLVED_CONSUMER_URL_CACHE:
+            continue
+        if reference.startswith("/") and not reference.startswith("//"):
+            continue  # resolved_consumer_url() answers this locally, no subprocess
+        seen.add(key)
+        pending.setdefault(upgrade_insecure, []).append((reference, base))
+    for upgrade_insecure, pairs in pending.items():
+        resolved = resolve_browser_references(
+            [reference for reference, _base in pairs],
+            [base for _reference, base in pairs],
+            upgrade_insecure=upgrade_insecure,
+        )
+        for (reference, base), result in zip(pairs, resolved, strict=True):
+            _cache_resolved_consumer_url((reference, base, upgrade_insecure), result)
 
 
 def same_origin_path(reference: str, base: str, origin: str) -> str | None:
@@ -326,6 +393,10 @@ def apply_reference_spans(
     candidates: set[str],
     resolve,
 ) -> str:
+    upgrade_insecure = urlparse(origin).scheme == "https"
+    prime_resolved_consumer_url_cache(
+        [(reference, base, upgrade_insecure) for _start, _end, reference in spans]
+    )
     replacements: list[tuple[int, int, str]] = []
     for start, end, reference in spans:
         replacement = replacement_for_reference(
@@ -425,10 +496,19 @@ def rewrite_json(
     resolve,
     selector,
 ) -> str:
+    spans = [item for item in json_value_string_spans(raw, label) if selector(item[0])]
+    upgrade_insecure = urlparse(origin).scheme == "https"
+    prime_resolved_consumer_url_cache(
+        [
+            (value, base, upgrade_insecure)
+            for _path, _start, _end, value in spans
+            if value
+            and not value.startswith("#")
+            and (value.startswith(("/", "?")) or urlparse(value).scheme)
+        ]
+    )
     replacements: list[tuple[int, int, str]] = []
-    for path, start, end, value in json_value_string_spans(raw, label):
-        if not selector(path):
-            continue
+    for path, start, end, value in spans:
         if (
             value
             and not value.startswith(("/", "#", "?"))
@@ -459,9 +539,10 @@ def rewrite_json(
 
 
 class HtmlReferenceSpanParser(HTMLParser):
-    def __init__(self, raw: str, *, embedded_atom: bool = False) -> None:
+    def __init__(self, raw: str, label: str, *, embedded_atom: bool = False) -> None:
         super().__init__(convert_charrefs=False)
         self.raw = raw
+        self.label = label
         self.embedded_atom = embedded_atom
         self.line_offsets: list[int] = [0]
         self.spans: list[tuple[int, int, str]] = []
@@ -497,8 +578,8 @@ class HtmlReferenceSpanParser(HTMLParser):
             }
             if normalized_tag in forbidden_elements:
                 raise ValueError(
-                    "embedded Atom HTML forbids active or style-bearing element "
-                    f"<{normalized_tag}>"
+                    f"{self.label}: embedded Atom HTML forbids active or "
+                    f"style-bearing element <{normalized_tag}>"
                 )
             forbidden_attributes = sorted(
                 name.lower()
@@ -508,8 +589,8 @@ class HtmlReferenceSpanParser(HTMLParser):
             )
             if forbidden_attributes:
                 raise ValueError(
-                    "embedded Atom HTML forbids inline style or event attributes: "
-                    f"{forbidden_attributes}"
+                    f"{self.label}: embedded Atom HTML forbids inline style or "
+                    f"event attributes: {forbidden_attributes}"
                 )
         unsupported_compound = sorted(
             name.lower()
@@ -520,8 +601,8 @@ class HtmlReferenceSpanParser(HTMLParser):
         )
         if unsupported_compound:
             raise ValueError(
-                "compound HTML URL attributes are forbidden until their grammar "
-                f"is validated: {unsupported_compound}"
+                f"{self.label}: compound HTML URL attributes are forbidden until "
+                f"their grammar is validated: {unsupported_compound}"
             )
         lexical = list(ATTRIBUTE_RE.finditer(source))
         url_names = html_url_attribute_names(tag, attrs)
@@ -536,7 +617,7 @@ class HtmlReferenceSpanParser(HTMLParser):
             if name.lower() in url_names and value is not None
         }
         if not parsed_url_names.issubset(quoted_url_names):
-            raise ValueError("HTML resource URL attributes must be quoted")
+            raise ValueError(f"{self.label}: HTML resource URL attributes must be quoted")
         for match in lexical:
             if match.group("name").lower() not in url_names:
                 continue
@@ -553,7 +634,9 @@ class HtmlReferenceSpanParser(HTMLParser):
                 media_type = (value or "").split(";", 1)[0].strip().lower()
         if tag.lower() == "script" and media_type == "application/ld+json":
             if self.json_start is not None:
-                raise ValueError("nested application/ld+json blocks are forbidden")
+                raise ValueError(
+                    f"{self.label}: nested application/ld+json blocks are forbidden"
+                )
             self.json_start = start + len(source)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -577,7 +660,7 @@ def rewrite_html(
     candidates: set[str],
     resolve,
 ) -> str:
-    parser = HtmlReferenceSpanParser(raw)
+    parser = HtmlReferenceSpanParser(raw, label)
     parser.feed(raw)
     parser.close()
     if parser.json_start is not None:
@@ -621,6 +704,14 @@ def rewrite_url_tokens(
                 return True
         return False
 
+    upgrade_insecure = urlparse(origin).scheme == "https"
+    prime_resolved_consumer_url_cache(
+        [
+            (match.group(0), base, upgrade_insecure)
+            for match in URL_TOKEN_RE.finditer(raw)
+            if match.group(0) and not match.group(0).startswith("#")
+        ]
+    )
     for match in URL_TOKEN_RE.finditer(raw):
         reference = match.group(0)
         replacement = replacement_for_reference(
@@ -1038,7 +1129,9 @@ def validate_xml_consumer(
             and element_type == "html"
             and element.text
         ):
-            embedded = HtmlReferenceSpanParser(element.text, embedded_atom=True)
+            embedded = HtmlReferenceSpanParser(
+                element.text, f"{label} embedded Atom HTML", embedded_atom=True
+            )
             embedded.feed(element.text)
             embedded.close()
             references.extend(reference for _start, _end, reference in embedded.spans)
