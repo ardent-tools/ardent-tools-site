@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import posixpath
@@ -729,7 +730,131 @@ def json_ld_references(errors: list[str], label: str, raw: str) -> list[str]:
     return selected_json_strings(document, json_ld_url_path)
 
 
-def read_contract(path: Path = CONTRACT_PATH) -> tuple[dict, list[str]]:
+def calendar_date(value: object) -> dt.date | None:
+    """Parse a strict YYYY-MM-DD string as a real calendar date, or None.
+
+    DATE_RE alone accepts shapes like "2026-02-30" that name no real day;
+    fromisoformat() is the actual calendar-validity check.
+    """
+    if not isinstance(value, str) or not DATE_RE.fullmatch(value):
+        return None
+    try:
+        return dt.date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def read_prior_tombstones(
+    prior_contract_path: Path | None, errors: list[str]
+) -> list | None:
+    """Load the trusted base's tombstones for transition checking.
+
+    None means no trusted base was supplied (a caller not wired to it, or a
+    genuine bootstrap) - the transition check is then skipped entirely,
+    never treated as an empty prior. A supplied-but-unreadable prior fails
+    closed: a placeholder empty list is returned alongside an appended
+    error so validate_tombstone_transitions still runs (and adds nothing
+    further) rather than crashing.
+    """
+    if prior_contract_path is None:
+        return None
+    try:
+        raw = prior_contract_path.read_text()
+    except OSError as exc:
+        errors.append(
+            f"{prior_contract_path}: cannot read trusted-base release contract: {exc}"
+        )
+        return []
+    try:
+        prior = tomllib.loads(raw)
+    except tomllib.TOMLDecodeError as exc:
+        errors.append(
+            f"{prior_contract_path}: trusted-base release contract is not valid TOML: {exc}"
+        )
+        return []
+    prior_tombstones = prior.get("tombstones") if isinstance(prior, dict) else None
+    if prior_tombstones is None:
+        return []
+    if not isinstance(prior_tombstones, list):
+        errors.append(f"{prior_contract_path}: trusted-base tombstones must be an array")
+        return []
+    return prior_tombstones
+
+
+def validate_tombstone_transitions(
+    tombstones: list,
+    prior_tombstones: list,
+    as_of: dt.date,
+    path: Path,
+    errors: list[str],
+) -> None:
+    """Enforce retain_through as a state transition, not decorative metadata.
+
+    A tombstone is a promise that a path stays gone through retain_through
+    (inclusive - as_of == retain_through is still within the promise). Read
+    against the trusted-base prior contract:
+
+    - While active (as_of <= retain_through) the entry must survive
+      unchanged. A path missing from the proposed tombstones here has been
+      removed early; one still present but present as live content is
+      caught separately by validate_manifest's built-artifact check, since
+      an unmodified tombstone entry keeps that check armed.
+    - Once expired (as_of > retain_through) standing pat is itself the
+      violation: the entry must be explicitly dropped, or explicitly
+      renewed to a retain_through on or after as_of (a reviewed
+      extension) - never left with its old, lapsed date.
+    """
+    proposed_by_path: dict[str, dict] = {
+        item["path"]: item
+        for item in tombstones
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    for prior_item in prior_tombstones:
+        if not isinstance(prior_item, dict):
+            continue
+        prior_path = prior_item.get("path")
+        prior_date = calendar_date(prior_item.get("retain_through"))
+        if not isinstance(prior_path, str) or prior_date is None:
+            continue
+        current = proposed_by_path.get(prior_path)
+        if as_of <= prior_date:
+            if current is None:
+                errors.append(
+                    f"{path}: tombstone {prior_path!r} was removed before its "
+                    f"retain_through deadline {prior_item['retain_through']} "
+                    f"(as of {as_of.isoformat()})"
+                )
+            elif current != prior_item:
+                errors.append(
+                    f"{path}: tombstone {prior_path!r} was changed before its "
+                    f"retain_through deadline {prior_item['retain_through']} "
+                    f"(as of {as_of.isoformat()})"
+                )
+            continue
+        if current is None:
+            continue
+        if current == prior_item:
+            errors.append(
+                f"{path}: tombstone {prior_path!r} retain_through "
+                f"{prior_item['retain_through']} has expired (as of "
+                f"{as_of.isoformat()}); remove it or renew retain_through"
+            )
+            continue
+        new_date = calendar_date(current.get("retain_through"))
+        if new_date is None or new_date < as_of:
+            errors.append(
+                f"{path}: tombstone {prior_path!r} renewal must set "
+                f"retain_through on or after {as_of.isoformat()}, found "
+                f"{current.get('retain_through')!r}"
+            )
+
+
+def read_contract(
+    path: Path = CONTRACT_PATH,
+    *,
+    prior_contract_path: Path | None = None,
+    as_of: dt.date | None = None,
+) -> tuple[dict, list[str]]:
     errors: list[str] = []
     try:
         contract = tomllib.loads(path.read_text())
@@ -757,8 +882,8 @@ def read_contract(path: Path = CONTRACT_PATH) -> tuple[dict, list[str]]:
             if not valid_output_path(value):
                 errors.append(f"{path}: invalid canonical path {value!r}")
     tombstones = contract.get("tombstones")
-    if not isinstance(tombstones, list) or not tombstones:
-        errors.append(f"{path}: tombstones must be a nonempty array")
+    if not isinstance(tombstones, list):
+        errors.append(f"{path}: tombstones must be an array")
     else:
         seen: set[str] = set()
         for item in tombstones:
@@ -780,12 +905,22 @@ def read_contract(path: Path = CONTRACT_PATH) -> tuple[dict, list[str]]:
                 errors.append(f"{path}: duplicate tombstone path {tombstone_path!r}")
             else:
                 seen.add(tombstone_path)
-            if not isinstance(item.get("retain_through"), str) or not DATE_RE.fullmatch(
-                item["retain_through"]
-            ):
-                errors.append(f"{path}: tombstone retain_through must be YYYY-MM-DD")
+            if calendar_date(item.get("retain_through")) is None:
+                errors.append(
+                    f"{path}: tombstone retain_through must be a real "
+                    "YYYY-MM-DD calendar date"
+                )
             if not isinstance(item.get("reason"), str) or not item["reason"].strip():
                 errors.append(f"{path}: tombstone reason must be nonempty")
+        prior_tombstones = read_prior_tombstones(prior_contract_path, errors)
+        if prior_tombstones is not None:
+            validate_tombstone_transitions(
+                tombstones,
+                prior_tombstones,
+                as_of if as_of is not None else dt.date.today(),
+                path,
+                errors,
+            )
     return contract, errors
 
 
@@ -1341,8 +1476,16 @@ def main() -> int:
     parser.add_argument("--revision", required=True)
     parser.add_argument("--asset-map", type=Path, required=True)
     parser.add_argument("--contract", type=Path, default=CONTRACT_PATH)
+    parser.add_argument(
+        "--prior-contract",
+        type=Path,
+        help="trusted-base release-resources.toml to enforce tombstone transitions against",
+    )
+    parser.add_argument("--as-of", type=dt.date.fromisoformat, default=dt.date.today())
     args = parser.parse_args()
-    contract, errors = read_contract(args.contract)
+    contract, errors = read_contract(
+        args.contract, prior_contract_path=args.prior_contract, as_of=args.as_of
+    )
     if errors:
         for error in errors:
             sys.stderr.write(f"ERROR: {error}\n")

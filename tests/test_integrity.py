@@ -3030,6 +3030,207 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 self.assertEqual(len(errors), 1, errors)
 
 
+class TombstoneRetentionContractTests(unittest.TestCase):
+    """#102: retain_through is a state-transition contract, checked against a
+    trusted-base prior release-resources.toml under an injectable clock -
+    not decorative metadata that a nonempty regex-shaped array satisfies
+    forever."""
+
+    TOMBSTONE_PATH = "/old/page"
+    REASON = "superseded asset; retain through its cache window"
+
+    def write_contract(
+        self,
+        directory: Path,
+        name: str,
+        *,
+        tombstones: list[dict],
+        canonical_paths: list[str] | None = None,
+    ) -> Path:
+        path = directory / name
+        canonical = canonical_paths if canonical_paths is not None else ["robots.txt"]
+        lines = [
+            "schema_version = 4",
+            'manifest_name = "release-resources.json"',
+            f"canonical_paths = {json.dumps(canonical)}",
+        ]
+        if not tombstones:
+            lines.append("tombstones = []")
+        else:
+            for item in tombstones:
+                lines.append("")
+                lines.append("[[tombstones]]")
+                lines.append(f'path = "{item["path"]}"')
+                lines.append(f'retain_through = "{item["retain_through"]}"')
+                lines.append(f'reason = "{item["reason"]}"')
+        path.write_text("\n".join(lines) + "\n")
+        return path
+
+    def active_tombstone(self, retain_through: str = "2026-08-21") -> dict:
+        return {
+            "path": self.TOMBSTONE_PATH,
+            "retain_through": retain_through,
+            "reason": self.REASON,
+        }
+
+    def test_active_tombstone_removed_before_deadline_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any(
+                f"tombstone '{self.TOMBSTONE_PATH}' was removed before its "
+                "retain_through" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_active_tombstone_survives_unchanged_on_deadline_day(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = self.active_tombstone()
+            prior = self.write_contract(root, "prior.toml", tombstones=[entry])
+            proposed = self.write_contract(root, "current.toml", tombstones=[entry])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 21)
+            )
+        self.assertEqual(errors, [])
+
+    def test_active_tombstone_reused_as_canonical_before_deadline_is_rejected(
+        self,
+    ) -> None:
+        """Reuse is enabled only by removal: a still-tombstoned path can't be
+        promoted to canonical_paths without dropping the entry first, and
+        that drop is what this rejects."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            proposed = self.write_contract(
+                root,
+                "current.toml",
+                tombstones=[],
+                canonical_paths=["robots.txt", "old/page"],
+            )
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any("was removed before its retain_through" in error for error in errors),
+            errors,
+        )
+
+    def test_active_tombstone_modified_before_deadline_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            changed = self.active_tombstone()
+            changed["reason"] = "a different story"
+            proposed = self.write_contract(root, "current.toml", tombstones=[changed])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any("was changed before its retain_through" in error for error in errors),
+            errors,
+        )
+
+    def test_expired_tombstone_left_unchanged_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = self.active_tombstone()
+            prior = self.write_contract(root, "prior.toml", tombstones=[entry])
+            proposed = self.write_contract(root, "current.toml", tombstones=[entry])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertTrue(any("has expired" in error for error in errors), errors)
+
+    def test_expired_tombstone_explicit_removal_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertEqual(errors, [])
+
+    def test_expired_tombstone_renewed_past_as_of_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            renewed = self.active_tombstone(retain_through="2026-09-01")
+            proposed = self.write_contract(root, "current.toml", tombstones=[renewed])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertEqual(errors, [])
+
+    def test_expired_tombstone_renewed_still_in_the_past_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            still_lapsed = self.active_tombstone(retain_through="2026-08-20")
+            proposed = self.write_contract(
+                root, "current.toml", tombstones=[still_lapsed]
+            )
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertTrue(
+            any("renewal must set retain_through" in error for error in errors),
+            errors,
+        )
+
+    def test_no_prior_supplied_skips_transition_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(proposed)
+        self.assertEqual(errors, [])
+
+    def test_zero_active_tombstones_is_a_valid_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            contract, errors = release.read_contract(proposed)
+        self.assertEqual(errors, [])
+        self.assertEqual(contract["tombstones"], [])
+
+    def test_syntactically_shaped_impossible_calendar_date_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proposed = self.write_contract(
+                root,
+                "current.toml",
+                tombstones=[self.active_tombstone(retain_through="2026-02-30")],
+            )
+            _, errors = release.read_contract(proposed)
+        self.assertTrue(
+            any(
+                "real" in error and "calendar date" in error for error in errors
+            ),
+            errors,
+        )
+
+
 class HeaderContractTests(unittest.TestCase):
     SPECULATION_PATH = f"/a/{'1' * 64}.json"
 
@@ -3715,6 +3916,15 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertIn(
             "python3 bin/asset_retention.py", (ROOT / "bin/check-site.sh").read_text()
         )
+        # #102: the tombstone retain_through transition check reuses this same
+        # step's already-selected base_revision rather than re-deriving one.
+        self.assertIn(
+            'git show "${base_revision}:release-resources.toml"', retention_run
+        )
+        self.assertIn("ARDENT_PRIOR_RELEASE_CONTRACT", retention_run)
+        check_site_text = (ROOT / "bin/check-site.sh").read_text()
+        self.assertIn("ARDENT_PRIOR_RELEASE_CONTRACT", check_site_text)
+        self.assertIn("--prior-contract", check_site_text)
 
         canonical_verify_step = workflow_step(
             steps, "Verify canonical domain after production cutover"

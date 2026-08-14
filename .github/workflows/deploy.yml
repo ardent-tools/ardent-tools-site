@@ -171,12 +171,26 @@ jobs:
           elif ! git cat-file -e "${base_revision}^{commit}" 2>/dev/null; then
             echo "Trusted retention base commit is unavailable: $base_revision" >&2
             exit 1
-          elif git cat-file -e "${base_revision}:asset-retention.json" 2>/dev/null; then
-            prior_ledger="$RUNNER_TEMP/prior-asset-retention.json"
-            git show "${base_revision}:asset-retention.json" > "$prior_ledger"
-            echo "ARDENT_RETENTION_BASE_LEDGER=$prior_ledger" >> "$GITHUB_ENV"
           else
-            echo "Base revision has no retention ledger; treating this as retention bootstrap."
+            if git cat-file -e "${base_revision}:asset-retention.json" 2>/dev/null; then
+              prior_ledger="$RUNNER_TEMP/prior-asset-retention.json"
+              git show "${base_revision}:asset-retention.json" > "$prior_ledger"
+              echo "ARDENT_RETENTION_BASE_LEDGER=$prior_ledger" >> "$GITHUB_ENV"
+            else
+              echo "Base revision has no retention ledger; treating this as retention bootstrap."
+            fi
+            # WHY the same base_revision: the tombstone retain_through transition
+            # check (release_manifest.py) is a second trusted-base authority over
+            # a different file, not a separate git-history resolution - reusing
+            # the event's already-selected base keeps both checks bound to one
+            # commit rather than two independently-derived ones (#102).
+            if git cat-file -e "${base_revision}:release-resources.toml" 2>/dev/null; then
+              prior_contract="$RUNNER_TEMP/prior-release-resources.toml"
+              git show "${base_revision}:release-resources.toml" > "$prior_contract"
+              echo "ARDENT_PRIOR_RELEASE_CONTRACT=$prior_contract" >> "$GITHUB_ENV"
+            else
+              echo "Base revision has no release contract; treating this as tombstone-transition bootstrap."
+            fi
           fi
 
       - name: Repository-owned isolated strict gate
