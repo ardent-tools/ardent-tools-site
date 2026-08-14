@@ -1327,7 +1327,13 @@ def finalize_tree(
         )
         for entry in ledger["entries"]:
             for item in entry["resources"]:
-                media_type = SPECIAL_MEDIA_TYPES.get(item["logical_path"])
+                # WHY: a checkpoint entry's logical_path is synthesized
+                # (`checkpoint/<hash>/<basename>`, record_checkpoint()), not
+                # the resource's real name, so membership is recovered from
+                # the basename rather than an exact-key match.
+                media_type = SPECIAL_MEDIA_TYPES.get(
+                    PurePosixPath(item["logical_path"]).name
+                )
                 if media_type is None:
                     continue
                 request_url = f"/{item['output_path']}"

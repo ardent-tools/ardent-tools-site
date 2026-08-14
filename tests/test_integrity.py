@@ -1640,6 +1640,66 @@ class ContentAddressContractTests(unittest.TestCase):
                     (second_output / "_headers").read_text(),
                 )
 
+    def test_compacted_speculation_rules_keep_their_media_type(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+
+            def finalize_snapshot(name: str, body: bytes) -> tuple[Path, dict]:
+                output = root / name / "public"
+                output.mkdir(parents=True)
+                (output / "speculation-rules.json").write_bytes(body)
+                (output / "_headers").write_text((ROOT / "_headers").read_text())
+                document = content_address.finalize_tree(
+                    output,
+                    root / name / "asset-map.json",
+                    BASE_URL,
+                    self.contract(),
+                    retention_ledger=ledger,
+                    retention_assets=assets,
+                    record_retention_snapshot=True,
+                )
+                return output, document
+
+            _first_output, first = finalize_snapshot("first", b'{"prefetch":[]}\n')
+            first_url = next(iter(first["media_types"]))
+            finalize_snapshot("second", b'{"prerender":[]}\n')
+
+            # Compacting squashes the two entries above (each recorded under
+            # the real "speculation-rules.json" logical_path) into one
+            # checkpoint entry whose items carry a synthesized logical_path.
+            # first_url's Content-Type rule must survive that regardless.
+            compacted = asset_retention.record_checkpoint(ledger, assets)
+            self.assertEqual(compacted["entry_count"], 1)
+
+            third_output, third = finalize_snapshot(
+                "third", b'{"prefetch":[],"prerender":[]}\n'
+            )
+            self.assertIn(first_url, third["media_types"])
+            self.assertEqual(
+                third["media_types"][first_url], release.SPECULATION_MEDIA_TYPE
+            )
+            manifest = release.build_manifest(
+                third_output,
+                EXPECTED_REVISION,
+                third,
+                {
+                    "manifest_name": "release-resources.json",
+                    "canonical_paths": [],
+                    "tombstones": [],
+                },
+            )
+            self.assertEqual(manifest["media_types"], third["media_types"])
+            _contract, errors = headers_contract.validate_headers(
+                (third_output / "_headers").read_text(), manifest
+            )
+            self.assertEqual(errors, [])
+            self.assertIn(
+                f"{first_url}\n  Content-Type: {release.SPECULATION_MEDIA_TYPE}",
+                (third_output / "_headers").read_text(),
+            )
+
     def test_cycles_unknown_dependencies_and_legacy_queries_fail_closed(self) -> None:
         cases = {
             "cycle": {

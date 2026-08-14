@@ -67,6 +67,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 from pages_limits import require_static_file_size
+from release_manifest import SPECIAL_MEDIA_TYPES
 
 LEDGER_SCHEMA_VERSION = 2
 # The checked-in ledger is always exactly LEDGER_SCHEMA_VERSION, but a prior
@@ -482,6 +483,39 @@ def resource_union(entries: list) -> dict[str, str]:
     return union
 
 
+def retained_special_basenames(entries: list) -> dict[str, str]:
+    """Map each physical output_path to the SPECIAL_MEDIA_TYPES basename it
+    was ever retained under, so a compacting checkpoint can preserve it.
+
+    A checkpoint's synthesized logical_path can never reuse a historical
+    name verbatim (see record_checkpoint(): two physical hash-variants of
+    the same original resource, both still retained, would collide on one
+    literal name), so finalize_tree()'s SPECIAL_MEDIA_TYPES membership
+    lookup is matched by basename rather than exact logical_path — this
+    scans by that same basename so a prior checkpoint's own synthesized
+    name (`checkpoint/<hash>/<basename>`) is recognized on a later
+    re-compaction too, not just an original per-build snapshot name.
+    """
+    basenames: dict[str, str] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        resources = entry.get("resources")
+        if not isinstance(resources, list):
+            continue
+        for item in resources:
+            if not isinstance(item, dict):
+                continue
+            output = item.get("output_path")
+            logical = item.get("logical_path")
+            if not isinstance(output, str) or not isinstance(logical, str):
+                continue
+            basename = PurePosixPath(logical).name
+            if basename in SPECIAL_MEDIA_TYPES:
+                basenames.setdefault(output, basename)
+    return basenames
+
+
 def record_checkpoint(ledger_path: Path, asset_root: Path) -> dict:
     """Squash the full current ledger history into one checkpoint entry.
 
@@ -498,6 +532,15 @@ def record_checkpoint(ledger_path: Path, asset_root: Path) -> dict:
     any one historical record, since no single one is more canonical than
     the others and the physical identity is what retention actually
     guarantees.
+
+    A resource ever retained under a SPECIAL_MEDIA_TYPES name (e.g.
+    speculation-rules.json) is the one exception: its synthesized name
+    keeps that basename (`checkpoint/<sha256>/<basename>`) instead of the
+    plain `checkpoint/<sha256><ext>` form, so finalize_tree() can still
+    recognize it as needing that media type's `_headers` rule after its
+    real logical_path is gone. The hash-named parent directory keeps this
+    unique per output_path even when several retained physical variants
+    once shared that same original basename.
     """
     document, bodies = validate_ledger(ledger_path, asset_root)
     entries = document["entries"]
@@ -505,10 +548,15 @@ def record_checkpoint(ledger_path: Path, asset_root: Path) -> dict:
         raise ValueError(
             "asset retention ledger already holds at most one entry; nothing to compact"
         )
+    special_basenames = retained_special_basenames(entries)
     resources = snapshot_resources(
         [
             {
-                "logical_path": f"checkpoint/{sha256_bytes(body)}{PurePosixPath(output).suffix}",
+                "logical_path": (
+                    f"checkpoint/{sha256_bytes(body)}/{special_basenames[output]}"
+                    if output in special_basenames
+                    else f"checkpoint/{sha256_bytes(body)}{PurePosixPath(output).suffix}"
+                ),
                 "output_path": output,
                 "sha256": sha256_bytes(body),
             }
