@@ -9,9 +9,10 @@ from pathlib import Path
 
 MAX_STATIC_FILE_BYTES = 25 * 1024 * 1024
 MAX_HEADER_RULES = 100
-# The two fixed direct-response roots: "/*" (no-store default) and "/a/*"
-# (immutable override for content-addressed resources).
-ROOT_HEADER_RULES = 2
+# The three fixed direct-response roots: "/*" (no-store default), "/a/*"
+# (immutable override for content-addressed resources), and "/systems/*"
+# (wasm-unsafe-eval override for pages that may render the player).
+ROOT_HEADER_RULES = 3
 MAX_MEDIA_TYPE_HEADER_RULES = MAX_HEADER_RULES - ROOT_HEADER_RULES
 
 

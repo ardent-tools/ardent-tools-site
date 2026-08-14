@@ -84,13 +84,12 @@ ASSET_MARKUP = (
 )
 GOOD_CACHE = "no-store, no-transform"
 GOOD_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
-GOOD_CSP = (
-    "default-src 'self'; img-src 'self'; style-src 'self'; "
-    "script-src 'self' 'wasm-unsafe-eval'; "
-    "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
-    "frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; "
-    "worker-src 'none'; upgrade-insecure-requests"
-)
+# Root policy: derived from header_contract.py rather than restated here, so
+# a script-src change can't drift the fixture out of step with the source it
+# is meant to exercise. /systems/* pages carry the wider policy instead (see
+# GOOD_SYSTEM_CSP) - the two must never collapse into one constant again.
+GOOD_CSP = headers_contract.DIRECT_RESPONSE_HEADERS["content-security-policy"]
+GOOD_SYSTEM_CSP = headers_contract.SYSTEM_PAGE_HEADERS["content-security-policy"]
 
 
 def run_production_fixture(
@@ -785,6 +784,54 @@ class ProductionRouteContractTests(unittest.TestCase):
                 "canonical resolves" in error and "/about/" in error for error in errors
             ),
             errors,
+        )
+
+    def test_system_page_csp_dispatch_matches_only_systems_paths(self) -> None:
+        # The per-page loop in verify-production.py picks the wasm-unsafe-eval
+        # policy for exactly the paths this glob matches - assert its shape
+        # directly since no fixture route currently lives under /systems/*.
+        for path in ("/systems/", "/systems/kanon/", "/systems/kanon/sub/"):
+            self.assertTrue(
+                production.fnmatch.fnmatchcase(path, headers_contract.SYSTEM_PAGE_PATH),
+                path,
+            )
+        for path in ("/", "/about/", "/systems"):
+            self.assertFalse(
+                production.fnmatch.fnmatchcase(path, headers_contract.SYSTEM_PAGE_PATH),
+                path,
+            )
+
+    def test_live_system_page_csp_permits_wasm_while_other_pages_reject_it(
+        self,
+    ) -> None:
+        header_contract, contract_errors = headers_contract.expected_contract(
+            HeaderContractTests.repository_manifest()
+        )
+        self.assertEqual(contract_errors, [])
+        system_page_headers = {
+            **header_contract.direct_response,
+            "content-security-policy": GOOD_SYSTEM_CSP,
+            "content-type": "text/html; charset=utf-8",
+        }
+
+        system_errors: list[str] = []
+        production.validate_html_boundary(
+            system_errors,
+            "/systems/kanon/",
+            system_page_headers,
+            "",
+            header_contract,
+            expected_csp=GOOD_SYSTEM_CSP,
+        )
+        self.assertEqual(system_errors, [])
+
+        leaked_errors: list[str] = []
+        production.validate_html_boundary(
+            leaked_errors, "/about/", system_page_headers, "", header_contract
+        )
+        self.assertTrue(
+            any("CSP differs from the header contract" in error for error in leaked_errors),
+            leaked_errors,
         )
 
 
@@ -3104,6 +3151,60 @@ class HeaderContractTests(unittest.TestCase):
         raw = self.finalized_headers()
         without_section = raw.replace(
             "\n/a/*\n  ! Cache-Control\n  Cache-Control: public, max-age=31536000, immutable\n",
+            "\n",
+        )
+        self.assertNotEqual(without_section, raw)
+        _contract, errors = headers_contract.validate_headers(
+            without_section, self.repository_manifest()
+        )
+        self.assertTrue(
+            any("supported path set differs" in error for error in errors), errors
+        )
+
+    def test_wasm_unsafe_eval_is_scoped_to_system_pages_only(self) -> None:
+        raw = self.finalized_headers()
+        contract, errors = headers_contract.validate_headers(
+            raw, self.repository_manifest()
+        )
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(contract)
+        self.assertNotIn(
+            "wasm-unsafe-eval", contract.direct_response["content-security-policy"]
+        )
+        self.assertIn(
+            "wasm-unsafe-eval",
+            headers_contract.SYSTEM_PAGE_HEADERS["content-security-policy"],
+        )
+        sections, detached, parse_errors = headers_contract.parse_headers(raw)
+        self.assertEqual(parse_errors, [])
+        self.assertEqual(
+            sections[headers_contract.SYSTEM_PAGE_PATH],
+            headers_contract.SYSTEM_PAGE_HEADERS,
+        )
+        self.assertIn(
+            "content-security-policy", detached[headers_contract.SYSTEM_PAGE_PATH]
+        )
+
+    def test_system_page_csp_must_detach_the_inherited_value(self) -> None:
+        raw = self.finalized_headers()
+        detach_line = "  ! Content-Security-Policy\n"
+        self.assertIn(detach_line, raw)
+        without_detach = raw.replace(detach_line, "", 1)
+        _contract, errors = headers_contract.validate_headers(
+            without_detach, self.repository_manifest()
+        )
+        self.assertTrue(
+            any(
+                "'/systems/*' must detach the inherited" in error for error in errors
+            ),
+            errors,
+        )
+
+    def test_system_page_section_missing_entirely_fails(self) -> None:
+        raw = self.finalized_headers()
+        without_section = raw.replace(
+            "\n/systems/*\n  ! Content-Security-Policy\n"
+            f"  Content-Security-Policy: {headers_contract.SYSTEM_PAGE_HEADERS['content-security-policy']}\n",
             "\n",
         )
         self.assertNotEqual(without_section, raw)
