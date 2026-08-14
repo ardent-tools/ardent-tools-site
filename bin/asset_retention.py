@@ -61,6 +61,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import stat
 import sys
 import tempfile
@@ -363,7 +364,10 @@ def record_snapshot(
     snapshot = snapshot_resources(resources)
     if not snapshot:
         raise ValueError("cannot record an empty asset-retention snapshot")
-    if ledger_path.exists() or asset_root.exists():
+    asset_root_created = False
+    ledger_existed = ledger_path.exists()
+    previous_ledger_bytes = ledger_path.read_bytes() if ledger_existed else None
+    if ledger_existed or asset_root.exists():
         document, _retained = validate_ledger(ledger_path, asset_root)
     else:
         document = {
@@ -372,6 +376,7 @@ def record_snapshot(
             "entries": [],
         }
         asset_root.mkdir(parents=True)
+        asset_root_created = True
     entries = document["entries"]
     if entries and entries[-1]["resources"] == snapshot:
         return document
@@ -382,34 +387,73 @@ def record_snapshot(
             f"`{COMPACT_COMMAND}` to squash history into one checkpoint entry "
             "before recording another snapshot"
         )
-    for item in snapshot:
-        output = item["output_path"]
-        body = bodies.get(output)
-        if body is None or sha256_bytes(body) != item["sha256"]:
-            raise ValueError(
-                f"current physical body is unavailable for retention: {output}"
-            )
-        require_static_file_size(len(body), f"current physical asset {output}")
-        destination = asset_root / output
-        if destination.exists():
-            if not destination.is_file() or destination.is_symlink():
-                raise ValueError(f"retained asset destination is not regular: {output}")
-            if destination.read_bytes() != body:
-                raise ValueError(f"retained asset collision: {output}")
-        else:
-            write_atomic(destination, body)
-    previous = entry_digest(entries[-1]) if entries else None
-    entry = {
-        "kind": "snapshot",
-        "sequence": len(entries) + 1,
-        "previous_entry_sha256": previous,
-        "resource_count": len(snapshot),
-        "resources": snapshot,
-    }
-    entries.append(entry)
-    document["entry_count"] = len(entries)
-    write_atomic(ledger_path, serialize_ledger(document))
-    validate_ledger(ledger_path, asset_root)
+    # WARNING: this whole append -- per-item asset writes AND the ledger
+    # write AND its post-write self-check -- must stay transactional against
+    # a mid-transaction failure (including an OSError from disk pressure).
+    # Every write_atomic() call for an asset is tracked in `written` and
+    # undone on any exception before re-raising, because validate_ledger()'s
+    # strict set-equality check would otherwise reject an orphan file left
+    # by an earlier iteration on the very next call -- dead-ending an
+    # ordinary retry instead of recovering from it. The ledger write is
+    # covered too: `ledger_mutated` only flips True once write_atomic() for
+    # the ledger has actually replaced the file on disk, so a failure
+    # anywhere before that (including inside write_atomic() itself, which is
+    # already atomic against its own partial write) needs no ledger
+    # restoration, while a failure in the post-write validate_ledger() call
+    # restores the prior ledger bytes exactly. Rollback failures are left to
+    # propagate rather than swallowed (contrast the per-file
+    # `unlink(missing_ok=True)`, which tolerates only the file already being
+    # absent): a rollback that silently fails to roll back would report the
+    # original failure while quietly leaving the mess behind.
+    written: list[Path] = []
+    ledger_mutated = False
+    try:
+        for item in snapshot:
+            output = item["output_path"]
+            body = bodies.get(output)
+            if body is None or sha256_bytes(body) != item["sha256"]:
+                raise ValueError(
+                    f"current physical body is unavailable for retention: {output}"
+                )
+            require_static_file_size(len(body), f"current physical asset {output}")
+            destination = asset_root / output
+            if destination.exists():
+                if not destination.is_file() or destination.is_symlink():
+                    raise ValueError(
+                        f"retained asset destination is not regular: {output}"
+                    )
+                if destination.read_bytes() != body:
+                    raise ValueError(f"retained asset collision: {output}")
+            else:
+                write_atomic(destination, body)
+                written.append(destination)
+        previous = entry_digest(entries[-1]) if entries else None
+        entry = {
+            "kind": "snapshot",
+            "sequence": len(entries) + 1,
+            "previous_entry_sha256": previous,
+            "resource_count": len(snapshot),
+            "resources": snapshot,
+        }
+        entries.append(entry)
+        document["entry_count"] = len(entries)
+        write_atomic(ledger_path, serialize_ledger(document))
+        ledger_mutated = True
+        validate_ledger(ledger_path, asset_root)
+    except BaseException:
+        for destination in written:
+            destination.unlink(missing_ok=True)
+        if ledger_mutated:
+            if ledger_existed:
+                write_atomic(ledger_path, previous_ledger_bytes)
+            else:
+                ledger_path.unlink(missing_ok=True)
+        if asset_root_created:
+            try:
+                shutil.rmtree(asset_root)
+            except FileNotFoundError:
+                pass
+        raise
     if len(entries) >= RETENTION_HISTORY_SOFT_WARN_ENTRIES:
         sys.stderr.write(
             f"WARNING: asset retention ledger holds {len(entries)} entries "

@@ -1830,6 +1830,196 @@ class AssetRetentionLifetimeContractTests(unittest.TestCase):
             )
             self.assertEqual(document_again["entry_count"], 1)
 
+    def test_partial_multi_resource_snapshot_failure_is_rolled_back(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("img/first.svg", b"first\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            before_ledger = ledger.read_bytes()
+            before_files = sorted(
+                path.relative_to(assets) for path in assets.rglob("*") if path.is_file()
+            )
+
+            second, second_body = self.resource_for("img/second.svg", b"second\n")
+            third, third_body = self.resource_for("img/third.svg", b"third\n")
+            new_bodies = {
+                second["output_path"]: second_body,
+                third["output_path"]: third_body,
+            }
+            calls = {"current": 0}
+
+            def flaky(size: int, label: str) -> None:
+                if label.startswith("current physical asset"):
+                    calls["current"] += 1
+                    if calls["current"] == 2:
+                        raise ValueError("synthetic failure on second item")
+
+            with mock.patch.object(
+                asset_retention, "require_static_file_size", side_effect=flaky
+            ):
+                with self.assertRaisesRegex(
+                    ValueError, "synthetic failure on second item"
+                ):
+                    asset_retention.record_snapshot(
+                        ledger, assets, [second, third], new_bodies
+                    )
+
+            # The failed call must leave the ledger and asset_root exactly as
+            # the prior successful snapshot left them -- no orphan file from
+            # the item that never reached the ledger.
+            self.assertEqual(ledger.read_bytes(), before_ledger)
+            after_files = sorted(
+                path.relative_to(assets) for path in assets.rglob("*") if path.is_file()
+            )
+            self.assertEqual(after_files, before_files)
+
+            # A bare retry, with no manual cleanup, then succeeds.
+            document = asset_retention.record_snapshot(
+                ledger, assets, [second, third], new_bodies
+            )
+            self.assertEqual(document["entry_count"], 2)
+
+    def test_partial_first_snapshot_failure_removes_the_created_asset_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("img/a.svg", b"a\n")
+            second, second_body = self.resource_for("img/b.svg", b"b\n")
+            bodies = {
+                first["output_path"]: first_body,
+                second["output_path"]: second_body,
+            }
+            calls = {"current": 0}
+
+            def flaky(size: int, label: str) -> None:
+                if label.startswith("current physical asset"):
+                    calls["current"] += 1
+                    if calls["current"] == 2:
+                        raise ValueError("synthetic failure on second item")
+
+            with mock.patch.object(
+                asset_retention, "require_static_file_size", side_effect=flaky
+            ):
+                with self.assertRaisesRegex(
+                    ValueError, "synthetic failure on second item"
+                ):
+                    asset_retention.record_snapshot(
+                        ledger, assets, [first, second], bodies
+                    )
+
+            # Neither the ledger nor asset_root existed before this call, so
+            # a failed call must leave neither behind either.
+            self.assertFalse(ledger.exists())
+            self.assertFalse(assets.exists())
+
+            document = asset_retention.record_snapshot(
+                ledger, assets, [first, second], bodies
+            )
+            self.assertEqual(document["entry_count"], 1)
+
+    def test_ledger_write_failure_rolls_back_the_just_written_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("img/first.svg", b"first\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            before_ledger = ledger.read_bytes()
+            before_files = sorted(
+                path.relative_to(assets) for path in assets.rglob("*") if path.is_file()
+            )
+
+            second, second_body = self.resource_for("img/second.svg", b"second\n")
+            real_write_atomic = asset_retention.write_atomic
+
+            def flaky_write_atomic(path: Path, body: bytes) -> None:
+                if path == ledger:
+                    raise OSError(28, "synthetic disk pressure on ledger write")
+                real_write_atomic(path, body)
+
+            with mock.patch.object(
+                asset_retention, "write_atomic", side_effect=flaky_write_atomic
+            ):
+                with self.assertRaises(OSError):
+                    asset_retention.record_snapshot(
+                        ledger,
+                        assets,
+                        [second],
+                        {second["output_path"]: second_body},
+                    )
+
+            # The new asset physically landed before the ledger write that
+            # would have recorded it failed. The transactional boundary must
+            # cover the ledger write too, or this leaves an orphan file the
+            # ledger never learned about -- exactly the half-written state
+            # validate_ledger()'s strict set-equality check dead-ends on.
+            self.assertEqual(ledger.read_bytes(), before_ledger)
+            after_files = sorted(
+                path.relative_to(assets) for path in assets.rglob("*") if path.is_file()
+            )
+            self.assertEqual(after_files, before_files)
+
+            # A bare retry, with no manual cleanup, then succeeds.
+            document = asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            self.assertEqual(document["entry_count"], 2)
+
+    def test_asset_root_removal_failure_during_rollback_is_surfaced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("img/a.svg", b"a\n")
+            second, second_body = self.resource_for("img/b.svg", b"b\n")
+            bodies = {
+                first["output_path"]: first_body,
+                second["output_path"]: second_body,
+            }
+            calls = {"current": 0}
+
+            def flaky(size: int, label: str) -> None:
+                if label.startswith("current physical asset"):
+                    calls["current"] += 1
+                    if calls["current"] == 2:
+                        raise ValueError("synthetic failure on second item")
+
+            def fake_rmtree(
+                path: Path, ignore_errors: bool = False, **_kwargs: object
+            ) -> None:
+                # Mirrors shutil.rmtree's own ignore_errors contract, so this
+                # only diverges from the real function in ONE way: whether
+                # the caller asked it to swallow the removal failure.
+                if ignore_errors:
+                    return
+                raise PermissionError(
+                    "synthetic: cannot remove the created asset_root"
+                )
+
+            with (
+                mock.patch.object(
+                    asset_retention, "require_static_file_size", side_effect=flaky
+                ),
+                mock.patch.object(
+                    asset_retention.shutil, "rmtree", side_effect=fake_rmtree
+                ),
+            ):
+                # A rollback that cannot actually remove the just-created
+                # asset_root must raise that failure rather than reporting
+                # only the original error while quietly leaving the mess
+                # behind (the ignore_errors=True bug).
+                with self.assertRaises(PermissionError):
+                    asset_retention.record_snapshot(
+                        ledger, assets, [first, second], bodies
+                    )
+
     def test_validate_ledger_accepts_history_far_past_the_old_128_cap(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
