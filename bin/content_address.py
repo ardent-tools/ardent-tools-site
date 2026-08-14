@@ -50,6 +50,8 @@ from release_manifest import (
 MAP_SCHEMA_VERSION = 3
 ADDRESS_PREFIX = "a"
 ADDRESS_RE = re.compile(r"^a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
+WHATWG_EDGE_C0_OR_SPACE_RE = re.compile(r"^[\x00-\x20]+|[\x00-\x20]+$")
+WHATWG_TAB_OR_NEWLINE_RE = re.compile(r"[\t\n\r]")
 CACHE_BUSTER_RE = re.compile(r"(?:\?|&amp;|&)(?:h|v)=", re.IGNORECASE)
 RETENTION_LEDGER = Path("asset-retention.json")
 RETENTION_ASSETS = Path("retained-assets")
@@ -196,12 +198,28 @@ def write_atomic(path: Path, body: bytes) -> None:
         raise
 
 
+def whatwg_input_cleanup(value: str) -> str:
+    """Reproduce the WHATWG basic URL parser's pre-parse string cleanup.
+
+    Steps 1-2 of the living standard's basic URL parser strip leading and
+    trailing C0-control-or-space, then remove every ASCII tab or newline
+    from anywhere in the string, before parsing begins. A root-relative
+    reference has no authority component, so those two steps are the only
+    ones that can move its `pathname` relative to Python's `urlparse` -
+    applying them here keeps the fast path WHATWG-equivalent without
+    spawning the pinned Node parser for the site's most common reference
+    shape.
+    """
+    edge_stripped = WHATWG_EDGE_C0_OR_SPACE_RE.sub("", value)
+    return WHATWG_TAB_OR_NEWLINE_RE.sub("", edge_stripped)
+
+
 @lru_cache(maxsize=4096)
 def resolved_consumer_url(
     reference: str, base: str, upgrade_insecure: bool
 ) -> dict[str, str] | None:
     if reference.startswith("/") and not reference.startswith("//"):
-        parsed_reference = urlparse(reference)
+        parsed_reference = urlparse(whatwg_input_cleanup(reference))
         parsed_base = urlparse(base)
         return {
             "protocol": f"{parsed_base.scheme}:",
