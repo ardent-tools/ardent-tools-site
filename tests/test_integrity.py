@@ -3274,6 +3274,68 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             missing_errors,
         )
 
+    def test_validate_base_url_rejects_each_malformed_shape(self) -> None:
+        for label, malformed in (
+            ("non-https scheme", "http://ardent.tools"),
+            ("missing hostname", "https://"),
+            ("embedded credentials", "https://user:pass@ardent.tools"),
+            ("non-default port", "https://ardent.tools:8443"),
+            ("non-empty path", "https://ardent.tools/path"),
+            ("non-empty params", "https://ardent.tools/;p=1"),
+            ("non-empty query", "https://ardent.tools?q=1"),
+            ("non-empty fragment", "https://ardent.tools#frag"),
+            ("trailing slash", "https://ardent.tools/"),
+            ("non-lowercase canonical form", "https://ArDent.tools"),
+        ):
+            with self.subTest(label=label):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "HTML authority base URL must be one lowercase HTTPS origin",
+                ):
+                    html_contract.validate_base_url(malformed)
+
+    def test_validate_base_url_wraps_urlparse_failure(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError, "malformed HTML authority base URL"
+        ):
+            html_contract.validate_base_url("https://[::1")
+
+    def test_validate_base_url_accepts_the_one_true_shape(self) -> None:
+        self.assertEqual(
+            html_contract.validate_base_url("https://ardent.tools"),
+            "https://ardent.tools/",
+        )
+
+    def test_sitemap_paths_rejects_each_malformed_shape(self) -> None:
+        def write_sitemap(output: Path, *locs: str) -> None:
+            urls = "".join(f"<url><loc>{loc}</loc></url>" for loc in locs)
+            (output / "sitemap.xml").write_bytes(
+                (
+                    '<?xml version="1.0" encoding="UTF-8"?>'
+                    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                    f"{urls}"
+                    "</urlset>"
+                ).encode()
+            )
+
+        for label, pattern, locs in (
+            ("cross-origin", "not same-origin", ["https://other.example/"]),
+            ("query", "query or fragment", [f"{BASE_URL}/?x=1"]),
+            ("fragment", "query or fragment", [f"{BASE_URL}/#frag"]),
+            ("non-canonical", "not canonical", [f"{BASE_URL}:443/about/"]),
+            (
+                "duplicate route",
+                "repeats HTML route",
+                [f"{BASE_URL}/about/", f"{BASE_URL}/about/"],
+            ),
+        ):
+            with self.subTest(label=label):
+                with tempfile.TemporaryDirectory() as directory:
+                    output = Path(directory)
+                    write_sitemap(output, *locs)
+                    with self.assertRaisesRegex(ValueError, pattern):
+                        html_contract.sitemap_paths(output, BASE_URL)
+
 
 def _workflow_line_indent(line: str) -> int:
     return len(line) - len(line.lstrip(" "))
