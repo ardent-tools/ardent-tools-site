@@ -34,7 +34,7 @@ Both came back on the kill side of the line I'd drawn.
 | F2 - structure | Normalized effective rank of every Q/K matrix vs. a random baseline of matched shape | > 0.7 | 0.7815 mean, against a 0.89–0.95 random baseline for the same shapes | KILL |
 | F4 - identity | Top-50 subspace overlap of the same matrices between two fine-tuned variants | > 0.9 | 0.9999999986; mean weight cosine printed 1.00002 | KILL |
 
-F2 is the more ambiguous of the two. The trained matrices were measurably less random than the null - 0.7815 against a baseline of 0.89 to 0.95 for matrices of the same shape, meaning something in training did concentrate the spectrum somewhat. It just didn't concentrate it enough. The bet needed a number under 0.3, and what came back sat above the 0.7 line I'd set before running the test, closer to the random end of the scale than the structured end.
+F2 is the more ambiguous of the two. The trained matrices were measurably less random than the null - 0.7815 against a baseline of 0.89 to 0.95 for matrices of the same shape, meaning something in training did concentrate the spectrum. It just didn't concentrate it enough. The bet needed a number under 0.3, and what came back sat above the 0.7 line I'd set before running the test, closer to the random end of the scale than the structured end.
 
 Even the best single case fell short. Of the 128 matrices measured, the one that came closest to escaping the kill line - the full-attention key projection at layer 59 - scored 0.5758, the lowest normalized rank in the set, and still sat nowhere near the 0.3 the bet required. Four matrices in all came in under 0.7; the mean landed at 0.7815 because the other 124 did not.
 

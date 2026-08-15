@@ -9,13 +9,17 @@ components = "`crates/angelos/src/server.rs`, three counting methods, 131 tools 
 words = "~1120 words"
 +++
 
-A number in a README is a report about the day somebody counted. The system underneath keeps moving, and the sentence does not. Tools get deleted and the count survives them, modules merge and the count survives that too. Nobody lied. Someone counted once, wrote the number down, and the writing outlived its truth. People pay little for this, because people discount documentation on instinct. An autonomous agent reading a catalog to decide which tool to call extends no such discount - it takes the number literally, every time.
+A number in a README is a report about the day somebody counted. The system underneath keeps moving, and the sentence does not. Tools get deleted and the count survives them, modules merge and the count survives that too. Nobody lied. Someone counted once, wrote the number down, and the writing outlived its truth.
+
+People pay little for this, because people discount documentation on instinct. An autonomous agent reading a catalog to decide which tool to call extends no such discount - it takes the number literally, every time.
 
 I maintained an MCP tool surface commercially - MCP is the protocol agents use to discover and call tools - inside an agent-infrastructure workspace whose catalog was load-bearing - agents planned real work against what it said. The surface grew the way tool surfaces grow: near-duplicate variants, split pairs that should have been one tool, a catalog trailing all of it. At its widest the live surface held 152 tools. A staged consolidation collapsed the duplicates, and the count settled at 137.
 
 137 is the kind of number nobody should take from its author on faith, including the author. I state it without qualification anyway, because of how it is produced.
 
-The first count reads the source. Every tool on the surface is declared by an attribute on its handler function. Grep the server source for that attribute. It returns 138 matches, and one of the 138 is a string literal quoting the attribute rather than declaring a tool. Excluded, the source declares 137. The false positive earns its place in the story. The first counting method misfired on its first use, and the real number came from inspecting the matches, not from trusting the total.
+The first count reads the source. Every tool on the surface is declared by an attribute on its handler function. Grep the server source for that attribute. It returns 138 matches, and one of the 138 is a string literal quoting the attribute rather than declaring a tool. Excluded, the source declares 137.
+
+The false positive earns its place in the story. The first counting method misfired on its first use, and the real number came from inspecting the matches, not from trusting the total.
 
 The second count reads the running process. The catalog is regenerated from the live daemon, not hand-maintained prose, and its meta block records how many tools the daemon was serving at generation time. 137.
 
@@ -29,7 +33,7 @@ The third count reads the artifact. Grep the regenerated catalog file itself and
 
 The three methods hold no failure mode in common. A string literal cannot fool the daemon, a stale regeneration cannot fool the source grep, and drift in the artifact's format leaves the other two untouched. For all three to agree on a wrong number, three unrelated defects would have to err by the same amount, in the same direction, at the same time. The evidence for 137 is agreement between methods that cannot be wrong for the same reason.
 
-The distrust behind all this counting was earned. The first time a drift audit ran against the same surface - earlier in its life, when it held 128 tools - 105 of the 128 carried names outside the ten-verb convention the surface was designed around. The convention was real, the tools were real, and the two had drifted four-fifths of the way apart while the prose stayed serene. From then on, any claim the surface's documentation made about the surface was treated as unverified until re-derived from the surface itself. The catalog now regenerates from the running daemon instead of being hand-maintained, and every number it reports gets checked by triangulation before anyone trusts it.
+The distrust behind all this counting was earned. A drift audit ran against the same surface earlier in its life, when it held 128 tools, and 105 of the 128 carried names outside the ten-verb convention the surface was designed around. The convention was real, the tools were real, and the two had drifted four-fifths of the way apart while the prose stayed serene. From then on, any claim the surface's documentation made about the surface was treated as unverified until re-derived from the surface itself. The catalog now regenerates from the running daemon instead of being hand-maintained, and every number it reports gets checked by triangulation before anyone trusts it.
 
 ---
 
