@@ -1085,6 +1085,52 @@ class ContentAddressContractTests(unittest.TestCase):
         self.assertEqual(webmanifest["name"], "/img/pixel.svg")
         self.assertRegex(webmanifest["icons"][0]["src"], r"^/a/[0-9a-f]{64}\.svg$")
 
+    def test_root_relative_fast_path_matches_pinned_whatwg_parser(self) -> None:
+        # WHY: content_address.resolved_consumer_url() takes a Python-urlparse
+        # fast path for root-relative references instead of the pinned Node
+        # WHATWG parser. The fast path must stay equivalent for the leading/
+        # trailing C0-control-or-space stripping that step differs on; a
+        # trailing control byte survives urlparse but not a real browser. A
+        # tab or newline sitting between two literal slashes is the sharper
+        # case: stripped, it reconstitutes a "//" network-path prefix that
+        # was never in the raw reference, so the pinned parser resolves a
+        # different origin entirely rather than a mismatched path.
+        base = "https://ardent.tools/index.html"
+        origin = "https://ardent.tools"
+        for reference in (
+            "/img/pixel\n.svg",
+            "/img/pixel\t.svg",
+            "/img/pixel.svg\x0b",
+            "/img/pixel.svg\x00",
+            "/img/pixel.svg ",
+            "/\t/evil.example/img/pixel.svg",
+        ):
+            with self.subTest(reference=reference):
+                fast_result = content_address.same_origin_path(reference, base, origin)
+                content_address.resolved_consumer_url.cache_clear()
+                subprocess_resolved = release.resolve_browser_references(
+                    [reference], [base]
+                )[0]
+                if subprocess_resolved["hostname"] != "ardent.tools":
+                    subprocess_result = None
+                else:
+                    subprocess_result = release.canonical_resource_path(
+                        subprocess_resolved["pathname"]
+                    ).lstrip("/")
+                self.assertEqual(fast_result, subprocess_result)
+
+    def test_root_relative_reference_with_trailing_control_byte_still_addresses(
+        self,
+    ) -> None:
+        files = {
+            "index.html": b'<img src="/img/pixel.svg\x0b">',
+            "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, _document = self.finalize(Path(directory), files)
+            html_body = (output / "index.html").read_text()
+        self.assertRegex(html_body, r'<img src="/a/[0-9a-f]{64}\.svg">')
+
     def test_webmanifest_dependencies_change_its_physical_identity(self) -> None:
         base = {
             "site.webmanifest": b'{"icons":[{"src":"/img/icon.png"}]}\n',
