@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Refuse a commit that leaves static/sbom.cdx.json stale relative to a staged
+# SBOM-input change. Fires only when the commit actually touches one of
+# generate-sbom.py's own declared sources (queried via --list-sources, never
+# duplicated here), so a commit outside that set costs nothing.
+#
+# WHY refuse rather than auto-regenerate: a derived artifact silently rewritten
+# under the author is how a diff grows content nobody reviewed (#136).
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+sources=$(python3 bin/generate-sbom.py --list-sources)
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+touched=0
+while IFS= read -r source; do
+  [ -n "$source" ] || continue
+  if grep -qxF "$source" <<< "$staged"; then
+    touched=1
+    break
+  fi
+done <<< "$sources"
+
+[ "$touched" -eq 1 ] || exit 0
+
+python3 bin/generate-sbom.py --check
