@@ -1,0 +1,14 @@
+# Rules to skip for specific paths
+# Format: RULE/name:path/glob
+#
+# Every entry requires a tracking issue. No blanket category ignores.
+
+# WHY(#128): retained-assets/ holds content-addressed copies of published
+# cast driver scripts (bin/asset_retention.py) and static/tapes/ holds the
+# reproduction recipes those casts link to. Both are site content served to
+# visitors, not repo tooling this project runs -- linting them as repo shell
+# scripts is a category error, and retained-assets/ is additionally
+# append-only by design, so editing the files to satisfy the rules would
+# break the ledger's hash chain.
+SHELL/*:retained-assets/**
+SHELL/*:static/tapes/**
