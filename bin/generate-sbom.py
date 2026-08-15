@@ -43,6 +43,7 @@ NPM_COMPONENTS = ("@playwright/test", "pa11y-ci", "wrangler")
 PLAYER_VERSION_RE = re.compile(
     r"\[asciinema-player\]\([^)]*\)\s+v(\d+\.\d+\.\d+)\s+is vendored"
 )
+NPM_BOUNDARY_RE = re.compile(r"npm toolchain packages \(([^)]*)\)")
 ZOLA_SHA_RE = re.compile(r"ZOLA_SHA256:\s*([0-9a-f]{64})")
 ZOLA_VERSION_RE = re.compile(
     r"getzola/zola/releases/download/v(\d+\.\d+\.\d+)/zola-v\1-x86_64"
@@ -209,6 +210,29 @@ def python_interpreter_component(deploy_yml: str) -> dict:
     }
 
 
+def verify_npm_boundary_claim(root: Path) -> None:
+    # WARNING: NPM_COMPONENTS is the closed authority for npm coverage; the
+    # colophon states that exact boundary in prose (issue #101 found the two
+    # disagreeing - the colophon claimed lockfile-wide coverage while this
+    # generator only ever emitted these three named packages). Fail loudly
+    # the moment either side changes without the other.
+    colophon = read_text(root, COLOPHON)
+    match = NPM_BOUNDARY_RE.search(colophon)
+    if match is None:
+        raise SystemExit(
+            f"{COLOPHON}: no \"npm toolchain packages (...)\" boundary claim "
+            "found; state the exact npm coverage boundary in backticks"
+        )
+    claimed = tuple(sorted(re.findall(r"`([^`]+)`", match.group(1))))
+    actual = tuple(sorted(NPM_COMPONENTS))
+    if claimed != actual:
+        raise SystemExit(
+            f"{COLOPHON}: npm boundary claim {claimed!r} does not match "
+            f"generate-sbom.py NPM_COMPONENTS {actual!r} - update whichever "
+            "one is stale"
+        )
+
+
 def npm_components(root: Path) -> list[dict]:
     document = json.loads(read_text(root, PACKAGE_LOCK))
     packages = document.get("packages", {})
@@ -288,6 +312,7 @@ def source_provenance(root: Path) -> list[dict]:
 
 def build_bom(root: Path = ROOT) -> dict:
     deploy_yml = read_text(root, DEPLOY_WORKFLOW)
+    verify_npm_boundary_claim(root)
     components = [
         player_component(root),
         *build_toolchain_components(deploy_yml),

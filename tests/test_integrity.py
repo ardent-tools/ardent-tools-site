@@ -47,6 +47,7 @@ link_check_contract = load_script("ardent_link_check_contract", "link_check_cont
 release = load_script("ardent_release_manifest", "release_manifest.py")
 content_address = load_script("ardent_content_address", "content_address.py")
 asset_retention = load_script("ardent_asset_retention", "asset_retention.py")
+generate_sbom = load_script("ardent_generate_sbom", "generate-sbom.py")
 deployment_receipt = load_script(
     "ardent_pages_deployment_receipt", "pages_deployment_receipt.py"
 )
@@ -5444,6 +5445,94 @@ class CatalogContractTests(unittest.TestCase):
             "ERROR: stale generated artifact: static/systems.json",
             completed.stderr,
         )
+
+
+class SbomNpmBoundaryClaimContractTests(unittest.TestCase):
+    """The colophon's stated npm coverage must equal generate-sbom.py's closed
+    NPM_COMPONENTS authority (issue #101: the colophon claimed lockfile-wide
+    coverage while the generator only ever emitted three named packages)."""
+
+    def _root_with_colophon(self, directory: Path, boundary_clause: str) -> Path:
+        root = Path(directory)
+        (root / "content").mkdir(parents=True, exist_ok=True)
+        (root / "content/colophon.md").write_text(
+            f"prose before, npm toolchain packages ({boundary_clause}), prose after\n"
+        )
+        return root
+
+    def test_matching_boundary_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root_with_colophon(
+                directory, "`@playwright/test`, `pa11y-ci`, `wrangler`"
+            )
+            generate_sbom.verify_npm_boundary_claim(root)
+
+    def test_missing_package_in_claim_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root_with_colophon(directory, "`@playwright/test`, `pa11y-ci`")
+            with self.assertRaises(SystemExit):
+                generate_sbom.verify_npm_boundary_claim(root)
+
+    def test_extra_package_in_claim_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root_with_colophon(
+                directory,
+                "`@playwright/test`, `pa11y-ci`, `wrangler`, `left-pad`",
+            )
+            with self.assertRaises(SystemExit):
+                generate_sbom.verify_npm_boundary_claim(root)
+
+    def test_missing_boundary_clause_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "content").mkdir()
+            (root / "content/colophon.md").write_text("no boundary clause here\n")
+            with self.assertRaises(SystemExit):
+                generate_sbom.verify_npm_boundary_claim(root)
+
+    def test_live_colophon_matches_live_generator_authority(self) -> None:
+        # Guards the real files, not a fixture: fails the moment
+        # content/colophon.md and bin/generate-sbom.py's NPM_COMPONENTS
+        # disagree about which npm packages the SBOM covers.
+        generate_sbom.verify_npm_boundary_claim(ROOT)
+
+    def test_build_bom_enforces_the_claim(self) -> None:
+        # build_bom() is what both `generate-sbom.py` and `--check` run;
+        # the boundary check must fire on that path, not just standalone.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in (
+                ".github/workflows",
+                "bin",
+                "content",
+                "static/vendor/asciinema",
+            ):
+                (root / relative).mkdir(parents=True, exist_ok=True)
+            shutil.copy2(
+                ROOT / ".github/workflows/deploy.yml",
+                root / ".github/workflows/deploy.yml",
+            )
+            shutil.copy2(ROOT / "package-lock.json", root / "package-lock.json")
+            shutil.copy2(ROOT / "bin/requirements.txt", root / "bin/requirements.txt")
+            shutil.copy2(
+                ROOT / "static/vendor/asciinema/asciinema-player.min.js",
+                root / "static/vendor/asciinema/asciinema-player.min.js",
+            )
+            shutil.copy2(
+                ROOT / "static/vendor/asciinema/asciinema-player.css",
+                root / "static/vendor/asciinema/asciinema-player.css",
+            )
+            # WHY: a valid player-version line (so player_component() would
+            # otherwise succeed) paired with a WRONG npm boundary claim -
+            # isolates the failure to verify_npm_boundary_claim rather than
+            # letting an unrelated missing match produce a false-positive
+            # SystemExit.
+            (root / "content/colophon.md").write_text(
+                "[asciinema-player](https://x) v3.17.0 is vendored. "
+                "npm toolchain packages (`@playwright/test`, `pa11y-ci`), more prose\n"
+            )
+            with self.assertRaisesRegex(SystemExit, "npm boundary claim"):
+                generate_sbom.build_bom(root)
 
 
 class FleetCountWitnessContractTests(unittest.TestCase):
