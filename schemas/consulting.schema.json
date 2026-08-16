@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ardent.tools/schemas/consulting.schema.json",
+  "title": "ardent tools consulting",
+  "description": "content/consulting.md — template=\"consulting.html\".",
+  "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json" }],
+  "properties": {
+    "extra": {
+      "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json#/properties/extra" }],
+      "unevaluatedProperties": false,
+      "properties": {
+        "engagement_shapes": {
+          "type": "array",
+          "description": "[[extra.engagement_shapes]] entries rendered by templates/consulting.html.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "detail"],
+            "properties": {
+              "name": { "type": "string" },
+              "detail": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}

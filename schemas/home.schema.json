@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ardent.tools/schemas/home.schema.json",
+  "title": "ardent tools home",
+  "description": "content/_index.md — the site homepage, template=\"index.html\". Structurally a Zola section (_index.md), so this composes typikon's section.core.schema.json, not page.core — see docs/SCHEMAS.md#consumer-schema-registry in the typikon submodule for why the discriminator's `extends` must match the file's structural kind.",
+  "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/section.core.schema.json" }],
+  "properties": {
+    "extra": {
+      "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/section.core.schema.json#/properties/extra" }],
+      "unevaluatedProperties": false,
+      "properties": {
+        "kicker": {
+          "type": "string",
+          "description": "Small line above the h1 (name · role · location)."
+        },
+        "h1": {
+          "type": "string",
+          "description": "Homepage headline."
+        },
+        "lede": {
+          "type": "string",
+          "description": "Homepage lede paragraph."
+        },
+        "selected_work": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "content/systems/<slug>.md slugs featured on the homepage."
+        },
+        "proof_system": {
+          "type": "string",
+          "description": "The one system slug (from selected_work) the homepage renders as its proof panel."
+        },
+        "consulting_line": {
+          "type": "string",
+          "description": "One-line consulting pitch shown on the homepage."
+        }
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}

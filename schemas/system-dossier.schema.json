@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ardent.tools/schemas/system-dossier.schema.json",
+  "title": "ardent tools system dossier",
+  "description": "content/systems/<slug>.md — template=\"system.html\", one per featured system (aletheia, akroasis, hamma, harmonia, kanon, logismos, thumos).",
+  "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json" }],
+  "properties": {
+    "extra": {
+      "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json#/properties/extra" }],
+      "unevaluatedProperties": false,
+      "required": ["gloss", "badge", "stack", "headline_claim", "demo"],
+      "properties": {
+        "gloss": {
+          "type": "string",
+          "description": "Greek term and gloss shown under the system title."
+        },
+        "badge": {
+          "type": "string",
+          "description": "Maturity/status stamp linked from /faq/#labeling."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Public repository URL. Omitted for private systems (see `private`)."
+        },
+        "stack": {
+          "type": "string",
+          "description": "Short tech-stack summary."
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX-ish license string for JSON-LD codeRepository / CreativeWork emission."
+        },
+        "kanon_ci": {
+          "type": "boolean",
+          "description": "True when the system's own repo carries kanon CI configuration — the exact field named in forkwright/typikon#60's original defect."
+        },
+        "private": {
+          "type": "boolean",
+          "description": "True for a system with no public repo (renders as a case study instead of a repo link)."
+        },
+        "headline_claim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claim", "receipt"],
+          "properties": {
+            "claim": { "type": "string" },
+            "receipt": { "type": "string" }
+          }
+        },
+        "demo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["system", "action", "target", "shows", "not_shows"],
+          "description": "Either a planned-recording stub (system/action/target/shows/not_shows/tape) or a published cast (adds cast/recipe/duration/cols/rows/poster/fallback/transcript).",
+          "properties": {
+            "system": { "type": "string" },
+            "action": { "type": "string" },
+            "target": { "type": "string" },
+            "shows": { "type": "string" },
+            "not_shows": { "type": "string" },
+            "tape": { "type": "string" },
+            "cast": { "type": "string" },
+            "recipe": { "type": "string" },
+            "duration": { "type": "string" },
+            "cols": { "type": "integer" },
+            "rows": { "type": "integer" },
+            "poster": { "type": "string" },
+            "fallback": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "transcript": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}
