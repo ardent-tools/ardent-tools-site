@@ -4,9 +4,9 @@ description = "A distance-preservation proof and a communication-complexity lowe
 date = 2026-07-24
 
 [extra]
+audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
 components = "Distance-preservation is proved for this signal - a different, assumed guarantee is proved impossible."
 tier = "research"
-words = "~1790 words"
 +++
 
 Give two agents a shared space to explore and let each cover a handful of regions in it. Neither one reports back the regions themselves - too much data for a channel this narrow - only a compressed signal derived from them. A dispatcher reading just the signals is trying to answer one thing - whether these two agents covered ground worth combining, or retread each other.

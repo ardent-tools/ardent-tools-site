@@ -4,9 +4,9 @@ description = "A compaction step in this site's own release ledger could carry a
 date = 2026-07-24
 
 [extra]
+audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
 components = "A second, independent check that a compaction step still keeps every retained file."
 tier = "research"
-words = "~1200 words"
 +++
 
 A hash check can be logically necessary for an integrity property and still not establish it. The distinction sounds like a whiteboard argument until a compaction step in this site's own release ledger built the failure mode for real - a checkpoint entry that hashed to exactly the right value while it had already dropped a file it was supposed to keep. The fix landed in commit a2f9dce.

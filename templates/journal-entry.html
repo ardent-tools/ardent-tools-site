@@ -8,7 +8,19 @@
 
    The template assumes journal entries have:
      page.title, page.description, page.date (ISO), page.extra.components,
-     page.extra.words. See schemas/journal-entry.schema.json.
+     page.extra.audience. See schemas/journal-entry.schema.json.
+
+   NOTE (typikon b61228cb -> af66fa02, ported verbatim): page.extra.words
+   is no longer required. The `.specs` word-count line renders Zola's own
+   page.word_count by default -- a hand-written count can drift from the
+   body it claims to describe; page.word_count cannot, since Zola
+   recomputes it from the rendered body on every build. page.extra.words
+   still overrides it when set (requires page.extra.words_source
+   alongside it, per the schema's dependentRequired). page.extra.audience
+   is rendered in entry-header, alongside entry-components, immediately
+   below -- reader-orienting context belongs where a reader decides
+   whether to keep reading, not buried in a metadata field nothing
+   renders.
 #}
 {% extends "page.html" %}
 
@@ -39,6 +51,9 @@
     {%- if page.extra.components %}
     <p class="entry-components">{{ page.extra.components }}</p>
     {%- endif %}
+    {%- if page.extra.audience %}
+    <p class="entry-audience">{{ page.extra.audience }}</p>
+    {%- endif %}
   </header>
 
   {#- Orienting figure (optional): rendered from frontmatter as furniture,
@@ -61,9 +76,7 @@
   {{ page.content | safe }}
   </div>
 
-  {%- if page.extra.words %}
-  <p class="specs">{{ page.extra.words }}</p>
-  {%- endif %}
+  <p class="specs">{{ page.extra.words | default(value=page.word_count ~ " words") }}</p>
 
   {#- End mark (§4.4) — the tick that opens sections closes essays. #}
   <div class="essay-end" aria-hidden="true"></div>

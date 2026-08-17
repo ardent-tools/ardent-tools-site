@@ -11,7 +11,12 @@
    before its own section.content render, the same guard faq.html and
    journal-entry.html gained in the same range. Skipped for the same
    assert.html reason as every other shadow (see AGENTS.md); no current
-   content trips it. #}
+   content trips it.
+
+   NOTE (typikon b61228cb -> af66fa02, ported verbatim into both the
+   Notes and Research loops below): the `.entry-words` figure renders
+   Zola's own entry.word_count by default (see templates/journal-entry.html
+   for what it counts and why); entry.extra.words overrides it when set. #}
 {% extends "base.html" %}
 
 {% block title %}{{ section.extra.seo_title | default(value=section.title) }} - {{ config.title }}{% endblock title %}
@@ -52,7 +57,7 @@
         <span class="entry-name">{{ entry.title }}</span>
         {%- if entry.date %}<span class="entry-date-inline">{{ entry.date | date(format="%Y-%m-%d") }}</span>{% endif %}
         {%- if entry.extra.components %}<span class="entry-components">{{ entry.extra.components }}</span>{% endif %}
-        {%- if entry.extra.words %}<span class="entry-words">{{ entry.extra.words }}</span>{% endif %}
+        <span class="entry-words">{{ entry.extra.words | default(value=entry.word_count ~ " words") }}</span>
       </a>
     </li>
   {%- endif %}{%- endfor %}
@@ -69,7 +74,7 @@
         <span class="entry-name">{{ entry.title }}</span>
         {%- if entry.date %}<span class="entry-date-inline">{{ entry.date | date(format="%Y-%m-%d") }}</span>{% endif %}
         {%- if entry.extra.components %}<span class="entry-components">{{ entry.extra.components }}</span>{% endif %}
-        {%- if entry.extra.words %}<span class="entry-words">{{ entry.extra.words }}</span>{% endif %}
+        <span class="entry-words">{{ entry.extra.words | default(value=entry.word_count ~ " words") }}</span>
       </a>
     </li>
   {%- endif %}{%- endfor %}

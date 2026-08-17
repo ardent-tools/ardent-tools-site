@@ -4,9 +4,9 @@ description = "One number triangulated three ways, a SHA-bound local gate stamp 
 date = 2026-07-21
 
 [extra]
+audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
 tier = "notes"
 components = "`crates/angelos/src/server.rs`, three counting methods, 131 tools every time."
-words = "~1120 words"
 +++
 
 A number in a README is a report about the day somebody counted. The system underneath keeps moving, and the sentence does not. Tools get deleted and the count survives them, modules merge and the count survives that too. Nobody lied. Someone counted once, wrote the number down, and the writing outlived its truth.

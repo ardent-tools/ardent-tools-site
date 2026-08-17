@@ -4,11 +4,11 @@ description = "Voting and hub-orchestration are the two default shapes of multi-
 date = 2026-07-20
 
 [extra]
+audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
 tier = "research"
 components = "Why voting and hub-orchestration both fail on hard tasks, and a third coordination shape that isn't a blend of them."
 figure = "/img/coordination-shapes.svg"
 figure_alt = "Three coordination shapes side by side: vote, where isolated agents fan in to an aggregator with no connections between them; hub, where a hub farms pieces out to workers and assembles them back with no lateral edges; and lateral, where agents influence each other during solve before an integrator composes."
-words = "~1470 words"
 +++
 
 Nearly every multi-agent system ships in one of two shapes. In the first, the same problem goes to every agent, each works alone, and an aggregation step combines the finished outputs: majority vote, best-of-n selection, a judge ranking candidates. In the second, a hub decomposes the problem, farms the pieces to workers, and assembles what comes back. Ensembles and model juries are the first shape. Nearly every orchestration framework is the second.
