@@ -3267,6 +3267,304 @@ class ReleaseManifestContractTests(unittest.TestCase):
         self.assertIn("must not be a symlink", errors[0])
 
 
+class TombstoneRetentionContractTests(unittest.TestCase):
+    """#102: retain_through is a state-transition contract, checked against a
+    trusted-base prior release-resources.toml under an injectable clock -
+    not decorative metadata that a nonempty regex-shaped array satisfies
+    forever."""
+
+    TOMBSTONE_PATH = "/old/page"
+    REASON = "superseded asset; retain through its cache window"
+
+    def write_contract(
+        self,
+        directory: Path,
+        name: str,
+        *,
+        tombstones: list[dict],
+        canonical_paths: list[str] | None = None,
+    ) -> Path:
+        path = directory / name
+        canonical = canonical_paths if canonical_paths is not None else ["robots.txt"]
+        lines = [
+            "schema_version = 4",
+            'manifest_name = "release-resources.json"',
+            f"canonical_paths = {json.dumps(canonical)}",
+        ]
+        if not tombstones:
+            lines.append("tombstones = []")
+        else:
+            for item in tombstones:
+                lines.append("")
+                lines.append("[[tombstones]]")
+                lines.append(f'path = "{item["path"]}"')
+                lines.append(f'retain_through = "{item["retain_through"]}"')
+                lines.append(f'reason = "{item["reason"]}"')
+        path.write_text("\n".join(lines) + "\n")
+        return path
+
+    def active_tombstone(self, retain_through: str = "2026-08-21") -> dict:
+        return {
+            "path": self.TOMBSTONE_PATH,
+            "retain_through": retain_through,
+            "reason": self.REASON,
+        }
+
+    def test_active_tombstone_removed_before_deadline_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any(
+                f"tombstone '{self.TOMBSTONE_PATH}' was removed before its "
+                "retain_through" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_active_tombstone_survives_unchanged_on_deadline_day(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = self.active_tombstone()
+            prior = self.write_contract(root, "prior.toml", tombstones=[entry])
+            proposed = self.write_contract(root, "current.toml", tombstones=[entry])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 21)
+            )
+        self.assertEqual(errors, [])
+
+    def test_active_tombstone_reused_as_canonical_before_deadline_is_rejected(
+        self,
+    ) -> None:
+        """Reuse is enabled only by removal: a still-tombstoned path can't be
+        promoted to canonical_paths without dropping the entry first, and
+        that drop is what this rejects."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            proposed = self.write_contract(
+                root,
+                "current.toml",
+                tombstones=[],
+                canonical_paths=["robots.txt", "old/page"],
+            )
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any("was removed before its retain_through" in error for error in errors),
+            errors,
+        )
+
+    def test_active_tombstone_modified_before_deadline_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            changed = self.active_tombstone()
+            changed["reason"] = "a different story"
+            proposed = self.write_contract(root, "current.toml", tombstones=[changed])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any("was changed before its retain_through" in error for error in errors),
+            errors,
+        )
+
+    def test_transition_check_covers_every_prior_tombstone_not_just_the_first(
+        self,
+    ) -> None:
+        """Every other fixture in this class constructs exactly one prior
+        tombstone, so a loop truncated to prior_tombstones[:1] would still
+        pass all of them. Two prior entries here: the first survives
+        unchanged (a decoy a truncated loop would also pass), the second is
+        removed early and must still be caught."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = self.active_tombstone()
+            second = {
+                "path": "/other/old/page",
+                "retain_through": "2026-08-21",
+                "reason": self.REASON,
+            }
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[first, second]
+            )
+            proposed = self.write_contract(root, "current.toml", tombstones=[first])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any(
+                "tombstone '/other/old/page' was removed before its "
+                "retain_through" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_expired_tombstone_left_unchanged_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = self.active_tombstone()
+            prior = self.write_contract(root, "prior.toml", tombstones=[entry])
+            proposed = self.write_contract(root, "current.toml", tombstones=[entry])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertTrue(any("has expired" in error for error in errors), errors)
+
+    def test_expired_tombstone_explicit_removal_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertEqual(errors, [])
+
+    def test_expired_tombstone_renewed_past_as_of_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            renewed = self.active_tombstone(retain_through="2026-09-01")
+            proposed = self.write_contract(root, "current.toml", tombstones=[renewed])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertEqual(errors, [])
+
+    def test_expired_tombstone_renewed_still_in_the_past_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            still_lapsed = self.active_tombstone(retain_through="2026-08-20")
+            proposed = self.write_contract(
+                root, "current.toml", tombstones=[still_lapsed]
+            )
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertTrue(
+            any("renewal must set retain_through" in error for error in errors),
+            errors,
+        )
+
+    def test_expired_tombstone_renewed_exactly_to_as_of_is_accepted(self) -> None:
+        """The renewal boundary is inclusive, symmetric with the active-period
+        boundary (as_of == retain_through is still within the promise): a
+        renewal that sets retain_through to exactly today is 'on or after
+        as_of' and must be accepted, not just a date strictly in the future.
+        Only test pinning this exact equality; a `<` -> `<=` regression on
+        the renewal check would silently reject a legal same-day renewal
+        with nothing else here to catch it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            renewed = self.active_tombstone(retain_through="2026-08-22")
+            proposed = self.write_contract(root, "current.toml", tombstones=[renewed])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertEqual(errors, [])
+
+    def test_no_prior_supplied_skips_transition_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(proposed)
+        self.assertEqual(errors, [])
+
+    def test_zero_active_tombstones_is_a_valid_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            contract, errors = release.read_contract(proposed)
+        self.assertEqual(errors, [])
+        self.assertEqual(contract["tombstones"], [])
+
+    def test_syntactically_shaped_impossible_calendar_date_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            proposed = self.write_contract(
+                root,
+                "current.toml",
+                tombstones=[self.active_tombstone(retain_through="2026-02-30")],
+            )
+            _, errors = release.read_contract(proposed)
+        self.assertTrue(
+            any(
+                "real" in error and "calendar date" in error for error in errors
+            ),
+            errors,
+        )
+
+    def test_unreadable_prior_contract_fails_closed(self) -> None:
+        """A --prior-contract path that cannot be read is a supplied-but-
+        unreadable base, not an absent one: read_prior_tombstones must not
+        treat it like the None case (which skips transition checks
+        entirely) and must not let the OSError propagate out of
+        read_contract. It fails closed - error appended, empty placeholder
+        list returned - so validate_tombstone_transitions still runs. No
+        prior fixture exercises this path at all."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            missing_prior = root / "does-not-exist.toml"
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed,
+                prior_contract_path=missing_prior,
+                as_of=dt.date(2026, 8, 22),
+            )
+        self.assertTrue(
+            any(
+                "cannot read trusted-base release contract" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_malformed_prior_contract_toml_fails_closed(self) -> None:
+        """Malformed TOML in the trusted-base prior must also fail closed
+        with an appended error rather than raising TOMLDecodeError up
+        through read_contract - the docstring promises this but no fixture
+        proves it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            malformed_prior = root / "prior.toml"
+            malformed_prior.write_text("this is not [ valid toml\n")
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed,
+                prior_contract_path=malformed_prior,
+                as_of=dt.date(2026, 8, 22),
+            )
+        self.assertTrue(
+            any("is not valid TOML" in error for error in errors),
+            errors,
+        )
+
+
 class HeaderContractTests(unittest.TestCase):
     SPECULATION_PATH = f"/a/{'1' * 64}.json"
 
@@ -4065,6 +4363,51 @@ class DeployWorkflowContractTests(unittest.TestCase):
         self.assertIn("ARDENT_RETENTION_BASE_LEDGER", retention_run)
         self.assertIn(
             "python3 bin/asset_retention.py", (ROOT / "bin/check-site.sh").read_text()
+        )
+        # #102: the tombstone retain_through transition check reuses this same
+        # step's already-selected base_revision rather than re-deriving one.
+        # These trace actual data flow via a regex backreference (the SAME
+        # captured shell variable name on both ends of an assignment), not
+        # bare substring presence - two independent assertIn calls for
+        # "ARDENT_PRIOR_RELEASE_CONTRACT" would both pass even if the string
+        # appeared in an unrelated comment on each side, or if the git-show
+        # output were redirected to a different file than the one the env
+        # var actually names. The one link genuinely unreachable from a
+        # local test is whether GitHub Actions' `>> "$GITHUB_ENV"` file
+        # mechanism actually threads the step env var into the NEXT step at
+        # runtime - that is platform behavior this suite cannot execute;
+        # local coverage stops at "the workflow source wires it correctly."
+        release_contract_wiring = re.search(
+            r'git show "\$\{base_revision\}:release-resources\.toml" > "\$(\w+)"'
+            r'\s*\n\s*echo "ARDENT_PRIOR_RELEASE_CONTRACT=\$\1" >> "\$GITHUB_ENV"',
+            retention_run,
+        )
+        self.assertIsNotNone(
+            release_contract_wiring,
+            "the release-resources.toml git-show target must be the exact "
+            "value assigned to ARDENT_PRIOR_RELEASE_CONTRACT, not merely "
+            "co-present text:\n" + retention_run,
+        )
+        check_site_text = (ROOT / "bin/check-site.sh").read_text()
+        prior_contract_flag_wiring = re.search(
+            r'RELEASE_MANIFEST_ARGS\+=\(--prior-contract "\$ARDENT_PRIOR_RELEASE_CONTRACT"\)',
+            check_site_text,
+        )
+        self.assertIsNotNone(
+            prior_contract_flag_wiring,
+            "ARDENT_PRIOR_RELEASE_CONTRACT must be the literal value passed "
+            "to --prior-contract, not merely co-present text:\n" + check_site_text,
+        )
+        release_manifest_invocation_wiring = re.search(
+            r"python3 bin/release_manifest\.py [^\n]*"
+            r'"\$\{RELEASE_MANIFEST_ARGS\[@\]\}"',
+            check_site_text,
+        )
+        self.assertIsNotNone(
+            release_manifest_invocation_wiring,
+            "RELEASE_MANIFEST_ARGS must actually be expanded on the "
+            "release_manifest.py invocation line, not just built and "
+            "dropped:\n" + check_site_text,
         )
 
         canonical_verify_step = workflow_step(
@@ -7593,6 +7936,42 @@ class KanonLintDebtTests(unittest.TestCase):
         self._require_kanon()
         result = self._lint("bin/validate-fleet-counts.py")
         self.assertNotIn("PYTHON/empty-fstring", result.stdout, result.stdout)
+
+
+class CssCommentNarrationRegressionTests(unittest.TestCase):
+    """site.css comments must state a current rule, not narrate how it got
+    there (#108). git log already owns that history."""
+
+    # WHY these exact markers: each is sourced by diffing this branch
+    # against its merge base and reading the comment text #108's own
+    # hunks actually removed from site.css -- not guessed synonyms. Every
+    # pattern below names text that removal, EXCEPT DESIGN-v[0-9]: that
+    # citation style shipped in site.css too, but #107/#121 trimmed it
+    # before #108 started, so it's kept only as a standing guard against
+    # reintroducing it, not because #108 removed it.
+    BANNED_PATTERNS = (
+        r"\bpreviously\b",                 # "...theory here previously assumed away without a rendered check"
+        r"\bphase [0-9]\b",                # "...already wrapped in (templates, phase 1)"
+        r"\bretir(?:ed|es)\b",             # "...v1's cursor language is retired"; "--display-1 retires the old hero clamp(...)"
+        r"never shipped until now",        # "...v1 §3.7 specified this; it never shipped until now"
+        r"never reached CSS",              # "Restored to the v1 table that never reached CSS"
+        r"\bDELTA from\b",                 # "DELTA from that design's literal --display-1 clamp(...)"
+        r"\bformer\b",                     # "former uniform section padding" / "former bare fact row" /
+                                            # "former duplicate declarations" / "former border-bottom"
+        r"\bprior ceiling\b",              # "Interior h1 moves to --step-4 (typikon's prior ceiling)"
+        r"\bunchanged from the earlier\b", # "--accent/--accent-aged/--warn unchanged from the earlier palette"
+        r"\bearlier CSS grid\b",           # "standing in for the earlier CSS grid's own `gap`"
+        r"\bretuned\b",                    # "...are unchanged; only the floor and slope are retuned (2.6rem/4.6vw -> 2rem/5vw...)"
+        r"was #[0-9A-Fa-f]{3,8}\b",        # '..."shadow on rag paper" -- was #EDE7D8, a tan step that read as dark yellow...'
+        r"\bdarkened from\b",              # "--warn: #7C5514; /* darkened from #8A6318 -- ..."
+        r"\bwas \d+\.\d+:1\b",             # "...--bg-accent (was 4.39:1, failing AA's 4.5:1 floor)"
+        r"DESIGN-v[0-9]",                  # e.g. "DESIGN-v2 §1.1" -- shipped pre-#108, trimmed by #107/#121
+    )
+
+    def test_no_historical_phase_narration(self) -> None:
+        css = (ROOT / "static/css/site.css").read_text()
+        hits = [pattern for pattern in self.BANNED_PATTERNS if re.search(pattern, css, re.IGNORECASE)]
+        self.assertEqual(hits, [], f"historical-phase narration reintroduced: {hits}")
 
 
 if __name__ == "__main__":

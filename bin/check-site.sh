@@ -185,8 +185,11 @@ fi
 python3 bin/html_authority.py "$PROD_OUTPUT" \
   --revision "$BUILD_REVISION" --base-url "$SITE_BASE_URL"
 python3 bin/pages_runtime.py "$PROD_OUTPUT"
-python3 bin/release_manifest.py "$PROD_OUTPUT" \
-  --revision "$BUILD_REVISION" --asset-map "$PROD_ASSET_MAP"
+RELEASE_MANIFEST_ARGS=(--revision "$BUILD_REVISION" --asset-map "$PROD_ASSET_MAP")
+if [[ -n "${ARDENT_PRIOR_RELEASE_CONTRACT:-}" ]]; then
+  RELEASE_MANIFEST_ARGS+=(--prior-contract "$ARDENT_PRIOR_RELEASE_CONTRACT")
+fi
+python3 bin/release_manifest.py "$PROD_OUTPUT" "${RELEASE_MANIFEST_ARGS[@]}"
 themes/typikon/ci/csp-enforce.sh "$PROD_OUTPUT"
 python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION"
 
