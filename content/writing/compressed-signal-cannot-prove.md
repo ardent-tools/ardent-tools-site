@@ -9,7 +9,7 @@ tier = "research"
 words = "~1790 words"
 +++
 
-Give two agents a shared space to explore and let each cover a handful of regions in it. Neither one reports back the regions themselves - too much data for a channel this narrow - only a compressed signal derived from them. A dispatcher reading just the signals is trying to answer one thing - whether these two agents covered ground worth combining, or mostly retread each other.
+Give two agents a shared space to explore and let each cover a handful of regions in it. Neither one reports back the regions themselves - too much data for a channel this narrow - only a compressed signal derived from them. A dispatcher reading just the signals is trying to answer one thing - whether these two agents covered ground worth combining, or retread each other.
 
 | Pair | Agent 1 explored | Agent 2 explored | Shared ground | Regions that differ | Genuinely complementary |
 |---|---|---|---|---|---|
