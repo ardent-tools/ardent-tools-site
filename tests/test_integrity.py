@@ -1029,6 +1029,138 @@ class ContentAddressContractTests(unittest.TestCase):
             first_by_logical["css/app.css"], second_by_logical["css/app.css"]
         )
 
+    def test_unreferenced_candidate_is_excluded_and_removed_from_the_tree(self) -> None:
+        # #103: a Zola-emitted file no HTML/CSS/JSON/_headers/_redirects
+        # reference ever names must not enter the release -- not addressed,
+        # not left at its logical path either.
+        files = {
+            "index.html": b'<link rel="stylesheet" href="/css/app.css">',
+            "css/app.css": b"body{color:red}\n",
+            "css/unused.css": b"body{color:blue}\n",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            output, document = self.finalize(Path(directory), files)
+            logical_paths = {item["logical_path"] for item in document["resources"]}
+            addressed_bodies = {
+                path.read_bytes() for path in (output / "a").rglob("*") if path.is_file()
+            }
+            unused_survives = (output / "css/unused.css").exists()
+        self.assertIn("css/app.css", logical_paths)
+        self.assertNotIn("css/unused.css", logical_paths)
+        self.assertFalse(unused_survives)
+        self.assertNotIn(b"body{color:blue}\n", addressed_bodies)
+
+    def test_css_dependency_of_a_referenced_stylesheet_is_reachable_transitively(
+        self,
+    ) -> None:
+        files = {
+            "index.html": b'<link rel="stylesheet" href="/css/app.css">',
+            "css/app.css": (
+                b"@font-face{src:url('/fonts/a.woff2')}\nbody{color:red}\n"
+            ),
+            "fonts/a.woff2": b"font-bytes",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            _output, document = self.finalize(Path(directory), files)
+        self.assertIn(
+            "fonts/a.woff2",
+            {item["logical_path"] for item in document["resources"]},
+        )
+
+    def test_removing_the_only_reference_excludes_a_previously_reachable_candidate(
+        self,
+    ) -> None:
+        with_link = {
+            "index.html": (
+                b'<link rel="stylesheet" href="/css/app.css">'
+                b'<link rel="stylesheet" href="/css/kept.css">'
+            ),
+            "css/app.css": b"body{color:red}\n",
+            "css/kept.css": b"body{color:green}\n",
+        }
+        without_link = {
+            "index.html": b'<link rel="stylesheet" href="/css/kept.css">',
+            "css/app.css": b"body{color:red}\n",
+            "css/kept.css": b"body{color:green}\n",
+        }
+        with (
+            tempfile.TemporaryDirectory() as first,
+            tempfile.TemporaryDirectory() as second,
+        ):
+            _first_output, first_map = self.finalize(Path(first), with_link)
+            second_output, second_map = self.finalize(Path(second), without_link)
+            app_css_survives = (second_output / "css/app.css").exists()
+        first_logical = {item["logical_path"] for item in first_map["resources"]}
+        second_logical = {item["logical_path"] for item in second_map["resources"]}
+        self.assertIn("css/app.css", first_logical)
+        self.assertIn("css/kept.css", first_logical)
+        self.assertIn("css/kept.css", second_logical)
+        self.assertNotIn("css/app.css", second_logical)
+        self.assertFalse(app_css_survives)
+
+    def test_previously_retained_resource_survives_exclusion_as_historical(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+
+            def finalize_snapshot(
+                name: str, files: dict[str, bytes]
+            ) -> tuple[Path, dict]:
+                output = root / name / "public"
+                for relative, body in files.items():
+                    path = output / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(body)
+                document = content_address.finalize_tree(
+                    output,
+                    root / name / "asset-map.json",
+                    BASE_URL,
+                    self.contract(),
+                    retention_ledger=ledger,
+                    retention_assets=assets,
+                    record_retention_snapshot=True,
+                )
+                return output, document
+
+            _first_output, first_map = finalize_snapshot(
+                "first",
+                {
+                    "index.html": (
+                        b'<link rel="stylesheet" href="/css/app.css">'
+                        b'<link rel="stylesheet" href="/css/kept.css">'
+                    ),
+                    "css/app.css": b"body{color:red}\n",
+                    "css/kept.css": b"body{color:green}\n",
+                },
+            )
+            first_output_path = next(
+                item["output_path"]
+                for item in first_map["resources"]
+                if item["logical_path"] == "css/app.css"
+            )
+            second_output, second_map = finalize_snapshot(
+                "second",
+                {
+                    "index.html": b'<link rel="stylesheet" href="/css/kept.css">',
+                    "css/app.css": b"body{color:red}\n",
+                    "css/kept.css": b"body{color:green}\n",
+                },
+            )
+            retained_body = (second_output / first_output_path).read_bytes()
+        second_by_output = {
+            item["output_path"]: item for item in second_map["resources"]
+        }
+        self.assertNotIn(
+            "css/app.css",
+            {item["logical_path"] for item in second_map["resources"]},
+        )
+        self.assertIn(first_output_path, second_by_output)
+        self.assertEqual(second_by_output[first_output_path]["cache_class"], "retained")
+        self.assertEqual(retained_body, b"body{color:red}\n")
+
     def test_rewriter_changes_only_exact_same_origin_reference_tokens(self) -> None:
         files = {
             "index.html": (
@@ -1103,6 +1235,7 @@ class ContentAddressContractTests(unittest.TestCase):
     def test_html_and_json_rewriters_preserve_non_url_schema_values(self) -> None:
         files = {
             "index.html": (
+                b'<link rel="manifest" href="/site.webmanifest">'
                 b'<meta name="description" content="/img/pixel.svg">'
                 b'<meta property="og:image" content="/img/pixel.svg">'
                 b'<meta property="og:video" content="/img/pixel.svg">'
@@ -1250,7 +1383,9 @@ class ContentAddressContractTests(unittest.TestCase):
                     self.finalize(Path(directory), files)
 
     def test_webmanifest_dependencies_change_its_physical_identity(self) -> None:
+        manifest_link = b'<link rel="manifest" href="/site.webmanifest">'
         base = {
+            "index.html": manifest_link,
             "site.webmanifest": b'{"icons":[{"src":"/img/icon.png"}]}\n',
             "img/icon.png": b"first icon\n",
         }
@@ -1274,6 +1409,7 @@ class ContentAddressContractTests(unittest.TestCase):
         )
 
         relative = {
+            "index.html": manifest_link,
             "site.webmanifest": b'{"icons":[{"src":"img/icon.png"}]}\n',
             "img/icon.png": b"icon\n",
         }
@@ -1283,6 +1419,7 @@ class ContentAddressContractTests(unittest.TestCase):
 
     def test_speculation_list_urls_rewrite_but_urlpatterns_do_not(self) -> None:
         files = {
+            "_headers": b'/*\n  Speculation-Rules: "/speculation-rules.json"\n',
             "speculation-rules.json": (
                 b'{"prefetch":[{"source":"list","urls":["/img/pixel.svg"]}],'
                 b'"prerender":[{"source":"document","where":'
@@ -1626,8 +1763,12 @@ class ContentAddressContractTests(unittest.TestCase):
                     self.finalize(Path(directory), files)
 
         approved = (ROOT / "static/js/site.js").read_bytes()
+        script_tag = b'<script src="/js/site.js" defer></script>'
         with tempfile.TemporaryDirectory() as directory:
-            _output, document = self.finalize(Path(directory), {"js/site.js": approved})
+            _output, document = self.finalize(
+                Path(directory),
+                {"index.html": script_tag, "js/site.js": approved},
+            )
         self.assertEqual(
             document["resources"][0]["sha256"], hashlib.sha256(approved).hexdigest()
         )
@@ -1636,7 +1777,10 @@ class ContentAddressContractTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 ValueError, "bytes differ from the reviewed authority"
             ):
-                self.finalize(Path(directory), {"js/site.js": approved + b"\n"})
+                self.finalize(
+                    Path(directory),
+                    {"index.html": script_tag, "js/site.js": approved + b"\n"},
+                )
 
     def test_retention_ledger_preserves_prior_physical_bodies(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1651,6 +1795,7 @@ class ContentAddressContractTests(unittest.TestCase):
                 source = output / "img/pixel.svg"
                 source.parent.mkdir(parents=True)
                 source.write_bytes(body)
+                (output / "index.html").write_bytes(b'<img src="/img/pixel.svg">')
                 document = content_address.finalize_tree(
                     output,
                     root / name / "asset-map.json",
@@ -1753,7 +1898,10 @@ class ContentAddressContractTests(unittest.TestCase):
         ):
             self.finalize(
                 Path(directory),
-                {"img/pixel.svg": b"four"},
+                {
+                    "index.html": b'<img src="/img/pixel.svg">',
+                    "img/pixel.svg": b"four",
+                },
             )
 
     def test_retained_speculation_rules_keep_their_media_type(self) -> None:
@@ -1866,12 +2014,15 @@ class ContentAddressContractTests(unittest.TestCase):
             )
 
     def test_cycles_unknown_dependencies_and_legacy_queries_fail_closed(self) -> None:
+        css_link = b'<link rel="stylesheet" href="/css/a.css">'
         cases = {
             "cycle": {
+                "index.html": css_link,
                 "css/a.css": b"a{background:url('/css/b.css')}\n",
                 "css/b.css": b"b{background:url('/css/a.css')}\n",
             },
             "unknown": {
+                "index.html": css_link,
                 "css/a.css": b"a{background:url('/img/missing.svg')}\n",
             },
             "legacy query": {
