@@ -185,15 +185,25 @@ jobs:
           # local runs remain temporary and leave the worktree unchanged.
           ARDENT_RETAIN_VALIDATED_PUBLIC: '1'
           ARDENT_BUILD_REVISION: ${{ github.sha }}
-          # lychee reads this for github.com requests. Unauthenticated, GitHub
-          # allows 60 requests an hour per IP; the site carries 87 github.com
-          # links, so an unauthenticated run cannot finish the check and the
-          # overflow arrives as connection-level errors rather than as 429s -
-          # which link_check_contract.py fails closed on by design, since a
-          # connection failure is indistinguishable from a dead host.
-          # validate-fleet-counts.py also reads this, to witness the fleet's
-          # declared repository visibility and control-plane adoption against
-          # the GitHub API directly rather than against the site's own copy.
+          # lychee reads this for github.com requests, but it only covers a
+          # bare `owner/repo`-root URL: lychee 0.24.2's GitHub fallback queries
+          # GET /repos/{owner}/{repo} alone, so any github.com link with a
+          # subpath (blob/*, issues/*) runs unauthenticated against github.com's
+          # web frontend regardless of this token, and 404s or throttles
+          # independent of whether the target exists. Unauthenticated, GitHub
+          # allows 60 requests an hour per IP; the site carries dozens of
+          # bare-root github.com links, so an unauthenticated run cannot finish
+          # even that subset and the overflow arrives as connection-level
+          # errors rather than as 429s - which link_check_contract.py fails
+          # closed on by design, since a connection failure is indistinguishable
+          # from a dead host. The subpath links this token cannot protect are
+          # excluded from lychee in .lycheeignore and witnessed instead by
+          # bin/verify-excluded-links.py (local checkout + targeted API calls)
+          # and bin/validate-fleet-counts.py's .kanon-ci.toml check.
+          # validate-fleet-counts.py also reads this token, to witness the
+          # fleet's declared repository visibility and control-plane adoption
+          # against the GitHub API directly rather than against the site's own
+          # copy.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 bin/site.py gate
 
