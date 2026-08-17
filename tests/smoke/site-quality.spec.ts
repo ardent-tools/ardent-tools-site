@@ -4,7 +4,10 @@ const path = require('node:path');
 const { deriveRoutes, deriveCastRoutes, resolvePlayerAssetUrls, auditPlayerAssetPresence } = require('./routes.cjs');
 const outputDir = process.env.SITE_OUTPUT_DIR || 'public-local';
 const routes: string[] = deriveRoutes(path.resolve(outputDir));
-const castRoutes: Set<string> = deriveCastRoutes(path.resolve(__dirname, '../../content/systems'));
+const castRoutes: Set<string> = deriveCastRoutes(
+  path.resolve(__dirname, '../../content/systems'),
+  path.resolve(__dirname, '../../static'),
+);
 // WHY SITE_ASSET_MAP: release-resources.json only exists beside a production
 // (canonical-origin) build; check-site.sh points this at the loopback build's
 // own local-asset-map.json instead. Falls back to the production shape for a
@@ -58,8 +61,16 @@ for (const viewport of viewports) {
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           opacity: getComputedStyle(document.body).opacity,
           dataCastCount: document.querySelectorAll('[data-cast]').length,
-          cssMarkupCount: document.querySelectorAll(`link[href="${cssUrl}"]`).length,
-          jsMarkupCount: document.querySelectorAll(`script[src="${jsUrl}"]`).length,
+          // WHY .pathname, not the raw href/src attribute: asset_url::hashed
+          // renders an absolute URL (origin + path), while cssUrl/jsUrl from
+          // the asset manifest are root-relative paths. The `.href`/`.src`
+          // IDL properties (unlike getAttribute) always resolve to an
+          // absolute URL per the DOM spec, so comparing their .pathname
+          // matches regardless of which form the markup happens to render -
+          // the same normalization the network-request listener above
+          // already applies via `new URL(request.url()).pathname`.
+          cssMarkupCount: Array.from(document.querySelectorAll('link[rel="stylesheet"]')).filter((node) => new URL((node as HTMLLinkElement).href).pathname === cssUrl).length,
+          jsMarkupCount: Array.from(document.querySelectorAll('script[src]')).filter((node) => new URL((node as HTMLScriptElement).src).pathname === jsUrl).length,
         };
       }, { cssUrl: playerCssUrl, jsUrl: playerJsUrl });
 

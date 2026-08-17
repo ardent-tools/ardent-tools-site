@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { auditPlayerAssetPresence, resolvePlayerAssetUrls } from "./routes.cjs";
+import { auditPlayerAssetPresence, deriveCastRoutes, resolvePlayerAssetUrls } from "./routes.cjs";
 
 const CAST_ROUTE = "/systems/demo/";
 const NON_CAST_ROUTE = "/about/";
@@ -117,3 +117,74 @@ for (const signal of ["cssMarkupCount", "cssRequestCount", "jsMarkupCount", "jsR
     assert.match(violations[0], new RegExp(`found 0`));
   });
 }
+
+// deriveCastRoutes reads the ground truth site-quality.spec.ts asserts against:
+// a system carries a cast if and only if its frontmatter declares one under
+// [extra.demo] and (when a static tree is given) the declared file is real -
+// the same two-part rule bin/validate-site.py enforces on the build itself.
+function withContentTree(files, fn) {
+  const root = mkdtempSync(path.join(tmpdir(), "cast-routes-"));
+  const contentDir = path.join(root, "content", "systems");
+  const staticDir = path.join(root, "static");
+  mkdirSync(contentDir, { recursive: true });
+  mkdirSync(staticDir, { recursive: true });
+  try {
+    for (const [name, body] of Object.entries(files)) {
+      writeFileSync(path.join(contentDir, name), body);
+    }
+    return fn(contentDir, staticDir);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function systemFrontmatter({ cast }) {
+  const demo = cast ? `\n[extra.demo]\ncast = "${cast}"\n` : "";
+  return `+++\ntitle = "demo"\n\n[extra]\ngloss = "test fixture"\n${demo}+++\nbody\n`;
+}
+
+test("deriveCastRoutes includes a system whose frontmatter declares a cast with the file present", () => {
+  withContentTree(
+    { "demo.md": systemFrontmatter({ cast: "/casts/demo.cast" }) },
+    (contentDir, staticDir) => {
+      mkdirSync(path.join(staticDir, "casts"), { recursive: true });
+      writeFileSync(path.join(staticDir, "casts", "demo.cast"), "");
+      assert.deepEqual([...deriveCastRoutes(contentDir, staticDir)], ["/systems/demo/"]);
+    },
+  );
+});
+
+test("deriveCastRoutes excludes a system with no cast declaration", () => {
+  withContentTree({ "demo.md": systemFrontmatter({}) }, (contentDir, staticDir) => {
+    assert.deepEqual([...deriveCastRoutes(contentDir, staticDir)], []);
+  });
+});
+
+test("deriveCastRoutes excludes _index.md even if it somehow declared a cast", () => {
+  withContentTree(
+    { "_index.md": systemFrontmatter({ cast: "/casts/demo.cast" }) },
+    (contentDir, staticDir) => {
+      mkdirSync(path.join(staticDir, "casts"), { recursive: true });
+      writeFileSync(path.join(staticDir, "casts", "demo.cast"), "");
+      assert.deepEqual([...deriveCastRoutes(contentDir, staticDir)], []);
+    },
+  );
+});
+
+test("deriveCastRoutes fails closed (throws, does not silently drop) when a declared cast file is missing", () => {
+  withContentTree(
+    { "demo.md": systemFrontmatter({ cast: "/casts/missing.cast" }) },
+    (contentDir, staticDir) => {
+      assert.throws(() => deriveCastRoutes(contentDir, staticDir), /cast points to missing/);
+    },
+  );
+});
+
+test("deriveCastRoutes skips the file-existence check when no staticDir is given", () => {
+  withContentTree(
+    { "demo.md": systemFrontmatter({ cast: "/casts/missing.cast" }) },
+    (contentDir) => {
+      assert.deepEqual([...deriveCastRoutes(contentDir)], ["/systems/demo/"]);
+    },
+  );
+});
