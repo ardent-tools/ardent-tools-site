@@ -3145,6 +3145,38 @@ class TombstoneRetentionContractTests(unittest.TestCase):
             errors,
         )
 
+    def test_transition_check_covers_every_prior_tombstone_not_just_the_first(
+        self,
+    ) -> None:
+        """Every other fixture in this class constructs exactly one prior
+        tombstone, so a loop truncated to prior_tombstones[:1] would still
+        pass all of them. Two prior entries here: the first survives
+        unchanged (a decoy a truncated loop would also pass), the second is
+        removed early and must still be caught."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = self.active_tombstone()
+            second = {
+                "path": "/other/old/page",
+                "retain_through": "2026-08-21",
+                "reason": self.REASON,
+            }
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[first, second]
+            )
+            proposed = self.write_contract(root, "current.toml", tombstones=[first])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 14)
+            )
+        self.assertTrue(
+            any(
+                "tombstone '/other/old/page' was removed before its "
+                "retain_through" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_expired_tombstone_left_unchanged_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -3199,6 +3231,26 @@ class TombstoneRetentionContractTests(unittest.TestCase):
             errors,
         )
 
+    def test_expired_tombstone_renewed_exactly_to_as_of_is_accepted(self) -> None:
+        """The renewal boundary is inclusive, symmetric with the active-period
+        boundary (as_of == retain_through is still within the promise): a
+        renewal that sets retain_through to exactly today is 'on or after
+        as_of' and must be accepted, not just a date strictly in the future.
+        Only test pinning this exact equality; a `<` -> `<=` regression on
+        the renewal check would silently reject a legal same-day renewal
+        with nothing else here to catch it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prior = self.write_contract(
+                root, "prior.toml", tombstones=[self.active_tombstone()]
+            )
+            renewed = self.active_tombstone(retain_through="2026-08-22")
+            proposed = self.write_contract(root, "current.toml", tombstones=[renewed])
+            _, errors = release.read_contract(
+                proposed, prior_contract_path=prior, as_of=dt.date(2026, 8, 22)
+            )
+        self.assertEqual(errors, [])
+
     def test_no_prior_supplied_skips_transition_checks(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -3227,6 +3279,51 @@ class TombstoneRetentionContractTests(unittest.TestCase):
             any(
                 "real" in error and "calendar date" in error for error in errors
             ),
+            errors,
+        )
+
+    def test_unreadable_prior_contract_fails_closed(self) -> None:
+        """A --prior-contract path that cannot be read is a supplied-but-
+        unreadable base, not an absent one: read_prior_tombstones must not
+        treat it like the None case (which skips transition checks
+        entirely) and must not let the OSError propagate out of
+        read_contract. It fails closed - error appended, empty placeholder
+        list returned - so validate_tombstone_transitions still runs. No
+        prior fixture exercises this path at all."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            missing_prior = root / "does-not-exist.toml"
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed,
+                prior_contract_path=missing_prior,
+                as_of=dt.date(2026, 8, 22),
+            )
+        self.assertTrue(
+            any(
+                "cannot read trusted-base release contract" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_malformed_prior_contract_toml_fails_closed(self) -> None:
+        """Malformed TOML in the trusted-base prior must also fail closed
+        with an appended error rather than raising TOMLDecodeError up
+        through read_contract - the docstring promises this but no fixture
+        proves it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            malformed_prior = root / "prior.toml"
+            malformed_prior.write_text("this is not [ valid toml\n")
+            proposed = self.write_contract(root, "current.toml", tombstones=[])
+            _, errors = release.read_contract(
+                proposed,
+                prior_contract_path=malformed_prior,
+                as_of=dt.date(2026, 8, 22),
+            )
+        self.assertTrue(
+            any("is not valid TOML" in error for error in errors),
             errors,
         )
 
@@ -3918,13 +4015,49 @@ class DeployWorkflowContractTests(unittest.TestCase):
         )
         # #102: the tombstone retain_through transition check reuses this same
         # step's already-selected base_revision rather than re-deriving one.
-        self.assertIn(
-            'git show "${base_revision}:release-resources.toml"', retention_run
+        # These trace actual data flow via a regex backreference (the SAME
+        # captured shell variable name on both ends of an assignment), not
+        # bare substring presence - two independent assertIn calls for
+        # "ARDENT_PRIOR_RELEASE_CONTRACT" would both pass even if the string
+        # appeared in an unrelated comment on each side, or if the git-show
+        # output were redirected to a different file than the one the env
+        # var actually names. The one link genuinely unreachable from a
+        # local test is whether GitHub Actions' `>> "$GITHUB_ENV"` file
+        # mechanism actually threads the step env var into the NEXT step at
+        # runtime - that is platform behavior this suite cannot execute;
+        # local coverage stops at "the workflow source wires it correctly."
+        release_contract_wiring = re.search(
+            r'git show "\$\{base_revision\}:release-resources\.toml" > "\$(\w+)"'
+            r'\s*\n\s*echo "ARDENT_PRIOR_RELEASE_CONTRACT=\$\1" >> "\$GITHUB_ENV"',
+            retention_run,
         )
-        self.assertIn("ARDENT_PRIOR_RELEASE_CONTRACT", retention_run)
+        self.assertIsNotNone(
+            release_contract_wiring,
+            "the release-resources.toml git-show target must be the exact "
+            "value assigned to ARDENT_PRIOR_RELEASE_CONTRACT, not merely "
+            "co-present text:\n" + retention_run,
+        )
         check_site_text = (ROOT / "bin/check-site.sh").read_text()
-        self.assertIn("ARDENT_PRIOR_RELEASE_CONTRACT", check_site_text)
-        self.assertIn("--prior-contract", check_site_text)
+        prior_contract_flag_wiring = re.search(
+            r'RELEASE_MANIFEST_ARGS\+=\(--prior-contract "\$ARDENT_PRIOR_RELEASE_CONTRACT"\)',
+            check_site_text,
+        )
+        self.assertIsNotNone(
+            prior_contract_flag_wiring,
+            "ARDENT_PRIOR_RELEASE_CONTRACT must be the literal value passed "
+            "to --prior-contract, not merely co-present text:\n" + check_site_text,
+        )
+        release_manifest_invocation_wiring = re.search(
+            r"python3 bin/release_manifest\.py [^\n]*"
+            r'"\$\{RELEASE_MANIFEST_ARGS\[@\]\}"',
+            check_site_text,
+        )
+        self.assertIsNotNone(
+            release_manifest_invocation_wiring,
+            "RELEASE_MANIFEST_ARGS must actually be expanded on the "
+            "release_manifest.py invocation line, not just built and "
+            "dropped:\n" + check_site_text,
+        )
 
         canonical_verify_step = workflow_step(
             steps, "Verify canonical domain after production cutover"
