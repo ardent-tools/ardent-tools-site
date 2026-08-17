@@ -1,0 +1,29 @@
+[[entry]]
+template = "index.html"
+schema = "schemas/home.schema.json"
+extends = "section"
+
+[[entry]]
+template = "about.html"
+schema = "schemas/about.schema.json"
+extends = "page"
+
+[[entry]]
+template = "consulting.html"
+schema = "schemas/consulting.schema.json"
+extends = "page"
+
+[[entry]]
+template = "evidence.html"
+schema = "schemas/evidence.schema.json"
+extends = "page"
+
+[[entry]]
+template = "systems.html"
+schema = "schemas/systems-index.schema.json"
+extends = "section"
+
+[[entry]]
+template = "system.html"
+schema = "schemas/system-dossier.schema.json"
+extends = "page"
