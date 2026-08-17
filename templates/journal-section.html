@@ -4,7 +4,14 @@
    of one flat date-sorted list. Reuses the systems-catalog group grammar
    (.catalog-group / .group-index / .group-caption / .catalog-index) and the
    theme's own .journal-list row markup. Every entry must carry extra.tier;
-   bin/site.py fails closed if one is missing. Re-diff on typikon refresh. #}
+   bin/site.py fails closed if one is missing. Re-diff on typikon refresh.
+
+   NOTE (typikon#157, ported informationally, not adopted, 4f8c1531 ->
+   b61228cb): the theme added assert::no_h1(section.content) immediately
+   before its own section.content render, the same guard faq.html and
+   journal-entry.html gained in the same range. Skipped for the same
+   assert.html reason as every other shadow (see AGENTS.md); no current
+   content trips it. #}
 {% extends "base.html" %}
 
 {% block title %}{{ section.extra.seo_title | default(value=section.title) }} - {{ config.title }}{% endblock title %}

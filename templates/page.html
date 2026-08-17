@@ -19,6 +19,18 @@
    .faq-page instead) — this file's content block only actually renders
    for pages using page.html as-is, with no template= override and no
    content-block override of their own.
+
+   NOTE (typikon#149 + typikon#157, ported informationally, not adopted,
+   4f8c1531 -> b61228cb): the theme's own page.html now renders its own
+   `<h1>{{ page.title }}</h1>` (previously it rendered none, relying on
+   the consumer's markdown body opening with a `# Title` line), guarded
+   by assert::required(page.title) and assert::no_h1(page.content).
+   This shadow already rendered its own h1 in .page-header before this
+   bump existed (see the file header above) — the underlying gap the
+   theme's fix closes never existed here. Both asserts are skipped for
+   the same assert.html reason as every other shadow (see AGENTS.md); no
+   current content trips no_h1, and page.title is already effectively
+   required by every content page.
 #}
 {% extends "base.html" %}
 {% import "partials/asset-url.html" as asset_url %}

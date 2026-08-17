@@ -1,12 +1,39 @@
 {# Consumer shadow of typikon's templates/base.html (theme.toml's Zola
    template-shadow rule: a same-path file in the consumer's own
    templates/ wins). Delta from the theme copy, marked inline below:
-   the site.css/syntax.css token-override links (the documented
-   AGENTIC.md path — config.toml's `consumer_css` comment is not
-   actually wired), a light-only
-   theme-color meta, twitter:image mirroring og:image, and conditional
-   asset blocks reserved for pages with a published cast. Re-diff this file against
-   themes/typikon/templates/base.html on every typikon-refresh.
+   the css/skins/leather.css + site.css/syntax.css token-override links
+   (config.toml's `consumer_css` hook is real as of typikon#55, but this
+   shadow predates it and still loads its stylesheets as an explicit list
+   rather than adopting that config-driven mechanism — see the note below), a
+   light-only theme-color meta, twitter:image mirroring og:image, and
+   conditional asset blocks reserved for pages with a published cast.
+   Re-diff this file against themes/typikon/templates/base.html on every
+   typikon-refresh.
+
+   WHY css/skins/leather.css is now an explicit link (typikon 4f8c1531 ->
+   b61228cb, typikon#55): core's static/css/style.css used to hardcode
+   Ardent Leatherworks' dye palette (--aima/--thanatochromia/--aporia/
+   --natural) as ITS OWN default and every interactive-accent selector
+   (.nav-links hover, .entry-nav a:hover, .faq-anchor:hover, .triad-*,
+   .buy-btn:hover, ...) resolved through those names directly. That bump
+   extracted the entire palette PLUS its content-authoring vocabulary
+   (.dye-marks, .mark-*, .dye-entry-*, .swatch-*) out of core into this
+   opt-in skin file, byte-identical in every color value, and repointed
+   core's own selectors through four neutral --accent-1..4 tokens that
+   default to --text-mid absent a loaded skin. site.css (below) already
+   overrides most of those selectors with its own --accent token, but
+   verified NOT all of them: `.entry-nav a:hover { color }` (journal
+   prev/next nav, live on every content/writing/ entry with a
+   chronological sibling) has no site.css counterpart and would have
+   silently gone from Leatherworks maroon to neutral gray without this
+   link. Loading the skin explicitly, in the order typikon's own skin
+   file documents (after style.css), is the minimal fix that keeps
+   every one of these selectors — including the ones site.css does not
+   patch — rendering exactly as before. Adopting the new consumer_css
+   config hook instead of this explicit link is left to the follow-up
+   PR that un-shadows base.html; this link intentionally matches the
+   existing style of the other three explicit stylesheet links right
+   below it rather than introducing that mechanism here.
 #}
 {% import "partials/ld-breadcrumb.html" as crumb %}
 {% import "partials/asset-url.html" as asset_url %}
@@ -79,10 +106,13 @@
   {%- endif %}
   <link rel="stylesheet" href="{{ asset_url::hashed(path='css/fonts.css') | safe }}">
   <link rel="stylesheet" href="{{ asset_url::hashed(path='css/style.css') | safe }}">
-  {# --- ardent.tools delta begins: consumer-side token override + new
-     component CSS, loaded after typikon's own stylesheet so equal-
-     specificity selectors here win the cascade (see site.css's own
-     header comment). --- #}
+  {# --- ardent.tools delta begins: the Leatherworks skin core split out
+     (typikon#55, see this file's header comment for why this link
+     exists), then consumer-side token override + new component CSS,
+     loaded after typikon's own stylesheet so equal-specificity
+     selectors here win the cascade (see site.css's own header
+     comment). --- #}
+  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/skins/leather.css') | safe }}">
   <link rel="stylesheet" href="{{ asset_url::hashed(path='css/site.css') | safe }}">
   <link rel="stylesheet" href="{{ asset_url::hashed(path='css/syntax.css') | safe }}">
   {# --- ardent.tools delta ends --- #}

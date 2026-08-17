@@ -12,7 +12,14 @@
 #}
 {% extends "page.html" %}
 
-{% block og_type %}article{% endblock og_type %}
+{# NOTE: no og_type block override here (typikon#92, ported from
+   4f8c1531 -> b61228cb) — the prior hardcoded
+   `{% block og_type %}article{% endblock %}` silently discarded
+   page.extra.og_type, the same settable field journal-entry.schema.json
+   declares and page.html's own block already reads correctly:
+   `page.extra.og_type | default(value="article")`. Inheriting that
+   block keeps the identical default (verified: no content here sets
+   extra.og_type today) while letting a future override through. #}
 
 {% block ld_json %}
   {{ super() }}
@@ -43,6 +50,13 @@
   </figure>
   {%- endif %}
 
+  {# NOTE: typikon#157 (4f8c1531 -> b61228cb) added
+     assert::no_h1(content=page.content, template="journal-entry.html")
+     immediately before this render. Deliberately not ported here — same
+     reasoning as faq.html: this shadow does not import
+     partials/assert.html, and no current content trips the guard, but
+     adopting a fail-closed build assertion is a deliberate policy
+     choice for a future change, not a drive-by import. -#}
   <div class="prose">
   {{ page.content | safe }}
   </div>
