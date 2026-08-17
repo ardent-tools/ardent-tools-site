@@ -7801,5 +7801,41 @@ class KanonLintDebtTests(unittest.TestCase):
         self.assertNotIn("PYTHON/empty-fstring", result.stdout, result.stdout)
 
 
+class CssCommentNarrationRegressionTests(unittest.TestCase):
+    """site.css comments must state a current rule, not narrate how it got
+    there (#108). git log already owns that history."""
+
+    # WHY these exact markers: each is sourced by diffing this branch
+    # against its merge base and reading the comment text #108's own
+    # hunks actually removed from site.css -- not guessed synonyms. Every
+    # pattern below names text that removal, EXCEPT DESIGN-v[0-9]: that
+    # citation style shipped in site.css too, but #107/#121 trimmed it
+    # before #108 started, so it's kept only as a standing guard against
+    # reintroducing it, not because #108 removed it.
+    BANNED_PATTERNS = (
+        r"\bpreviously\b",                 # "...theory here previously assumed away without a rendered check"
+        r"\bphase [0-9]\b",                # "...already wrapped in (templates, phase 1)"
+        r"\bretir(?:ed|es)\b",             # "...v1's cursor language is retired"; "--display-1 retires the old hero clamp(...)"
+        r"never shipped until now",        # "...v1 §3.7 specified this; it never shipped until now"
+        r"never reached CSS",              # "Restored to the v1 table that never reached CSS"
+        r"\bDELTA from\b",                 # "DELTA from that design's literal --display-1 clamp(...)"
+        r"\bformer\b",                     # "former uniform section padding" / "former bare fact row" /
+                                            # "former duplicate declarations" / "former border-bottom"
+        r"\bprior ceiling\b",              # "Interior h1 moves to --step-4 (typikon's prior ceiling)"
+        r"\bunchanged from the earlier\b", # "--accent/--accent-aged/--warn unchanged from the earlier palette"
+        r"\bearlier CSS grid\b",           # "standing in for the earlier CSS grid's own `gap`"
+        r"\bretuned\b",                    # "...are unchanged; only the floor and slope are retuned (2.6rem/4.6vw -> 2rem/5vw...)"
+        r"was #[0-9A-Fa-f]{3,8}\b",        # '..."shadow on rag paper" -- was #EDE7D8, a tan step that read as dark yellow...'
+        r"\bdarkened from\b",              # "--warn: #7C5514; /* darkened from #8A6318 -- ..."
+        r"\bwas \d+\.\d+:1\b",             # "...--bg-accent (was 4.39:1, failing AA's 4.5:1 floor)"
+        r"DESIGN-v[0-9]",                  # e.g. "DESIGN-v2 §1.1" -- shipped pre-#108, trimmed by #107/#121
+    )
+
+    def test_no_historical_phase_narration(self) -> None:
+        css = (ROOT / "static/css/site.css").read_text()
+        hits = [pattern for pattern in self.BANNED_PATTERNS if re.search(pattern, css, re.IGNORECASE)]
+        self.assertEqual(hits, [], f"historical-phase narration reintroduced: {hits}")
+
+
 if __name__ == "__main__":
     unittest.main()
