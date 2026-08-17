@@ -203,6 +203,16 @@ python3 bin/verify-excluded-links.py
 
 echo "==> local browser build"
 python3 bin/site.py build --base-url "$LOCAL_BASE_URL" --output-dir "$LOCAL_OUTPUT"
+# WHY: content_address.py derives reachability from references it can
+# actually see in this tree (bin/content_address.py's seed_candidates()).
+# speculation-rules.json has no HTML reference anywhere -- its only
+# reference is the `Speculation-Rules:` directive in _headers, which
+# deriveRoutes() (tests/smoke/routes.cjs) never crawls, so copying it here
+# adds no pa11y/Playwright route. Without this copy this tree disagrees
+# with the production tree above on what's reachable, and both are
+# checked against the one asset-retention.json snapshot.
+cp _headers "$LOCAL_OUTPUT/_headers"
+cp _redirects "$LOCAL_OUTPUT/_redirects"
 for placeholder in \
   "$LOCAL_OUTPUT/casts/.gitkeep" \
   "$LOCAL_OUTPUT/css/.gitkeep" \
