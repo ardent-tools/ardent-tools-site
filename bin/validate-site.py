@@ -18,6 +18,7 @@ from urllib.parse import urljoin, urlparse
 
 from career_claim_contract import FORBIDDEN_PUBLIC_VARIANTS
 from release_manifest import (
+    ADDRESSED_PATH_RE,
     read_contract,
     validate_manifest,
     validate_public_references,
@@ -57,7 +58,6 @@ PINNED_SNAPSHOTS = {
     "thumos.md": "77cc89906a52",
 }
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
-ADDRESSED_ASSET_RE = re.compile(r"^/a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
 TAPE_TARGETS = {
     "aletheia-health.tape": "ARDENT_ALETHEIA_ROOT",
     "harmonia-serve.tape": "ARDENT_HARMONIA_ROOT",
@@ -291,7 +291,15 @@ def inspect_asset_reference(
             f"{page}: {kind} asset URL must be query- and fragment-free: {reference!r}",
         )
         return None
-    match = ADDRESSED_ASSET_RE.fullmatch(parsed.path)
+    # WHY: ADDRESSED_PATH_RE (release_manifest.py, shared with
+    # asset_retention.py) matches the bare `a/<sha256><ext>` output_path with
+    # no leading slash; parsed.path is a root-relative URL path and always
+    # starts with one, already confirmed same-origin above.
+    match = (
+        ADDRESSED_PATH_RE.fullmatch(parsed.path[1:])
+        if parsed.path.startswith("/")
+        else None
+    )
     if match is None:
         fail(
             errors,
@@ -323,7 +331,13 @@ def inspect_asset_reference(
 def validate_asset_contract(
     errors: list[str], html: dict[Path, str], output: Path
 ) -> None:
-    identities: dict[str, tuple[str, Path]] = {}
+    # WHY no cross-page hash-identity table: a content-addressed asset_path IS
+    # its own hash (ADDRESSED_PATH_RE.fullmatch(asset_path) extracts
+    # authored_hash straight from that same string), so two pages that
+    # reference the identical asset_path can never disagree on its hash --
+    # that comparison is a tautology, not a check. What genuinely varies per
+    # reference (digest-vs-URL agreement) is already proven independently, per
+    # occurrence, inside inspect_asset_reference().
     for page, text in html.items():
         parser = AssetParser()
         parser.feed(text)
@@ -332,25 +346,13 @@ def validate_asset_contract(
             if required not in kinds:
                 fail(errors, f"{page}: no authored {required} asset reference found")
         for kind, reference in parser.references:
-            inspected = inspect_asset_reference(
+            inspect_asset_reference(
                 errors,
                 page=page,
                 kind=kind,
                 reference=reference,
                 output=output,
             )
-            if inspected is None:
-                continue
-            asset_path, authored_hash = inspected
-            prior = identities.get(asset_path)
-            if prior and prior[0] != authored_hash:
-                fail(
-                    errors,
-                    f"conflicting authored hashes for {asset_path}: {prior[0]} at {prior[1]}, "
-                    f"{authored_hash} at {page}",
-                )
-            else:
-                identities[asset_path] = (authored_hash, page)
 
 
 def validate_revision(
@@ -583,6 +585,13 @@ def main() -> int:
 
     sitemap_path = output / "sitemap.xml"
     atom_path = output / "atom.xml"
+    # WHY: the second, unconditioned ET.parse() below (per-route sitemap/atom
+    # checks) re-reads the same files this loop already proved parseable --
+    # or didn't. well_formed gates that second pass so a file that already
+    # failed here (recorded in `errors`) is not re-parsed and left to raise
+    # ET.ParseError uncaught, crashing past the structured error report
+    # instead of exiting cleanly with everything collected so far.
+    well_formed: dict[Path, bool] = {}
     for xml_path in (sitemap_path, atom_path):
         if not xml_path.is_file():
             fail(errors, f"missing {xml_path}")
@@ -595,6 +604,8 @@ def main() -> int:
             ET.parse(xml_path)
         except ET.ParseError as exc:
             fail(errors, f"{xml_path.name}: strict XML parse failed: {exc}")
+        else:
+            well_formed[xml_path] = True
 
     writing_files = sorted(
         p for p in Path("content/writing").glob("*.md") if p.name != "_index.md"
@@ -605,7 +616,7 @@ def main() -> int:
         if frontmatter(path).get("date") and not frontmatter(path).get("draft", False)
     }
 
-    if sitemap_path.is_file():
+    if well_formed.get(sitemap_path):
         sitemap_root = ET.parse(sitemap_path).getroot()
         locations = [
             node.text or ""
@@ -634,7 +645,7 @@ def main() -> int:
         if counts[demos_url] != 0:
             fail(errors, "sitemap advertises compatibility-only /demos/")
 
-    if atom_path.is_file():
+    if well_formed.get(atom_path):
         atom_root = ET.parse(atom_path).getroot()
         ids = [node.text or "" for node in atom_root.findall(f"{ATOM}entry/{ATOM}id")]
         counts = Counter(ids)
