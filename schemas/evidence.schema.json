@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ardent.tools/schemas/evidence.schema.json",
+  "title": "ardent tools evidence",
+  "description": "content/evidence.md — template=\"evidence.html\". No extra fields beyond typikon's page core today; registered so the fail-closed classifier recognizes this custom template rather than treating it as unregistered (forkwright/typikon#60).",
+  "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json" }],
+  "properties": {
+    "extra": {
+      "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json#/properties/extra" }],
+      "unevaluatedProperties": false
+    }
+  },
+  "unevaluatedProperties": false
+}
