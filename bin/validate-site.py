@@ -72,6 +72,14 @@ FORBIDDEN_TAPE_FORMS = (
     "demo/instance serve &",
     "demo/instance tui",
 )
+# Every published reproduction-recipe driver script defines its own success
+# marker as `ok() { printf '<PREFIX>_%s\n' "$1"; }`, then gates each recorded
+# beat behind `<command> && ok TOKEN`. The printf only fires if the preceding
+# command exited zero when the cast was recorded - so `<PREFIX>_TOKEN`
+# landing in the cast's own recorded output stream, in order, is evidence of
+# what actually happened during that recording, not of what the driver
+# script's text merely claims.
+CAST_OK_MARKER_RE = re.compile(r"ok\(\)\s+\{\s*printf\s+'([A-Za-z0-9]+)_%s\\n'")
 
 
 class PageParser(HTMLParser):
@@ -427,6 +435,79 @@ def validate_tape_contract(errors: list[str], path: Path) -> None:
         for required in ("mktemp -d", "trap ", "SERVER_PID", "kill -0", "curl -sf"):
             if required not in text:
                 fail(errors, f"{path}: stateful service plan lacks {required!r}")
+
+
+def parse_cast_output_stream(cast_path: Path) -> str:
+    """Reconstruct the recorded terminal's full output stream from an
+    asciinema v2 .cast file, in emission order: concatenate every "o" event's
+    payload, skipping the header line and any non-output event (e.g. this
+    recorder's trailing "x" exit-code marker). This is what the recording
+    actually shows happening, as distinct from the driver script that was
+    typed to produce it - a stale or hand-edited recipe and its frozen cast
+    can disagree, and only the cast is evidence of a real run."""
+    lines = cast_path.read_text().splitlines()
+    if not lines:
+        raise ValueError("cast file is empty")
+    json.loads(lines[0])  # header line; malformed JSON propagates to the caller
+    chunks: list[str] = []
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        if len(event) != 3:
+            raise ValueError(f"malformed cast event: {event!r}")
+        if event[1] == "o":
+            chunks.append(str(event[2]))
+    return "".join(chunks)
+
+
+def validate_recipe_witnessed_by_cast(
+    errors: list[str],
+    label: str,
+    recipe_path: Path,
+    cast_path: Path,
+    ordered_tokens: tuple[str, ...],
+    boundary_text: str,
+) -> None:
+    """The ordered `.find()` checks around this function's call sites prove
+    the recipe's own TEXT contains the right `ok TOKEN` invocations in the
+    right order - a check a recipe that would fail if actually run can still
+    pass, since it never inspects whether those invocations actually fired.
+    This proves the published CAST - a real recorded run of that recipe -
+    actually emitted the corresponding `<PREFIX>_TOKEN` markers, in the same
+    order, followed by the recipe's own boundary line: evidence the
+    recording produced these outcomes, not merely that the script claims it
+    would."""
+    recipe_text = recipe_path.read_text()
+    prefix_match = CAST_OK_MARKER_RE.search(recipe_text)
+    if not prefix_match:
+        fail(errors, f"{recipe_path}: ok() marker function not found in expected shape")
+        return
+    prefix = prefix_match.group(1)
+    try:
+        stream = parse_cast_output_stream(cast_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        fail(errors, f"{cast_path}: cannot reconstruct recorded output stream: {exc}")
+        return
+    pos = -1
+    for token in ordered_tokens:
+        marker = f"{prefix}_{token}"
+        pos = stream.find(marker, pos + 1)
+        if pos < 0:
+            fail(
+                errors,
+                f"{label}: cast {cast_path} never emits {marker!r} after the prior "
+                "beat - the recipe claims this outcome but the recording never "
+                "shows it happening",
+            )
+            return
+    if stream.find(boundary_text, pos + 1) < 0:
+        fail(
+            errors,
+            f"{label}: cast {cast_path} never reaches its own boundary line "
+            f"{boundary_text!r} after the last success marker - the recording "
+            "may be truncated or does not match this recipe",
+        )
 
 
 def validate_player_contract(
@@ -843,6 +924,24 @@ def main() -> int:
     if "cpu_baseline.json" in tape:
         fail(errors, "Logismos tape retains the wrong cpu_baseline.json fixture")
 
+    # Each of the three recipe checks below has two layers. The `required`
+    # membership + `.find()` ordering checks prove the recipe SCRIPT's text
+    # is well-formed and ordered - a text-shape check a recipe that would
+    # fail if actually run can still pass (issue #119). The
+    # `validate_recipe_witnessed_by_cast` call after each one is the
+    # stronger witness: it confirms the recipe's own published CAST - a real
+    # recorded run - actually emitted the claimed outcomes, in that order.
+    # What neither layer proves: that the recipe still reproduces that cast
+    # if run again TODAY against current upstream thumos/kanon/hamma. A cast
+    # is a frozen recording; an upstream rename, moved target, or removed
+    # flag after the cast was recorded would drift the recipe out of sync
+    # with reality while this cast-witness check - which only compares the
+    # recipe's marker vocabulary against the recording it was made from -
+    # stays green. Closing that residual gap means executing the recipes
+    # (in CI, on a schedule, or at release time), which the issue leaves as
+    # a separate decision given the network/toolchain/trust cost of running
+    # public-repo build scripts on every push.
+    #
     # The thumos cast is published; its reproduction recipe is the asciinema
     # driver, not a VHS tape. The recipe must build the same primary qemu-feature
     # target CI builds, boot it through the same runner path (stdin from
@@ -871,6 +970,18 @@ def main() -> int:
     for dangerous in ("git checkout --", "$HOME/dev", "sudo ", "dnf install", "rm -rf /"):
         if dangerous in thumos_recipe:
             fail(errors, f"Thumos recipe retains dangerous or stale form: {dangerous!r}")
+    # The checks above prove the recipe's TEXT is well-formed and ordered;
+    # this proves the published cast - a real recorded run of it - actually
+    # emitted those outcomes in that order (issue #119: ordered substring
+    # presence in a script is not proof anything executed).
+    validate_recipe_witnessed_by_cast(
+        errors,
+        "Thumos",
+        Path("static/tapes/thumos-boot.driver.sh"),
+        Path("static/casts/thumos-boot.cast"),
+        ("BUILD_OK", "BOOT_OK"),
+        "not shown: physical AGM M7 hardware",
+    )
 
     # The kanon cast is published; its reproduction recipe is the asciinema
     # driver, not a VHS tape. The recipe must reproduce the cast against a
@@ -913,6 +1024,16 @@ def main() -> int:
     for dangerous in ("git checkout --", "$HOME/dev", "every public repo"):
         if dangerous in kanon_recipe:
             fail(errors, f"Kanon recipe retains dangerous or stale form: {dangerous!r}")
+    # See the Thumos call above: this witnesses the published cast's actual
+    # recorded output, not the recipe's own claimed text (issue #119).
+    validate_recipe_witnessed_by_cast(
+        errors,
+        "Kanon",
+        Path("static/tapes/kanon-gate.driver.sh"),
+        Path("static/casts/kanon-gate.cast"),
+        ("VIOLATION_OK", "FIX_OK", "LINT_CLEAN_OK", "GATE_OK"),
+        "not shown: kanon's own source",
+    )
 
     # The hamma cast is published; its recipe runs the hamma-core and dictyon
     # test suites against a public clone pinned to the commit the cast's
@@ -939,6 +1060,16 @@ def main() -> int:
     for dangerous in ("git checkout --", "$HOME/dev", "every public repo"):
         if dangerous in hamma_recipe:
             fail(errors, f"Hamma recipe retains dangerous or stale form: {dangerous!r}")
+    # See the Thumos call above: this witnesses the published cast's actual
+    # recorded output, not the recipe's own claimed text (issue #119).
+    validate_recipe_witnessed_by_cast(
+        errors,
+        "Hamma",
+        Path("static/tapes/hamma-tests.driver.sh"),
+        Path("static/casts/hamma-tests.cast"),
+        ("CORE_TESTS_OK", "DICTYON_TESTS_OK"),
+        "not shown: two peers on a tailnet",
+    )
 
     harmonia_tape = Path("static/tapes/harmonia-serve.tape").read_text()
     for stale in ("/api/library/scan", "import queue", "populat"):
