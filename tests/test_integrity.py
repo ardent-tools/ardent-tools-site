@@ -86,7 +86,7 @@ GOOD_CACHE = "no-store, no-transform"
 GOOD_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 # Root policy: derived from header_contract.py rather than restated here, so
 # a script-src change can't drift the fixture out of step with the source it
-# is meant to exercise. /systems/* pages carry the wider policy instead (see
+# is meant to exercise. /systems/*/ pages carry the wider policy instead (see
 # GOOD_SYSTEM_CSP) - the two must never collapse into one constant again.
 GOOD_CSP = headers_contract.DIRECT_RESPONSE_HEADERS["content-security-policy"]
 GOOD_SYSTEM_CSP = headers_contract.SYSTEM_PAGE_HEADERS["content-security-policy"]
@@ -789,13 +789,16 @@ class ProductionRouteContractTests(unittest.TestCase):
     def test_system_page_csp_dispatch_matches_only_systems_paths(self) -> None:
         # The per-page loop in verify-production.py picks the wasm-unsafe-eval
         # policy for exactly the paths this glob matches - assert its shape
-        # directly since no fixture route currently lives under /systems/*.
-        for path in ("/systems/", "/systems/kanon/", "/systems/kanon/sub/"):
+        # directly since no fixture route currently lives under /systems/*/.
+        # /systems/ itself (the catalog, template systems.html) never renders
+        # the player and must NOT match - only an individual system page one
+        # level under it (template system.html) does.
+        for path in ("/systems/kanon/", "/systems/kanon/sub/"):
             self.assertTrue(
                 production.fnmatch.fnmatchcase(path, headers_contract.SYSTEM_PAGE_PATH),
                 path,
             )
-        for path in ("/", "/about/", "/systems"):
+        for path in ("/", "/about/", "/systems", "/systems/"):
             self.assertFalse(
                 production.fnmatch.fnmatchcase(path, headers_contract.SYSTEM_PAGE_PATH),
                 path,
@@ -3195,7 +3198,7 @@ class HeaderContractTests(unittest.TestCase):
         )
         self.assertTrue(
             any(
-                "'/systems/*' must detach the inherited" in error for error in errors
+                "'/systems/*/' must detach the inherited" in error for error in errors
             ),
             errors,
         )
@@ -3203,7 +3206,7 @@ class HeaderContractTests(unittest.TestCase):
     def test_system_page_section_missing_entirely_fails(self) -> None:
         raw = self.finalized_headers()
         without_section = raw.replace(
-            "\n/systems/*\n  ! Content-Security-Policy\n"
+            "\n/systems/*/\n  ! Content-Security-Policy\n"
             f"  Content-Security-Policy: {headers_contract.SYSTEM_PAGE_HEADERS['content-security-policy']}\n",
             "\n",
         )

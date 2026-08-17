@@ -196,7 +196,7 @@ def validate_strict_csp(
     # cast-state CSP but production verification rejected it against a stale
     # constant. The cast/CSP consistency itself is enforced at gate time in
     # bin/validate-site.py. expected_csp overrides the root policy for a
-    # caller that already knows its label is a /systems/* page - the only
+    # caller that already knows its label is a /systems/*/ page - the only
     # section carrying the wasm-unsafe-eval script-src exception (_headers).
     raw = header(headers, "Content-Security-Policy")
     live, duplicates = parse_csp(raw)

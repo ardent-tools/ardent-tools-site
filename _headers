@@ -1,18 +1,21 @@
-# Cloudflare Pages headers. Only system pages that publish a real cast
-# (content/systems/*.md, [extra.demo].cast) request the vendored asciinema
-# player, whose v3 runtime is WebAssembly, so the 'wasm-unsafe-eval'
-# script-src exception is scoped to /systems/* — the only section any cast
-# can render under — and dropped everywhere else. bin/validate-site.py keeps
-# cast, conditional player markup, and this CSP disposition fail-closed
-# together at the file level: dropping every cast must drop the exception,
-# and adding one requires both. Pages itself replaces Cache-Control on
-# generated 404 responses; the narrowly-routed Function applies the root
-# policy (never the /systems/* exception — it never renders the player) to
-# missing paths, retained tombstones, and Function-routed HTML aliases.
+# Cloudflare Pages headers. Only individual system pages that publish a real
+# cast (content/systems/<slug>.md, [extra.demo].cast; template system.html)
+# request the vendored asciinema player, whose v3 runtime is WebAssembly, so
+# the 'wasm-unsafe-eval' script-src exception is scoped to /systems/*/ — one
+# path segment under the section, matching only /systems/<slug>/ — and
+# dropped everywhere else, including the systems catalog itself
+# (/systems/, template systems.html), which lists casts but never renders
+# the player. bin/validate-site.py keeps cast, conditional player markup,
+# and this CSP disposition fail-closed together at the file level: dropping
+# every cast must drop the exception, and adding one requires both. Pages
+# itself replaces Cache-Control on generated 404 responses; the
+# narrowly-routed Function applies the root policy (never the /systems/*/
+# exception — it never renders the player) to missing paths, retained
+# tombstones, and Function-routed HTML aliases.
 #
 # Cloudflare Pages composes overlapping sections by joining same-name headers
 # with a comma rather than letting a later section override an earlier one,
-# so /a/* and /systems/* cannot just add their own Cache-Control /
+# so /a/* and /systems/*/ cannot just add their own Cache-Control /
 # Content-Security-Policy lines — each must first detach the one /* already
 # set (the documented `!` syntax), then declare its own. Every non-HTML
 # resource is served at /a/<full-sha256>.<ext>, provably immutable by
@@ -29,7 +32,7 @@
   Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
   Speculation-Rules: "/speculation-rules.json"
 
-/systems/*
+/systems/*/
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests
 

@@ -11,7 +11,7 @@ from release_manifest import SPECIAL_MEDIA_TYPES, SPECULATION_MEDIA_TYPE
 
 ROOT_PATH = "/*"
 ADDRESSED_ASSET_PATH = "/a/*"
-SYSTEM_PAGE_PATH = "/systems/*"
+SYSTEM_PAGE_PATH = "/systems/*/"
 
 # Every non-HTML resource is served at /a/<full-sha256>.<ext>, provably
 # immutable by construction (content_address.py content-addresses the path
