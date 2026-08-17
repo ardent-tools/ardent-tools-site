@@ -1,3 +1,34 @@
 https://www\.linkedin\.com/.*
-# Self-referential: this file is added by the same PR, so its blob URL 404s until merge; resolves once on main.
-https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md
+
+# github.com links with ANY subpath (blob/*, issues/*, pull/*, ...) against a
+# public repo cannot be verified by lychee here, merge or no merge: lychee
+# 0.24.2's GitHub API fallback only ever queries GET /repos/{owner}/{repo} -
+# the bare root (lychee-lib/src/checker/website.rs:351-366) - so a subpath
+# request runs unauthenticated against github.com's own web frontend
+# regardless of GITHUB_TOKEN, and 404s or throttles independent of whether the
+# target exists. Each entry below is witnessed elsewhere instead; see the
+# comment naming its replacement check.
+
+# This repo's own root files. bin/verify-excluded-links.py checks these
+# against the local checkout - a stronger witness than a remote API call,
+# since the CI job already holds the exact commit under test on disk.
+https://github\.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY\.md
+https://github\.com/ardent-tools/ardent-tools-site/blob/main/LICENSE
+https://github\.com/ardent-tools/ardent-tools-site/blob/main/LICENSE-DOCS
+
+# content/systems/akroasis.md's self-filed CI gap. Cross-repo fact this repo
+# cannot hold locally - witnessed by bin/verify-excluded-links.py against
+# GET /repos/forkwright/akroasis/issues/262 with GITHUB_TOKEN.
+https://github\.com/forkwright/akroasis/issues/262
+
+# content/systems/kanon.md's six featured-system .kanon-ci.toml receipts.
+# Witnessed by bin/validate-fleet-counts.py's witness_repo(), which already
+# hits GET /repos/{owner}/{repo}/contents/.kanon-ci.toml with GITHUB_TOKEN for
+# every static/systems.json catalog entry with group="systems" - the same fact
+# these links assert, derived from the same source rather than duplicated.
+https://github\.com/forkwright/thumos/blob/main/\.kanon-ci\.toml
+https://github\.com/forkwright/aletheia/blob/main/\.kanon-ci\.toml
+https://github\.com/forkwright/harmonia/blob/main/\.kanon-ci\.toml
+https://github\.com/forkwright/akroasis/blob/main/\.kanon-ci\.toml
+https://github\.com/forkwright/logismos/blob/main/\.kanon-ci\.toml
+https://github\.com/forkwright/hamma/blob/main/\.kanon-ci\.toml
