@@ -34,6 +34,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -93,7 +94,11 @@ def derive() -> dict[str, int]:
     }
 
 
-def fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+FETCH_ATTEMPTS = 3
+FETCH_BACKOFF_SECONDS = 2.0
+
+
+def fetch_once(url: str, token: str | None) -> tuple[int | None, bytes]:
     """One GitHub REST API request. Isolated so tests can replace it with a
     fixture instead of reaching the network; status None means the request
     never reached GitHub at all (DNS, TLS, connection failure)."""
@@ -112,6 +117,31 @@ def fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
         return exc.code, exc.read()
     except URLError as exc:
         return None, str(exc.reason).encode()
+
+
+def fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+    """`fetch_once` with bounded retries on a 5xx, which is GitHub being briefly
+    unavailable rather than an answer about the repository.
+
+    WHY only 5xx: every other outcome is informative and must not be retried. A 404
+    means the repo is absent or invisible to this token, a 403 means rate-limited, and
+    a None means the request never reached GitHub -- retrying those spends time to
+    re-learn the same fact. A 5xx is the one status that says nothing about the
+    subject, and the gate previously turned a single one into a hard UNVERIFIED that
+    failed the deploy. Observed: `unexpected GitHub API status 504` on one repository
+    during a GitHub degradation, red-lining a branch whose own content was fine.
+
+    WHY it still fails closed when the retries are exhausted: this witness exists so a
+    public numeric claim is checked against reality, and a claim nobody could verify is
+    not a claim that passed. The retry removes the transient failure, not the contract.
+    """
+    status, body = fetch_once(url, token)
+    for attempt in range(1, FETCH_ATTEMPTS):
+        if status is None or status < 500:
+            return status, body
+        time.sleep(FETCH_BACKOFF_SECONDS * attempt)
+        status, body = fetch_once(url, token)
+    return status, body
 
 
 def witness_repo(
