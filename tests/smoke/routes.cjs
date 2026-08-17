@@ -47,11 +47,20 @@ function deriveCastRoutes(systemsContentDir) {
 // Zola/content_address finalizes the vendored player CSS/JS into content-addressed
 // `/a/<sha256>.<ext>` URLs (see bin/content_address.py ADDRESS_PREFIX); no served
 // URL contains the literal string "asciinema-player" once a build is finalized.
-// The exact physical pair is the release manifest's own record of what those
+// The exact physical pair is a resources manifest's own record of what those
 // logical resources became, so it is the only correct match target for both
 // markup selectors and intercepted network requests.
-function resolvePlayerAssetUrls(outputDir) {
-  const manifestPath = path.join(path.resolve(outputDir), 'release-resources.json');
+//
+// NOTE: takes the manifest file directly rather than an output directory.
+// release-resources.json (bin/release_manifest.py) is production-only - it
+// hardcodes the canonical https:// origin - so it never exists beside the
+// loopback-base-url build check-site.sh's browser gate actually serves.
+// That build's own local-asset-map.json (bin/content_address.py's --map
+// output, same {resources:[{logical_path,request_url}]} shape) is the
+// correct source there; the caller selects which manifest matches the
+// output tree under test.
+function resolvePlayerAssetUrls(manifestPath) {
+  manifestPath = path.resolve(manifestPath);
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const resourceUrls = new Map();
   for (const item of manifest.resources || []) {

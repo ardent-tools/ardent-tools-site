@@ -5,7 +5,12 @@ const { deriveRoutes, deriveCastRoutes, resolvePlayerAssetUrls, auditPlayerAsset
 const outputDir = process.env.SITE_OUTPUT_DIR || 'public-local';
 const routes: string[] = deriveRoutes(path.resolve(outputDir));
 const castRoutes: Set<string> = deriveCastRoutes(path.resolve(__dirname, '../../content/systems'));
-const { cssUrl: playerCssUrl, jsUrl: playerJsUrl } = resolvePlayerAssetUrls(path.resolve(outputDir));
+// WHY SITE_ASSET_MAP: release-resources.json only exists beside a production
+// (canonical-origin) build; check-site.sh points this at the loopback build's
+// own local-asset-map.json instead. Falls back to the production shape for a
+// direct manual run against a release tree.
+const assetMapPath = process.env.SITE_ASSET_MAP || path.join(outputDir, 'release-resources.json');
+const { cssUrl: playerCssUrl, jsUrl: playerJsUrl } = resolvePlayerAssetUrls(path.resolve(assetMapPath));
 const viewports = [
   { width: 320, height: 900 },
   { width: 375, height: 900 },

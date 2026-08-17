@@ -234,6 +234,7 @@ echo "==> all-route Playwright"
 NODE_PATH="$(npm root):$(npm root -g)"
 export NODE_PATH
 SITE_OUTPUT_DIR="$LOCAL_OUTPUT" TYPIKON_BASE_URL="$LOCAL_BASE_URL" \
+SITE_ASSET_MAP="$LOCAL_ASSET_MAP" \
 PLAYWRIGHT_OUTPUT_DIR="$CHECK_ROOT/playwright-artifacts" \
 PLAYWRIGHT_JSON_OUTPUT_FILE="$CHECK_ROOT/playwright.json" \
   npx playwright test
