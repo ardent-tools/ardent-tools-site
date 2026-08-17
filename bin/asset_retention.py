@@ -68,6 +68,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 from pages_limits import require_static_file_size
+from release_manifest import ADDRESSED_PATH_RE as ADDRESS_RE
 from release_manifest import SPECIAL_MEDIA_TYPES
 
 LEDGER_SCHEMA_VERSION = 2
@@ -83,7 +84,6 @@ RETENTION_HISTORY_HARD_LIMIT_ENTRIES = 4096
 MAX_SNAPSHOT_RESOURCES = 960
 MAX_RETAINED_RESOURCES = 960
 MAX_RETAINED_BYTES = 256 * 1024 * 1024
-ADDRESS_RE = re.compile(r"^a/([0-9a-f]{64})(\.[a-z0-9]+)$")
 LOGICAL_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 CHECKPOINT_ROOT_RE = re.compile(r"^[0-9a-f]{64}$")
 ENTRY_KINDS = frozenset({"snapshot", "checkpoint"})
@@ -621,8 +621,18 @@ def record_checkpoint(ledger_path: Path, asset_root: Path) -> dict:
         "entry_count": 1,
         "entries": [checkpoint],
     }
-    write_atomic(ledger_path, serialize_ledger(compacted))
-    validate_ledger(ledger_path, asset_root)
+    # INVARIANT: ledger_path must never be left holding a document that
+    # fails validate_ledger()'s self-check. record_checkpoint() only reaches
+    # here after validate_ledger() already proved the CURRENT on-disk ledger
+    # valid, so a failure below always has a known-good prior state to
+    # restore -- mirroring record_snapshot()'s rollback for the same reason.
+    previous_ledger_bytes = ledger_path.read_bytes()
+    try:
+        write_atomic(ledger_path, serialize_ledger(compacted))
+        validate_ledger(ledger_path, asset_root)
+    except BaseException:
+        write_atomic(ledger_path, previous_ledger_bytes)
+        raise
     return compacted
 
 
@@ -774,8 +784,13 @@ def main() -> int:
         )
         return 0
     except ValueError as exc:
-        parser.error(str(exc))
-    return 1
+        # WHY: parser.error() exits through argparse's usage-error path (exit
+        # 2, "usage: ..." banner) -- correct for a malformed command line, but
+        # a ValueError here is a ledger-integrity failure (truncated history,
+        # a checkpoint dropping retention obligations), a data problem with
+        # nothing wrong about how the command was invoked.
+        sys.stderr.write(f"ERROR: {exc}\n")
+        return 1
 
 
 if __name__ == "__main__":
