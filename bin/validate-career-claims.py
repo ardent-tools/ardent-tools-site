@@ -410,8 +410,13 @@ def strict_json(path: Path) -> tuple[object | None, bytes, list[str]]:
         return document
 
     try:
+        # WHY: json.loads() on a bytes argument auto-detects its encoding
+        # (UTF-8/16/32, matching RFC 4627's legacy allowance) rather than
+        # requiring UTF-8 -- decoding explicitly first, like html_authority.py's
+        # strict_json_loads(), is what actually makes this "strict".
+        text = raw.decode("utf-8", errors="strict")
         document = json.loads(
-            raw,
+            text,
             parse_constant=reject_constant,
             object_pairs_hook=reject_duplicates,
         )

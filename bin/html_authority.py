@@ -148,13 +148,19 @@ def build_authority(output: Path, revision: str, base_url: str) -> dict:
     if not REVISION_RE.fullmatch(revision):
         raise ValueError("HTML authority revision must be exactly one lowercase 40-hex value")
     output = output.resolve()
-    canonical_paths = set(sitemap_paths(output, base_url))
+    # SAFETY: the symlink sweep must run before anything in the tree --
+    # including sitemap.xml -- is read and trusted. sitemap_paths() below
+    # reads sitemap.xml directly, with no per-component symlink check of its
+    # own (unlike regular_file()'s walk), so a symlinked sitemap.xml would
+    # otherwise have its content trusted a line before this same sweep
+    # would have rejected it.
     for path in output.rglob("*"):
         if path.is_symlink():
             raise ValueError(
                 "retained HTML authority tree contains a symlink: "
                 f"{path.relative_to(output)}"
             )
+    canonical_paths = set(sitemap_paths(output, base_url))
     html_paths = sorted(
         path.relative_to(output).as_posix()
         for path in output.rglob("*")
