@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ardent.tools/schemas/systems-index.schema.json",
+  "title": "ardent tools systems index",
+  "description": "content/systems/_index.md — template=\"systems.html\". Structurally a Zola section (_index.md), so this composes typikon's section.core.schema.json, not page.core.",
+  "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/section.core.schema.json" }],
+  "properties": {
+    "extra": {
+      "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/section.core.schema.json#/properties/extra" }],
+      "unevaluatedProperties": false,
+      "properties": {
+        "ledger": {
+          "type": "array",
+          "description": "[[extra.ledger]] entries rendered by templates/systems.html and templates/partials/catalog-ledger.html — libraries/web/in-design systems not covered by their own content/systems/<slug>.md dossier.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "gloss", "one_liner", "badge", "license", "repo", "group"],
+            "properties": {
+              "name": { "type": "string" },
+              "gloss": { "type": "string" },
+              "one_liner": { "type": "string" },
+              "badge": { "type": "string" },
+              "license": { "type": "string" },
+              "repo": { "type": "string" },
+              "group": { "type": "string", "enum": ["libraries", "web", "in-design"] }
+            }
+          }
+        }
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}
