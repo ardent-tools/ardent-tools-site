@@ -6506,6 +6506,241 @@ class RecordingContractTests(unittest.TestCase):
         )
 
 
+class RecipeCastWitnessContractTests(unittest.TestCase):
+    """A reproduction-recipe driver script's TEXT can list its required `ok
+    TOKEN` markers in the right order while never having produced them - the
+    script only proves its own shape, not that anything ran (issue #119).
+    These tests hold a real, untouched recipe script fixed (so the old
+    ordered-substring-on-recipe-text check, replicated inline below, stays
+    green throughout) and vary only the published cast - the actual
+    recording - to prove that a doctored or stale cast which would not
+    reproduce is caught, while the three real shipped recipe/cast pairs are
+    not over-fired on."""
+
+    def _cast_text(self, chunks: list[str], *, header: dict | None = None) -> str:
+        lines = [json.dumps(header if header is not None else {"version": 3})]
+        for chunk in chunks:
+            lines.append(json.dumps([0.01, "o", chunk]))
+        lines.append(json.dumps([0.01, "x", "0"]))
+        return "\n".join(lines) + "\n"
+
+    def _thumos_recipe_text(self) -> str:
+        return (
+            "#!/usr/bin/env bash\n"
+            "PIN=3352cef887cf\n"
+            "ARDENT_THUMOS_ROOT\n"
+            "git clone --quiet https://github.com/forkwright/thumos.git\n"
+            "ok() { printf 'THUMOS_%s\\n' \"$1\"; }\n"
+            "run 'cargo build --release --target armv7a-none-eabi --features "
+            "qemu --jobs 8 && ok BUILD_OK'\n"
+            "run '../../scripts/qemu-runner.sh target/armv7a-none-eabi/release/"
+            "thumos < /dev/null && ok BOOT_OK'\n"
+            "run '# not shown: physical AGM M7 hardware'\n"
+        )
+
+    def _old_ordered_substring_check_passes(self, recipe_text: str) -> bool:
+        # WHY: replicates, standalone, the pre-#119 witness this issue is
+        # about (bin/validate-site.py's `t_build`/`t_boot`/`t_boundary`
+        # ordered .find() chain) - a check over the recipe's own TEXT only,
+        # never touching the cast. Used here to prove the doctored-cast
+        # fixtures below are exactly the case that check cannot catch.
+        t_build = recipe_text.find("ok BUILD_OK")
+        t_boot = recipe_text.find("ok BOOT_OK", t_build)
+        t_boundary = recipe_text.find("not shown: physical AGM M7", t_boot)
+        return 0 <= t_build < t_boot < t_boundary
+
+    def test_parse_cast_output_stream_concatenates_output_events_in_order_only(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cast_path = Path(directory) / "demo.cast"
+            cast_path.write_text(
+                self._cast_text(["ok BUI", "LD_OK\r\n", "trailing"])
+            )
+            stream = site.parse_cast_output_stream(cast_path)
+        self.assertEqual(stream, "ok BUILD_OK\r\ntrailing")
+
+    def test_the_three_shipped_recipe_cast_pairs_pass_the_cast_witness(self) -> None:
+        specs = [
+            (
+                "Thumos",
+                "static/tapes/thumos-boot.driver.sh",
+                "static/casts/thumos-boot.cast",
+                ("BUILD_OK", "BOOT_OK"),
+                "not shown: physical AGM M7 hardware",
+            ),
+            (
+                "Kanon",
+                "static/tapes/kanon-gate.driver.sh",
+                "static/casts/kanon-gate.cast",
+                ("VIOLATION_OK", "FIX_OK", "LINT_CLEAN_OK", "GATE_OK"),
+                "not shown: kanon's own source",
+            ),
+            (
+                "Hamma",
+                "static/tapes/hamma-tests.driver.sh",
+                "static/casts/hamma-tests.cast",
+                ("CORE_TESTS_OK", "DICTYON_TESTS_OK"),
+                "not shown: two peers on a tailnet",
+            ),
+        ]
+        for label, recipe, cast, tokens, boundary in specs:
+            with self.subTest(label=label):
+                errors: list[str] = []
+                site.validate_recipe_witnessed_by_cast(
+                    errors, label, ROOT / recipe, ROOT / cast, tokens, boundary
+                )
+                self.assertEqual(errors, [])
+
+    def test_a_cast_showing_the_markers_out_of_order_fails_the_new_witness(
+        self,
+    ) -> None:
+        recipe_text = self._thumos_recipe_text()
+        self.assertTrue(self._old_ordered_substring_check_passes(recipe_text))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe_path = root / "thumos-boot.driver.sh"
+            recipe_path.write_text(recipe_text)
+            cast_path = root / "thumos-boot.cast"
+            # Doctored: the recording shows BOOT_OK before BUILD_OK ever
+            # emits - the boot marker fired without a prior successful
+            # build in THIS recording, which the recipe's text (unmodified,
+            # and still passing the old check above) does not claim.
+            cast_path.write_text(
+                self._cast_text(
+                    [
+                        "THUMOS_BOOT_OK\r\n",
+                        "THUMOS_BUILD_OK\r\n",
+                        "not shown: physical AGM M7 hardware\r\n",
+                    ]
+                )
+            )
+            errors: list[str] = []
+            site.validate_recipe_witnessed_by_cast(
+                errors,
+                "Thumos",
+                recipe_path,
+                cast_path,
+                ("BUILD_OK", "BOOT_OK"),
+                "not shown: physical AGM M7 hardware",
+            )
+        self.assertTrue(
+            any("THUMOS_BOOT_OK" in error and "never emits" in error for error in errors),
+            errors,
+        )
+
+    def test_a_cast_that_never_emits_a_claimed_marker_fails_the_new_witness(
+        self,
+    ) -> None:
+        recipe_text = self._thumos_recipe_text()
+        self.assertTrue(self._old_ordered_substring_check_passes(recipe_text))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe_path = root / "thumos-boot.driver.sh"
+            recipe_path.write_text(recipe_text)
+            cast_path = root / "thumos-boot.cast"
+            # Doctored: the build step never actually succeeded in this
+            # recording (no THUMOS_BUILD_OK anywhere), yet the recipe's own
+            # text - untouched - still claims build-then-boot in order.
+            cast_path.write_text(
+                self._cast_text(
+                    [
+                        "cargo build failed\r\n",
+                        "THUMOS_BOOT_OK\r\n",
+                        "not shown: physical AGM M7 hardware\r\n",
+                    ]
+                )
+            )
+            errors: list[str] = []
+            site.validate_recipe_witnessed_by_cast(
+                errors,
+                "Thumos",
+                recipe_path,
+                cast_path,
+                ("BUILD_OK", "BOOT_OK"),
+                "not shown: physical AGM M7 hardware",
+            )
+        self.assertTrue(
+            any("THUMOS_BUILD_OK" in error and "never emits" in error for error in errors),
+            errors,
+        )
+
+    def test_a_cast_truncated_before_the_boundary_line_fails_the_new_witness(
+        self,
+    ) -> None:
+        recipe_text = self._thumos_recipe_text()
+        self.assertTrue(self._old_ordered_substring_check_passes(recipe_text))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe_path = root / "thumos-boot.driver.sh"
+            recipe_path.write_text(recipe_text)
+            cast_path = root / "thumos-boot.cast"
+            # Doctored: both success markers are present and in order, but
+            # the recording stops there - it never reaches the recipe's own
+            # documented boundary line, as a cast spliced together from a
+            # partial or unrelated run might.
+            cast_path.write_text(
+                self._cast_text(["THUMOS_BUILD_OK\r\n", "THUMOS_BOOT_OK\r\n"])
+            )
+            errors: list[str] = []
+            site.validate_recipe_witnessed_by_cast(
+                errors,
+                "Thumos",
+                recipe_path,
+                cast_path,
+                ("BUILD_OK", "BOOT_OK"),
+                "not shown: physical AGM M7 hardware",
+            )
+        self.assertTrue(
+            any("never reaches its own boundary line" in error for error in errors),
+            errors,
+        )
+
+    def test_malformed_cast_json_fails_closed_with_a_clear_message(self) -> None:
+        recipe_text = self._thumos_recipe_text()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe_path = root / "thumos-boot.driver.sh"
+            recipe_path.write_text(recipe_text)
+            cast_path = root / "thumos-boot.cast"
+            cast_path.write_text('{"version": 3}\nnot json at all\n')
+            errors: list[str] = []
+            site.validate_recipe_witnessed_by_cast(
+                errors,
+                "Thumos",
+                recipe_path,
+                cast_path,
+                ("BUILD_OK", "BOOT_OK"),
+                "not shown: physical AGM M7 hardware",
+            )
+        self.assertTrue(
+            any("cannot reconstruct recorded output stream" in error for error in errors),
+            errors,
+        )
+
+    def test_a_recipe_whose_ok_function_no_longer_matches_the_expected_shape_fails(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe_path = root / "thumos-boot.driver.sh"
+            recipe_path.write_text("#!/usr/bin/env bash\necho hi\n")
+            cast_path = root / "thumos-boot.cast"
+            cast_path.write_text(self._cast_text(["THUMOS_BUILD_OK\r\n"]))
+            errors: list[str] = []
+            site.validate_recipe_witnessed_by_cast(
+                errors,
+                "Thumos",
+                recipe_path,
+                cast_path,
+                ("BUILD_OK", "BOOT_OK"),
+                "not shown: physical AGM M7 hardware",
+            )
+        self.assertTrue(
+            any("ok() marker function not found" in error for error in errors), errors
+        )
+
+
 class CatalogContractTests(unittest.TestCase):
     def test_ambiguous_agpl_identifier_is_rejected(self) -> None:
         with self.assertRaises(SystemExit):
