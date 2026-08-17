@@ -7,6 +7,15 @@ The digest names the *final served bytes*: dependencies in CSS are finalized
 first, then their physical URLs are written into the parent before it is
 hashed.  Stable HTML and protocol resources are rewritten only after the
 complete map exists.
+
+Not every non-HTML file Zola emits enters that map: `build_map` only
+addresses `seed_candidates`' reachable set (candidates named by an actual
+HTML/CSS/JSON/webmanifest/_headers/_redirects reference, transitively) plus
+whatever canonical protocol members `release-resources.toml` declares. A
+Zola output file no live reference ever names is dropped from this release
+entirely -- never addressed, never left at its logical path. Already-retained
+history is unaffected: `bin/asset_retention.py`'s ledger is append-only and
+keyed on physical bytes already recorded, not on this build's reachable set.
 """
 
 from __future__ import annotations
@@ -1205,13 +1214,157 @@ def validate_source_tree(output: Path, manifest_name: str) -> None:
             )
 
 
+def select_consumers(output: Path, excluded: set[str]) -> list[Path]:
+    """Text files eligible to carry a same-origin resource reference.
+
+    Every regular file that is not itself a candidate resource, restricted
+    to the formats `rewrite_consumer` knows how to scan. The reachability
+    discovery pass and the real finalize pass both call this, so they always
+    agree on what counts as a reference root -- one selection, not two that
+    could drift.
+    """
+    consumers: list[Path] = []
+    for path in sorted(output.rglob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        relative = path.relative_to(output).as_posix()
+        if relative in excluded:
+            continue
+        if path.name in {"_headers", "_redirects"} or path.suffix.lower() in {
+            ".html",
+            ".json",
+            ".xml",
+            ".txt",
+            ".webmanifest",
+        }:
+            consumers.append(path)
+    return consumers
+
+
+def rewrite_consumer(
+    path: Path,
+    *,
+    output: Path,
+    origin: str,
+    candidates: set[str],
+    resolve,
+) -> str:
+    """Scan and rewrite one consumer file's same-origin resource references.
+
+    The single authority both `finalize_tree` (rewrite: candidates is the
+    finalized physical mapping) and `seed_candidates` (record: candidates is
+    every emitted-but-not-yet-decided resource) read reference grammar from
+    -- there is no second implementation of "what counts as a reference" to
+    drift out of step with this one.
+    """
+    try:
+        text = path.read_text(encoding="utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError(
+            f"text consumer is not strict UTF-8: {path.relative_to(output)}: {exc}"
+        ) from exc
+    relative = path.relative_to(output).as_posix()
+    if relative == "index.html":
+        base = f"{origin}/"
+    elif relative.endswith("/index.html"):
+        base = f"{origin}/{relative.removesuffix('index.html')}"
+    else:
+        base = f"{origin}/{relative}"
+    suffix = path.suffix.lower()
+    if suffix == ".html":
+        return rewrite_html(
+            text,
+            label=relative,
+            base=base,
+            origin=origin,
+            candidates=candidates,
+            resolve=resolve,
+        )
+    if suffix in {".json", ".webmanifest"}:
+        return rewrite_json(
+            text,
+            label=relative,
+            base=base,
+            origin=origin,
+            candidates=candidates,
+            resolve=resolve,
+            selector=lambda _path: False,
+        )
+    if relative == "_headers":
+        return rewrite_headers_consumer(
+            text, base=base, origin=origin, candidates=candidates, resolve=resolve
+        )
+    if relative == "_redirects":
+        return rewrite_redirects_consumer(
+            text, base=base, origin=origin, candidates=candidates, resolve=resolve
+        )
+    if suffix == ".xml":
+        return validate_xml_consumer(
+            text,
+            label=relative,
+            base=base,
+            origin=origin,
+            candidates=candidates,
+            resolve=resolve,
+        )
+    if suffix == ".txt":
+        return rewrite_text_consumer(
+            text,
+            label=relative,
+            base=base,
+            origin=origin,
+            candidates=candidates,
+            resolve=resolve,
+        )
+    raise ValueError(f"unsupported public text consumer: {relative}")
+
+
+def seed_candidates(output: Path, candidate_keys: set[str], origin: str) -> set[str]:
+    """Resources named by a same-origin reference in consumer text.
+
+    This is the root set `build_map` addresses. Its own CSS/JSON dependency
+    resolution (`finalize`, in `build_map`) extends the root set
+    transitively -- a font a reachable stylesheet references becomes
+    reachable too -- so a Zola output file no consumer text and no reachable
+    stylesheet/JSON ever names is never finalized: it enters neither the
+    physical namespace nor a new asset-map entry, and never enters a future
+    asset-retention snapshot. Already-retained history is untouched (that
+    ledger is append-only and keyed on physical bytes, not on this reachable
+    set -- see `bin/asset_retention.py`'s module docstring).
+
+    Fails closed by construction, not by a separate guess: this calls the
+    exact reference grammar `finalize_tree` later applies to rewrite these
+    same files, with `candidates` widened to every currently emitted
+    resource (not yet narrowed to what's reachable) so a reference this pass
+    cannot resolve is a reference the real rewrite could not have resolved
+    either -- `rewrite_consumer` raises rather than silently drop it, and an
+    unresolved-but-present reference is a hard failure rather than a
+    resource silently marked unreachable.
+    """
+    seeds: set[str] = set()
+
+    def record(dependency: str) -> dict[str, str]:
+        seeds.add(dependency)
+        return {"request_url": f"/{dependency}"}
+
+    for path in select_consumers(output, candidate_keys):
+        rewrite_consumer(
+            path,
+            output=output,
+            origin=origin,
+            candidates=candidate_keys,
+            resolve=record,
+        )
+    return seeds
+
+
 def build_map(
     output: Path,
     *,
     canonical: set[str],
     manifest_name: str,
     origin: str,
-) -> tuple[dict[str, dict[str, str]], dict[str, bytes]]:
+) -> tuple[dict[str, dict[str, str]], dict[str, bytes], set[str]]:
     candidates = {
         path.relative_to(output).as_posix(): path
         for path in public_files(output, manifest_name)
@@ -1358,9 +1511,9 @@ def build_map(
         state[logical_path] = "done"
         return item
 
-    for logical_path in sorted(candidates):
+    for logical_path in sorted(seed_candidates(output, set(candidates), origin)):
         finalize(logical_path)
-    return mapping, finalized_bodies
+    return mapping, finalized_bodies, set(candidates) - set(mapping)
 
 
 def finalize_tree(
@@ -1391,7 +1544,7 @@ def finalize_tree(
     manifest_name = contract["manifest_name"]
     canonical = set(contract["canonical_paths"])
     validate_source_tree(output, manifest_name)
-    mapping, finalized_bodies = build_map(
+    mapping, finalized_bodies, excluded = build_map(
         output,
         canonical=canonical,
         manifest_name=manifest_name,
@@ -1469,91 +1622,17 @@ def finalize_tree(
     for output_path, body in finalized_bodies.items():
         require_static_file_size(len(body), f"physical resource {output_path}")
 
-    consumers: list[Path] = []
-    for path in sorted(output.rglob("*")):
-        if not path.is_file() or path.is_symlink():
-            continue
-        relative = path.relative_to(output).as_posix()
-        if relative in mapping:
-            continue
-        if path.name in {"_headers", "_redirects"} or path.suffix.lower() in {
-            ".html",
-            ".json",
-            ".xml",
-            ".txt",
-            ".webmanifest",
-        }:
-            consumers.append(path)
+    consumers = select_consumers(output, set(mapping))
     rewritten: dict[Path, bytes] = {}
     for path in consumers:
-        try:
-            text = path.read_text(encoding="utf-8", errors="strict")
-        except UnicodeDecodeError as exc:
-            raise ValueError(
-                f"text consumer is not strict UTF-8: {path.relative_to(output)}: {exc}"
-            ) from exc
         relative = path.relative_to(output).as_posix()
-        if relative == "index.html":
-            base = f"{origin}/"
-        elif relative.endswith("/index.html"):
-            base = f"{origin}/{relative.removesuffix('index.html')}"
-        else:
-            base = f"{origin}/{relative}"
-        if path.suffix.lower() == ".html":
-            text = rewrite_html(
-                text,
-                label=relative,
-                base=base,
-                origin=origin,
-                candidates=set(mapping),
-                resolve=mapping.__getitem__,
-            )
-        elif path.suffix.lower() in {".json", ".webmanifest"}:
-            text = rewrite_json(
-                text,
-                label=relative,
-                base=base,
-                origin=origin,
-                candidates=set(mapping),
-                resolve=mapping.__getitem__,
-                selector=lambda _path: False,
-            )
-        elif relative == "_headers":
-            text = rewrite_headers_consumer(
-                text,
-                base=base,
-                origin=origin,
-                candidates=set(mapping),
-                resolve=mapping.__getitem__,
-            )
-        elif relative == "_redirects":
-            text = rewrite_redirects_consumer(
-                text,
-                base=base,
-                origin=origin,
-                candidates=set(mapping),
-                resolve=mapping.__getitem__,
-            )
-        elif path.suffix.lower() == ".xml":
-            text = validate_xml_consumer(
-                text,
-                label=relative,
-                base=base,
-                origin=origin,
-                candidates=set(mapping),
-                resolve=mapping.__getitem__,
-            )
-        elif path.suffix.lower() == ".txt":
-            text = rewrite_text_consumer(
-                text,
-                label=relative,
-                base=base,
-                origin=origin,
-                candidates=set(mapping),
-                resolve=mapping.__getitem__,
-            )
-        else:
-            raise ValueError(f"unsupported public text consumer: {relative}")
+        text = rewrite_consumer(
+            path,
+            output=output,
+            origin=origin,
+            candidates=set(mapping),
+            resolve=mapping.__getitem__,
+        )
         if relative == "_headers":
             current_special_urls = {
                 item["request_url"]
@@ -1599,10 +1678,17 @@ def finalize_tree(
 
     for path, body in rewritten.items():
         write_atomic(path, body)
-    for logical_path in sorted(mapping):
+    # Both the reachable candidates just finalized into `a/` (`mapping`) and
+    # the unreachable candidates dropped from this release (`excluded`) have
+    # their raw, un-addressed Zola output removed here: an excluded file left
+    # at its logical path would still be served (uncached, unaddressed) and
+    # would make public_files() see a physical file no manifest resource
+    # covers, failing release_manifest.py's coverage check downstream.
+    removed_logical = set(mapping) | excluded
+    for logical_path in sorted(removed_logical):
         (output / logical_path).unlink()
     for directory in sorted(
-        {path.parent for path in (output / logical for logical in mapping)},
+        {path.parent for path in (output / logical for logical in removed_logical)},
         key=lambda value: len(value.parts),
         reverse=True,
     ):
