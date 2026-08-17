@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import re
 import sys
@@ -20,6 +21,8 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from header_contract import (
     HeaderContract,
+    SYSTEM_PAGE_HEADERS,
+    SYSTEM_PAGE_PATH,
     load_headers,
     validate_live_direct_headers,
     validate_speculation_content_type,
@@ -182,6 +185,8 @@ def validate_strict_csp(
     label: str,
     headers: dict[str, str],
     header_contract: HeaderContract,
+    *,
+    expected_csp: str | None = None,
 ) -> None:
     # WHY: the expected CSP is DERIVED from the header contract (the same
     # _headers source that the deploy serves), not a hardcoded zero-cast
@@ -190,10 +195,17 @@ def validate_strict_csp(
     # closing the fail-only-on-main gap where the PR gate accepted the
     # cast-state CSP but production verification rejected it against a stale
     # constant. The cast/CSP consistency itself is enforced at gate time in
-    # bin/validate-site.py.
+    # bin/validate-site.py. expected_csp overrides the root policy for a
+    # caller that already knows its label is a /systems/*/ page - the only
+    # section carrying the wasm-unsafe-eval script-src exception (_headers).
     raw = header(headers, "Content-Security-Policy")
     live, duplicates = parse_csp(raw)
-    expected, _ = parse_csp(header_contract.direct_response["content-security-policy"])
+    source = (
+        expected_csp
+        if expected_csp is not None
+        else header_contract.direct_response["content-security-policy"]
+    )
+    expected, _ = parse_csp(source)
     if duplicates or live != expected:
         errors.append(f"{label} CSP differs from the header contract: {raw!r}")
 
@@ -213,9 +225,11 @@ def validate_html_boundary(
     headers: dict[str, str],
     body: str,
     header_contract: HeaderContract,
+    *,
+    expected_csp: str | None = None,
 ) -> None:
     validate_no_store_cache(errors, label, headers)
-    validate_strict_csp(errors, label, headers, header_contract)
+    validate_strict_csp(errors, label, headers, header_contract, expected_csp=expected_csp)
     validate_live_direct_headers(
         errors,
         label,
@@ -609,7 +623,14 @@ def verify(
         body = body_bytes.decode("utf-8", errors="replace")
         if status != 200:
             errors.append(f"{path} returned {status}, expected direct 200")
-        validate_html_boundary(errors, path, headers, body, header_contract)
+        page_expected_csp = (
+            SYSTEM_PAGE_HEADERS["content-security-policy"]
+            if fnmatch.fnmatchcase(path, SYSTEM_PAGE_PATH)
+            else None
+        )
+        validate_html_boundary(
+            errors, path, headers, body, header_contract, expected_csp=page_expected_csp
+        )
         validate_html_content_type(errors, path, headers)
         canonical_url = urljoin(canonical_root, path.lstrip("/"))
         validate_canonical(errors, page_url, canonical_url, body)

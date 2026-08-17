@@ -11,6 +11,7 @@ from release_manifest import SPECIAL_MEDIA_TYPES, SPECULATION_MEDIA_TYPE
 
 ROOT_PATH = "/*"
 ADDRESSED_ASSET_PATH = "/a/*"
+SYSTEM_PAGE_PATH = "/systems/*/"
 
 # Every non-HTML resource is served at /a/<full-sha256>.<ext>, provably
 # immutable by construction (content_address.py content-addresses the path
@@ -37,10 +38,21 @@ DIRECT_RESPONSE_HEADERS = {
     ),
     "content-security-policy": (
         "default-src 'self'; img-src 'self'; style-src 'self'; "
-        "script-src 'self' 'wasm-unsafe-eval'; "
+        "script-src 'self'; "
         "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
         "frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; "
         "worker-src 'none'; upgrade-insecure-requests"
+    ),
+}
+
+# Only system pages that render a published cast (content/systems/*.md,
+# [extra.demo].cast) load the vendored asciinema player, whose v3 runtime is
+# WebAssembly - script-src there needs the 'wasm-unsafe-eval' exception every
+# other path lacks. Derived from DIRECT_RESPONSE_HEADERS's own script-src
+# directive so the two variants cannot drift apart.
+SYSTEM_PAGE_HEADERS = {
+    "content-security-policy": DIRECT_RESPONSE_HEADERS["content-security-policy"].replace(
+        "script-src 'self';", "script-src 'self' 'wasm-unsafe-eval';"
     ),
 }
 
@@ -206,6 +218,7 @@ def validate_headers(
     expected_sections = {
         ROOT_PATH: contract.direct_response,
         ADDRESSED_ASSET_PATH: ADDRESSED_ASSET_HEADERS,
+        SYSTEM_PAGE_PATH: SYSTEM_PAGE_HEADERS,
         **{
             path: {"content-type": media_type}
             for path, media_type in contract.media_types.items()
@@ -228,6 +241,14 @@ def validate_headers(
             "cache-control header (`! Cache-Control`) before declaring its "
             "own — Cloudflare Pages joins same-name headers from overlapping "
             "sections rather than letting the later one win"
+        )
+    if "content-security-policy" not in detached.get(SYSTEM_PAGE_PATH, frozenset()):
+        errors.append(
+            f"_headers: {SYSTEM_PAGE_PATH!r} must detach the inherited "
+            "content-security-policy header (`! Content-Security-Policy`) "
+            "before declaring its own — Cloudflare Pages joins same-name "
+            "headers from overlapping sections rather than letting the later "
+            "one win"
         )
     return contract, errors
 

@@ -85,13 +85,12 @@ ASSET_MARKUP = (
 )
 GOOD_CACHE = "no-store, no-transform"
 GOOD_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
-GOOD_CSP = (
-    "default-src 'self'; img-src 'self'; style-src 'self'; "
-    "script-src 'self' 'wasm-unsafe-eval'; "
-    "font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; "
-    "frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; "
-    "worker-src 'none'; upgrade-insecure-requests"
-)
+# Root policy: derived from header_contract.py rather than restated here, so
+# a script-src change can't drift the fixture out of step with the source it
+# is meant to exercise. /systems/*/ pages carry the wider policy instead (see
+# GOOD_SYSTEM_CSP) - the two must never collapse into one constant again.
+GOOD_CSP = headers_contract.DIRECT_RESPONSE_HEADERS["content-security-policy"]
+GOOD_SYSTEM_CSP = headers_contract.SYSTEM_PAGE_HEADERS["content-security-policy"]
 
 
 def run_production_fixture(
@@ -122,15 +121,23 @@ def run_production_fixture(
     speculation_content_type: str = headers_contract.SPECULATION_MEDIA_TYPE,
     logical_alias_overrides: dict[str, tuple[int, bytes]] | None = None,
     require_logical_alias_tombstones: bool = True,
+    extra_html_pages: dict[str, str] | None = None,
 ) -> list[str]:
+    # extra_html_pages: {request_path: served_csp} for routes beyond the
+    # fixed / , /about/, /evidence/ set - e.g. a /systems/<slug>/ page, so
+    # verify()'s own per-page loop (not validate_html_boundary() called
+    # directly) can be exercised for the SYSTEM_PAGE_PATH glob dispatch.
+    # Each entry becomes a real sitemap route, a retained HTML authority
+    # route, and a live response served with the given CSP.
+    extra_html_pages = extra_html_pages or {}
     assets = ASSET_MARKUP
+    sitemap_locs = [f"{BASE_URL}/", f"{BASE_URL}/about/", f"{BASE_URL}/evidence/"]
+    sitemap_locs.extend(f"{BASE_URL}{path}" for path in sorted(extra_html_pages))
     sitemap_body = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-        f"<url><loc>{BASE_URL}/</loc></url>"
-        f"<url><loc>{BASE_URL}/about/</loc></url>"
-        f"<url><loc>{BASE_URL}/evidence/</loc></url>"
-        "</urlset>"
+        + "".join(f"<url><loc>{loc}</loc></url>" for loc in sitemap_locs)
+        + "</urlset>"
     ).encode()
     root_body = f'<link rel="canonical" href="{BASE_URL}/">{assets}'.encode()
     default_about = (
@@ -202,6 +209,11 @@ def run_production_fixture(
             "404/index.html": default_404,
             "404.html": default_404,
         }
+        for extra_path in extra_html_pages:
+            local_html[f"{extra_path.strip('/')}/index.html"] = (
+                f'<link rel="canonical" href="{BASE_URL}{extra_path}">'
+                f"Extra{assets}"
+            ).encode()
         for relative, body in local_html.items():
             path = output / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -297,6 +309,12 @@ def run_production_fixture(
             page_headers,
             default_about if about_body is None else about_body,
         )
+        for extra_path, extra_csp in extra_html_pages.items():
+            responses[(f"{BASE_URL}{extra_path}", False)] = (
+                200,
+                {**page_headers, "content-security-policy": extra_csp},
+                local_html[f"{extra_path.strip('/')}/index.html"],
+            )
         responses[(f"{BASE_URL}/evidence/", False)] = (
             200,
             page_headers,
@@ -787,6 +805,87 @@ class ProductionRouteContractTests(unittest.TestCase):
             ),
             errors,
         )
+
+    def test_system_page_csp_dispatch_matches_only_systems_paths(self) -> None:
+        # The per-page loop in verify-production.py picks the wasm-unsafe-eval
+        # policy for exactly the paths this glob matches - assert its shape
+        # directly since no fixture route currently lives under /systems/*/.
+        # /systems/ itself (the catalog, template systems.html) never renders
+        # the player and must NOT match - only an individual system page one
+        # level under it (template system.html) does.
+        for path in ("/systems/kanon/", "/systems/kanon/sub/"):
+            self.assertTrue(
+                production.fnmatch.fnmatchcase(path, headers_contract.SYSTEM_PAGE_PATH),
+                path,
+            )
+        for path in ("/", "/about/", "/systems", "/systems/"):
+            self.assertFalse(
+                production.fnmatch.fnmatchcase(path, headers_contract.SYSTEM_PAGE_PATH),
+                path,
+            )
+
+    def test_live_system_page_csp_permits_wasm_while_other_pages_reject_it(
+        self,
+    ) -> None:
+        header_contract, contract_errors = headers_contract.expected_contract(
+            HeaderContractTests.repository_manifest()
+        )
+        self.assertEqual(contract_errors, [])
+        system_page_headers = {
+            **header_contract.direct_response,
+            "content-security-policy": GOOD_SYSTEM_CSP,
+            "content-type": "text/html; charset=utf-8",
+        }
+
+        system_errors: list[str] = []
+        production.validate_html_boundary(
+            system_errors,
+            "/systems/kanon/",
+            system_page_headers,
+            "",
+            header_contract,
+            expected_csp=GOOD_SYSTEM_CSP,
+        )
+        self.assertEqual(system_errors, [])
+
+        leaked_errors: list[str] = []
+        production.validate_html_boundary(
+            leaked_errors, "/about/", system_page_headers, "", header_contract
+        )
+        self.assertTrue(
+            any("CSP differs from the header contract" in error for error in leaked_errors),
+            leaked_errors,
+        )
+
+    def test_verify_dispatches_a_systems_route_to_the_wasm_csp_boundary(self) -> None:
+        # The two tests above prove SYSTEM_PAGE_PATH's glob shape and
+        # validate_html_boundary()'s expected_csp plumbing in isolation, but
+        # neither one drives a request through verify()'s own per-page loop
+        # (bin/verify-production.py, the fnmatch.fnmatchcase(path,
+        # SYSTEM_PAGE_PATH) dispatch that decides expected_csp) - the exact
+        # mechanism deploy.yml's promote step gates on. A real /systems/*/
+        # route, served with the wasm-permitting policy, must clear verify()
+        # with zero errors: if the dispatch stopped selecting that policy for
+        # this path, the served CSP would no longer match the (wrongly)
+        # expected plain one and this fixture would fail.
+        errors = run_production_fixture(
+            self, extra_html_pages={"/systems/kanon/": GOOD_SYSTEM_CSP}
+        )
+        self.assertEqual(errors, [])
+
+    def test_verify_does_not_leak_the_wasm_csp_boundary_to_a_non_systems_route(
+        self,
+    ) -> None:
+        # Mirror image of the test above: /systems/ itself (the catalog, no
+        # descendant slug) must NOT match SYSTEM_PAGE_PATH, so verify() must
+        # keep expecting the plain root CSP there. Routed through verify()'s
+        # own loop, not validate_html_boundary() directly - if the dispatch
+        # over-matched and started routing the catalog page to the wasm
+        # policy, the plain CSP this fixture serves would fail to match it.
+        errors = run_production_fixture(
+            self, extra_html_pages={"/systems/": GOOD_CSP}
+        )
+        self.assertEqual(errors, [])
 
 
 class RedirectContractTests(unittest.TestCase):
@@ -3790,6 +3889,60 @@ class HeaderContractTests(unittest.TestCase):
         raw = self.finalized_headers()
         without_section = raw.replace(
             "\n/a/*\n  ! Cache-Control\n  Cache-Control: public, max-age=31536000, immutable\n",
+            "\n",
+        )
+        self.assertNotEqual(without_section, raw)
+        _contract, errors = headers_contract.validate_headers(
+            without_section, self.repository_manifest()
+        )
+        self.assertTrue(
+            any("supported path set differs" in error for error in errors), errors
+        )
+
+    def test_wasm_unsafe_eval_is_scoped_to_system_pages_only(self) -> None:
+        raw = self.finalized_headers()
+        contract, errors = headers_contract.validate_headers(
+            raw, self.repository_manifest()
+        )
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(contract)
+        self.assertNotIn(
+            "wasm-unsafe-eval", contract.direct_response["content-security-policy"]
+        )
+        self.assertIn(
+            "wasm-unsafe-eval",
+            headers_contract.SYSTEM_PAGE_HEADERS["content-security-policy"],
+        )
+        sections, detached, parse_errors = headers_contract.parse_headers(raw)
+        self.assertEqual(parse_errors, [])
+        self.assertEqual(
+            sections[headers_contract.SYSTEM_PAGE_PATH],
+            headers_contract.SYSTEM_PAGE_HEADERS,
+        )
+        self.assertIn(
+            "content-security-policy", detached[headers_contract.SYSTEM_PAGE_PATH]
+        )
+
+    def test_system_page_csp_must_detach_the_inherited_value(self) -> None:
+        raw = self.finalized_headers()
+        detach_line = "  ! Content-Security-Policy\n"
+        self.assertIn(detach_line, raw)
+        without_detach = raw.replace(detach_line, "", 1)
+        _contract, errors = headers_contract.validate_headers(
+            without_detach, self.repository_manifest()
+        )
+        self.assertTrue(
+            any(
+                "'/systems/*/' must detach the inherited" in error for error in errors
+            ),
+            errors,
+        )
+
+    def test_system_page_section_missing_entirely_fails(self) -> None:
+        raw = self.finalized_headers()
+        without_section = raw.replace(
+            "\n/systems/*/\n  ! Content-Security-Policy\n"
+            f"  Content-Security-Policy: {headers_contract.SYSTEM_PAGE_HEADERS['content-security-policy']}\n",
             "\n",
         )
         self.assertNotEqual(without_section, raw)
