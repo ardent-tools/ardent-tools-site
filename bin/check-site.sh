@@ -193,6 +193,11 @@ python3 bin/validate-site.py "$PROD_OUTPUT" --expected-revision "$BUILD_REVISION
 echo "==> external links"
 bin/check-external-links.sh "$PROD_OUTPUT" "$SITE_BASE_URL" "$CHECK_ROOT"
 
+# github.com subpath links .lycheeignore excludes from the check above -
+# lychee cannot verify them (see .lycheeignore's header comment) - are
+# witnessed here instead, so the fact each one asserts is still checked.
+python3 bin/verify-excluded-links.py
+
 echo "==> local browser build"
 python3 bin/site.py build --base-url "$LOCAL_BASE_URL" --output-dir "$LOCAL_OUTPUT"
 for placeholder in \
