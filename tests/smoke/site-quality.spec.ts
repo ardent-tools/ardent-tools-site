@@ -1,10 +1,19 @@
 import { test, expect } from '@playwright/test';
 
 const path = require('node:path');
-const { deriveRoutes, deriveCastRoutes } = require('./routes.cjs');
+const { deriveRoutes, deriveCastRoutes, resolvePlayerAssetUrls, auditPlayerAssetPresence } = require('./routes.cjs');
 const outputDir = process.env.SITE_OUTPUT_DIR || 'public-local';
 const routes: string[] = deriveRoutes(path.resolve(outputDir));
-const castRoutes: Set<string> = deriveCastRoutes(path.resolve(__dirname, '../../content/systems'));
+const castRoutes: Set<string> = deriveCastRoutes(
+  path.resolve(__dirname, '../../content/systems'),
+  path.resolve(__dirname, '../../static'),
+);
+// WHY SITE_ASSET_MAP: release-resources.json only exists beside a production
+// (canonical-origin) build; check-site.sh points this at the loopback build's
+// own local-asset-map.json instead. Falls back to the production shape for a
+// direct manual run against a release tree.
+const assetMapPath = process.env.SITE_ASSET_MAP || path.join(outputDir, 'release-resources.json');
+const { cssUrl: playerCssUrl, jsUrl: playerJsUrl } = resolvePlayerAssetUrls(path.resolve(assetMapPath));
 const viewports = [
   { width: 320, height: 900 },
   { width: 375, height: 900 },
@@ -25,14 +34,15 @@ for (const viewport of viewports) {
       page.on('pageerror', (error) => pageErrors.push(error.message));
       page.on('requestfailed', (request) => requestErrors.push(`${request.method()} ${request.url()}`));
       page.on('request', (request) => {
-        if (request.url().includes('asciinema-player')) playerRequests.push(request.url());
+        const requestPath = new URL(request.url()).pathname;
+        if (requestPath === playerCssUrl || requestPath === playerJsUrl) playerRequests.push(requestPath);
       });
 
       await page.setViewportSize(viewport);
       const response = await page.goto(route, { waitUntil: 'networkidle' });
       expect(response?.status(), `${route} did not return 200`).toBe(200);
 
-      const structure = await page.evaluate(() => {
+      const structure = await page.evaluate(({ cssUrl, jsUrl }) => {
         const headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((node) => Number(node.tagName[1]));
         const headingSkips = headings.slice(1).filter((level, index) => level > headings[index] + 1);
         const ids = Array.from(document.querySelectorAll('[id]')).map((node) => node.id);
@@ -50,9 +60,19 @@ for (const viewport of viewports) {
           missingAlt,
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           opacity: getComputedStyle(document.body).opacity,
-          playerMarkup: document.querySelectorAll('[data-cast], link[href*="asciinema-player"], script[src*="asciinema-player"]').length,
+          dataCastCount: document.querySelectorAll('[data-cast]').length,
+          // WHY .pathname, not the raw href/src attribute: asset_url::hashed
+          // renders an absolute URL (origin + path), while cssUrl/jsUrl from
+          // the asset manifest are root-relative paths. The `.href`/`.src`
+          // IDL properties (unlike getAttribute) always resolve to an
+          // absolute URL per the DOM spec, so comparing their .pathname
+          // matches regardless of which form the markup happens to render -
+          // the same normalization the network-request listener above
+          // already applies via `new URL(request.url()).pathname`.
+          cssMarkupCount: Array.from(document.querySelectorAll('link[rel="stylesheet"]')).filter((node) => new URL((node as HTMLLinkElement).href).pathname === cssUrl).length,
+          jsMarkupCount: Array.from(document.querySelectorAll('script[src]')).filter((node) => new URL((node as HTMLScriptElement).src).pathname === jsUrl).length,
         };
-      });
+      }, { cssUrl: playerCssUrl, jsUrl: playerJsUrl });
 
       expect(structure.h1).toBe(1);
       expect(structure.headingSkips).toEqual([]);
@@ -61,8 +81,16 @@ for (const viewport of viewports) {
       expect(structure.missingAlt).toBe(0);
       expect(structure.overflow, `${route} overflows by ${structure.overflow}px`).toBeLessThanOrEqual(0);
       expect(structure.opacity).toBe('1');
-      expect(structure.playerMarkup, `${route} player-markup count`).toBe(castRoutes.has(route) ? 1 : 0);
-      expect(playerRequests).toEqual([]);
+      expect(structure.dataCastCount, `${route} data-cast markup count`).toBe(castRoutes.has(route) ? 1 : 0);
+      const playerViolations = auditPlayerAssetPresence({
+        route,
+        isCastRoute: castRoutes.has(route),
+        cssMarkupCount: structure.cssMarkupCount,
+        jsMarkupCount: structure.jsMarkupCount,
+        cssRequestCount: playerRequests.filter((url) => url === playerCssUrl).length,
+        jsRequestCount: playerRequests.filter((url) => url === playerJsUrl).length,
+      });
+      expect(playerViolations, `${route} player asset audit`).toEqual([]);
       expect(consoleErrors).toEqual([]);
       expect(pageErrors).toEqual([]);
       expect(requestErrors).toEqual([]);
