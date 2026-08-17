@@ -1197,6 +1197,30 @@ class ContentAddressContractTests(unittest.TestCase):
             html_body = (output / "index.html").read_text()
         self.assertRegex(html_body, r'<img src="/a/[0-9a-f]{64}\.svg">')
 
+    def test_resolved_consumer_url_cache_is_bounded_not_a_leak(self) -> None:
+        # WHY: this cache backs resolved_consumer_url() for the whole life of
+        # one build process. An unbounded dict here is a slow memory leak
+        # nobody attributes to this call site; prove the bound actually
+        # evicts the least-recently-used entry rather than merely existing
+        # as a constant nobody enforces.
+        content_address._RESOLVED_CONSUMER_URL_CACHE.clear()
+        maxsize = content_address.RESOLVED_CONSUMER_URL_CACHE_MAXSIZE
+        base = "https://ardent.tools/"
+        for index in range(maxsize + 1):
+            content_address._cache_resolved_consumer_url(
+                (f"/img/{index}.svg", base, False),
+                {"pathname": f"/img/{index}.svg"},
+            )
+        self.assertEqual(len(content_address._RESOLVED_CONSUMER_URL_CACHE), maxsize)
+        self.assertNotIn(
+            ("/img/0.svg", base, False),
+            content_address._RESOLVED_CONSUMER_URL_CACHE,
+        )
+        self.assertIn(
+            (f"/img/{maxsize}.svg", base, False),
+            content_address._RESOLVED_CONSUMER_URL_CACHE,
+        )
+
     def test_html_parsing_errors_are_attributed_to_their_source_file(self) -> None:
         cases = {
             "unquoted": (
@@ -3651,6 +3675,40 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             expected = html_contract.build_authority(output, EXPECTED_REVISION, BASE_URL)
             self.assertEqual(written, html_contract.serialize_authority(expected))
 
+    def test_main_reports_a_self_validation_mismatch_and_exits_1(self) -> None:
+        # WHY: main() writes the authority file, then calls validate_authority()
+        # to prove the write matches a fresh rebuild of the tree, failing the
+        # run if it does not. A happy-path fixture can never show that gate
+        # actually gates anything -- nothing has drifted, so validate_authority()
+        # reports no errors whether or not main() honors its result. Force the
+        # one outcome the self-check exists to catch: validate_authority()
+        # itself reporting a mismatch, and prove main() turns that into a
+        # failed run rather than the PASS it would print for a clean one.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            argv = [
+                "html_authority.py",
+                str(output),
+                "--revision",
+                EXPECTED_REVISION,
+                "--base-url",
+                BASE_URL,
+            ]
+            drift = f"{html_contract.AUTHORITY_NAME} differs from the exact retained HTML tree"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with mock.patch.object(
+                html_contract, "validate_authority", return_value=({}, [drift])
+            ):
+                with mock.patch.object(html_contract.sys, "argv", argv):
+                    with mock.patch.object(html_contract.sys, "stdout", stdout):
+                        with mock.patch.object(html_contract.sys, "stderr", stderr):
+                            exit_code = html_contract.main()
+            self.assertEqual(exit_code, 1)
+            self.assertIn(f"ERROR: {drift}", stderr.getvalue())
+            self.assertNotIn("PASS", stdout.getvalue())
+
     def test_main_reports_build_failure_and_exits_1_without_a_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -3670,6 +3728,9 @@ class HtmlAuthorityContractTests(unittest.TestCase):
                     exit_code = html_contract.main()
             self.assertEqual(exit_code, 1)
             self.assertIn("ERROR:", stderr.getvalue())
+            # WHY: the test's own name claims no traceback leaks past the
+            # caught-and-reported failure; assert it, don't just imply it.
+            self.assertNotIn("Traceback (most recent call last):", stderr.getvalue())
             self.assertFalse((output / html_contract.AUTHORITY_NAME).exists())
 
 
