@@ -21,7 +21,13 @@ REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
 DATE_RE = re.compile(r"^20[0-9]{2}-[0-9]{2}-[0-9]{2}$")
 OUTPUT_PATH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
-ADDRESSED_PATH_RE = re.compile(r"^a/([0-9a-f]{64})(\.[A-Za-z0-9]+)$")
+# WHY: this is the canonical `a/<sha256><ext>` physical-address grammar --
+# the one asset_retention.py and validate-site.py import rather than
+# redefine, so all three agree on what a content-addressed path looks like.
+# The extension group is lowercase-only: content_address.py never writes an
+# uppercase extension, so this is the actual grammar, not merely a stricter
+# choice among equally valid ones.
+ADDRESSED_PATH_RE = re.compile(r"^a/([0-9a-f]{64})(\.[a-z0-9]+)$")
 MAX_RESOURCES = 1024
 MANIFEST_SCHEMA_VERSION = 4
 ASSET_MAP_SCHEMA_VERSION = 3
@@ -1189,6 +1195,14 @@ def validate_manifest(
     manifest_name = contract["manifest_name"]
     canonical = set(contract["canonical_paths"])
     expected_paths: set[str]
+    # WHY: an empty fallback set is not "zero expected files" -- it is
+    # "unknown". Feeding it to the two comparisons below would fabricate a
+    # "coverage differs; extra=[...everything...]" error and an "absent
+    # canonical paths" error on top of the real public_files() failure,
+    # burying the one true cause under two synthetic ones. expected_paths_known
+    # gates both comparisons off when public_files() itself could not be
+    # trusted.
+    expected_paths_known = True
     try:
         expected_paths = {
             path.relative_to(output).as_posix()
@@ -1197,6 +1211,7 @@ def validate_manifest(
     except ValueError as exc:
         errors.append(str(exc))
         expected_paths = set()
+        expected_paths_known = False
     seen_paths: set[str] = set()
     seen_logical: set[str] = set()
     seen_urls: set[str] = set()
@@ -1312,17 +1327,18 @@ def validate_manifest(
                 errors.append(
                     f"release manifest lacks required media type for {request_url!r}"
                 )
-    if seen_paths != expected_paths:
+    if expected_paths_known and seen_paths != expected_paths:
         missing = sorted(expected_paths - seen_paths)
         extra = sorted(seen_paths - expected_paths)
         errors.append(
             f"release manifest coverage differs; missing={missing}, extra={extra}"
         )
-    missing_canonical = sorted(canonical - expected_paths)
-    if missing_canonical:
-        errors.append(
-            f"release contract canonical paths are absent: {missing_canonical}"
-        )
+    if expected_paths_known:
+        missing_canonical = sorted(canonical - expected_paths)
+        if missing_canonical:
+            errors.append(
+                f"release contract canonical paths are absent: {missing_canonical}"
+            )
     tombstones = manifest.get("tombstones")
     if tombstones != contract["tombstones"]:
         errors.append("release manifest tombstones differ from release-resources.toml")

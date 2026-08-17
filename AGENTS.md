@@ -136,7 +136,7 @@ must report only embedded/subsetted Nimbus Sans Regular and Bold.
 
 ## Remotes
 
-`origin` points directly at `github.com/ardent-tools/ardent-tools-site` — no forge remote, no push-mirror. This diverges from the fleet convention (typikon and the sibling `ardent-site` repo run `origin` = the forkwright forge, `github` = a push-mirror); a forge remote can be added later via `kanon forge init ardent-tools/ardent-tools-site` if this repo joins that convention, but nothing here depends on it today.
+`origin` points directly at `github.com/ardent-tools/ardent-tools-site` — no forge remote, no push-mirror. This is the same shape every other fleet clone currently has, not a divergence from one: the forge-backed layout is a declared intent rather than a deployed state, so read `kanon forge list` for which repositories are actually registered rather than trusting any prose — including this line — about which ones follow it. A forge remote can be added via `kanon forge init ardent-tools/ardent-tools-site`; note that this repo sits under the `ardent-tools` org rather than `forkwright`, so adopting it here crosses an org boundary that a same-org repo would not.
 
 ## Open items from the build pass
 

@@ -167,6 +167,17 @@ def parse_headers(
                     f"_headers:{line_number}: detach operation names no header"
                 )
                 continue
+            if detach_name in detached[current_path]:
+                # INVARIANT: a detach cancels one INHERITED value and makes room
+                # for exactly one same-section redeclaration. A second detach of
+                # the same name would re-open that room after it was already
+                # used, letting a header value be silently replaced any number
+                # of times with no duplicate-declaration error ever firing.
+                errors.append(
+                    f"_headers:{line_number}: duplicate detach of {detach_name!r} "
+                    f"in {current_path!r}"
+                )
+                continue
             sections[current_path].pop(detach_name, None)
             detached[current_path].add(detach_name)
             continue

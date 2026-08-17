@@ -13,6 +13,11 @@ from urllib.parse import urlparse
 
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 SAFE_PATH_RE = re.compile(r"^/[A-Za-z0-9._~!$&'()+,;=:@%*/-]*$")
+# WHY: SAFE_PATH_RE's character class admits '%' on its own -- it says
+# nothing about what follows -- so a bare or short percent-encoding
+# ('/foo%', '/foo%z', '/foo%zz') passes the shape check and is only ever
+# caught downstream, if at all, by whatever eventually tries to decode it.
+MALFORMED_PERCENT_RE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 
 class RedirectRule(NamedTuple):
@@ -73,6 +78,7 @@ def _shape_errors(rule: RedirectRule, label: str, line_number: int) -> list[str]
         or "\\" in source
         or source.count("*") > 1
         or ("*" in source and not source.endswith("/*"))
+        or MALFORMED_PERCENT_RE.search(source)
     ):
         errors.append(f"{context}: malformed redirect source {source!r}")
     source_parts = urlparse(source)
@@ -93,6 +99,7 @@ def _shape_errors(rule: RedirectRule, label: str, line_number: int) -> list[str]
         or "\\" in target
         or "*" in target
         or any(segment in {".", ".."} for segment in target_parts.path.split("/"))
+        or MALFORMED_PERCENT_RE.search(target)
     ):
         errors.append(
             f"{context}: redirect target must be one normalized same-origin path; "

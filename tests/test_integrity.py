@@ -977,6 +977,29 @@ class RedirectContractTests(unittest.TestCase):
                 _, errors = redirects.parse_redirects(raw)
                 self.assertTrue(any(expected in error for error in errors), errors)
 
+    def test_malformed_percent_encoding_in_source_or_target_fails(self) -> None:
+        base = "\n".join(rule.declaration for rule in redirects.SUPPORTED_REDIRECTS)
+        cases = {
+            "bare-percent-source": (
+                base + "\n/foo% /evidence/ 301",
+                "malformed redirect source",
+            ),
+            "short-percent-source": (
+                base + "\n/foo%z /evidence/ 301",
+                "malformed redirect source",
+            ),
+            "bad-hex-target": (
+                base.replace(
+                    "/demos /evidence/ 301", "/demos /evidence%zz/ 301"
+                ),
+                "normalized same-origin path",
+            ),
+        }
+        for label, (raw, expected) in cases.items():
+            with self.subTest(label=label):
+                _, errors = redirects.parse_redirects(raw)
+                self.assertTrue(any(expected in error for error in errors), errors)
+
     def test_every_live_redirect_probe_requires_exact_status(self) -> None:
         for rule in redirects.SUPPORTED_REDIRECTS:
             with self.subTest(source=rule.source):
@@ -1134,6 +1157,48 @@ class ContentAddressContractTests(unittest.TestCase):
         self.assertIn("content:'/img/pixel.svg'", css_body)
         self.assertRegex(css_body, r"background:url\('/a/[0-9a-f]{64}\.svg'\)")
 
+    def test_multiple_external_url_tokens_in_one_document_resolve_in_one_batch(
+        self,
+    ) -> None:
+        files = {
+            "index.html": (
+                b'<img src="https://example.com/one.svg">'
+                b'<img src="https://example.com/two.svg">'
+                b'<img src="https://example.com/three.svg">'
+                b'<link rel="stylesheet" href="/css/app.css">'
+            ),
+            "css/app.css": b"body{color:red}\n",
+        }
+        content_address._RESOLVED_CONSUMER_URL_CACHE.clear()
+        real_resolve = content_address.resolve_browser_references
+        calls: list[list[str]] = []
+
+        def counting_resolve(references, bases=None, *, upgrade_insecure=True):
+            calls.append(list(references))
+            return real_resolve(references, bases, upgrade_insecure=upgrade_insecure)
+
+        with mock.patch.object(
+            content_address,
+            "resolve_browser_references",
+            side_effect=counting_resolve,
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                self.finalize(Path(directory), files)
+        # PERF: three distinct external references discovered in one
+        # document resolve through ONE batched Node subprocess call rather
+        # than one call per reference.
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            sorted(calls[0]),
+            sorted(
+                [
+                    "https://example.com/one.svg",
+                    "https://example.com/two.svg",
+                    "https://example.com/three.svg",
+                ]
+            ),
+        )
+
     def test_html_and_json_rewriters_preserve_non_url_schema_values(self) -> None:
         files = {
             "index.html": (
@@ -1208,7 +1273,7 @@ class ContentAddressContractTests(unittest.TestCase):
         ):
             with self.subTest(reference=reference):
                 fast_result = content_address.same_origin_path(reference, base, origin)
-                content_address.resolved_consumer_url.cache_clear()
+                content_address._RESOLVED_CONSUMER_URL_CACHE.clear()
                 subprocess_resolved = release.resolve_browser_references(
                     [reference], [base]
                 )[0]
@@ -1231,6 +1296,57 @@ class ContentAddressContractTests(unittest.TestCase):
             output, _document = self.finalize(Path(directory), files)
             html_body = (output / "index.html").read_text()
         self.assertRegex(html_body, r'<img src="/a/[0-9a-f]{64}\.svg">')
+
+    def test_resolved_consumer_url_cache_is_bounded_not_a_leak(self) -> None:
+        # WHY: this cache backs resolved_consumer_url() for the whole life of
+        # one build process. An unbounded dict here is a slow memory leak
+        # nobody attributes to this call site; prove the bound actually
+        # evicts the least-recently-used entry rather than merely existing
+        # as a constant nobody enforces.
+        content_address._RESOLVED_CONSUMER_URL_CACHE.clear()
+        maxsize = content_address.RESOLVED_CONSUMER_URL_CACHE_MAXSIZE
+        base = "https://ardent.tools/"
+        for index in range(maxsize + 1):
+            content_address._cache_resolved_consumer_url(
+                (f"/img/{index}.svg", base, False),
+                {"pathname": f"/img/{index}.svg"},
+            )
+        self.assertEqual(len(content_address._RESOLVED_CONSUMER_URL_CACHE), maxsize)
+        self.assertNotIn(
+            ("/img/0.svg", base, False),
+            content_address._RESOLVED_CONSUMER_URL_CACHE,
+        )
+        self.assertIn(
+            (f"/img/{maxsize}.svg", base, False),
+            content_address._RESOLVED_CONSUMER_URL_CACHE,
+        )
+
+    def test_html_parsing_errors_are_attributed_to_their_source_file(self) -> None:
+        cases = {
+            "unquoted": (
+                b"<img src=/img/pixel.svg>",
+                "HTML resource URL attributes must be quoted",
+            ),
+            "compound": (
+                b'<img srcset="/img/pixel.svg 1x">',
+                "compound HTML URL attributes are forbidden",
+            ),
+            "nested json-ld": (
+                b'<script type="application/ld+json"/>'
+                b'<script type="application/ld+json">{}</script>',
+                r"nested application/ld\+json blocks are forbidden",
+            ),
+        }
+        for label, (snippet, expected) in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                files = {
+                    "index.html": snippet,
+                    "img/pixel.svg": b'<svg xmlns="http://www.w3.org/2000/svg"/>',
+                }
+                # WHY: the error must name the offending file, not read as a
+                # bare, source-less complaint.
+                with self.assertRaisesRegex(ValueError, rf"^index\.html: .*{expected}"):
+                    self.finalize(Path(directory), files)
 
     def test_webmanifest_dependencies_change_its_physical_identity(self) -> None:
         base = {
@@ -2553,6 +2669,79 @@ class AssetRetentionLifetimeContractTests(unittest.TestCase):
                         asset_retention.validate_ledger(ledger, assets)
             ledger.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
 
+    def test_record_checkpoint_restores_the_prior_ledger_when_self_check_fails(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            first, first_body = self.resource_for("css/old.css", b"old\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [first], {first["output_path"]: first_body}
+            )
+            second, second_body = self.resource_for("css/new.css", b"new\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [second], {second["output_path"]: second_body}
+            )
+            on_disk_before = ledger.read_bytes()
+            real_validate = asset_retention.validate_ledger
+            calls = {"count": 0}
+
+            def fail_second_call(ledger_path: Path, asset_root: Path):
+                calls["count"] += 1
+                result = real_validate(ledger_path, asset_root)
+                if calls["count"] == 2:
+                    raise ValueError("simulated post-write self-check failure")
+                return result
+
+            with mock.patch.object(
+                asset_retention, "validate_ledger", side_effect=fail_second_call
+            ):
+                with self.assertRaisesRegex(ValueError, "simulated post-write"):
+                    asset_retention.record_checkpoint(ledger, assets)
+            # WHY: the failure happens AFTER the candidate checkpoint document
+            # is already written to disk. Without rollback, that document --
+            # which just failed its own self-check -- would be left in place
+            # instead of the prior, still-valid ledger.
+            self.assertEqual(ledger.read_bytes(), on_disk_before)
+
+    def test_main_verify_failure_reports_error_without_argparse_usage_text(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "asset-retention.json"
+            assets = root / "retained-assets"
+            resource, body = self.resource_for("css/main.css", b"main\n")
+            asset_retention.record_snapshot(
+                ledger, assets, [resource], {resource["output_path"]: body}
+            )
+            prior_ledger = root / "prior.json"
+            prior_ledger.write_text("not json")
+
+            argv = [
+                "asset_retention.py",
+                "verify",
+                "--ledger",
+                str(ledger),
+                "--assets",
+                str(assets),
+                "--prior-ledger",
+                str(prior_ledger),
+            ]
+            stderr = io.StringIO()
+            with mock.patch.object(asset_retention.sys, "argv", argv):
+                with mock.patch.object(asset_retention.sys, "stderr", stderr):
+                    exit_code = asset_retention.main()
+            # WHY: a ledger-integrity ValueError is a data failure, not a
+            # command-line usage mistake -- it must return the ordinary error
+            # exit status and message, never argparse's usage-error path
+            # (exit 2 plus a "usage: ..." banner).
+            self.assertEqual(exit_code, 1)
+            self.assertIn("ERROR:", stderr.getvalue())
+            self.assertNotIn("usage:", stderr.getvalue())
+
 
 class ReleaseManifestContractTests(unittest.TestCase):
     @staticmethod
@@ -2658,6 +2847,34 @@ class ReleaseManifestContractTests(unittest.TestCase):
             )
         self.assertTrue(any("invalid output_path" in error for error in errors), errors)
         self.assertTrue(any("coverage differs" in error for error in errors), errors)
+
+    def test_addressed_output_path_extension_must_be_lowercase(self) -> None:
+        # WHY: ADDRESSED_PATH_RE is shared with asset_retention.py, which has
+        # always required a lowercase extension -- content_address.py never
+        # writes any other kind. This proves release_manifest.py now rejects
+        # what it used to silently accept.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, manifest, _raw = self.make_fixture(output)
+            item = next(
+                resource
+                for resource in manifest["resources"]
+                if resource["cache_class"] == "addressed"
+            )
+            stem, _, extension = item["output_path"].rpartition(".")
+            uppercase_path = f"{stem}.{extension.upper()}"
+            (output / item["output_path"]).rename(output / uppercase_path)
+            item["output_path"] = uppercase_path
+            item["request_url"] = f"/{uppercase_path}"
+            _, errors = release.validate_manifest(
+                release.serialize_manifest(manifest),
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                contract=contract,
+            )
+        self.assertTrue(
+            any("full-digest physical path" in error for error in errors), errors
+        )
 
     def test_manifest_count_and_duplicate_url_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -3129,6 +3346,25 @@ class ReleaseManifestContractTests(unittest.TestCase):
                 )
                 self.assertEqual(len(errors), 1, errors)
 
+    def test_public_files_failure_reports_once_without_fabricated_coverage_errors(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            contract, _manifest, raw = self.make_fixture(output)
+            (output / "stray-symlink").symlink_to(output / "robots.txt")
+            _document, errors = release.validate_manifest(
+                raw,
+                output=output,
+                expected_revision=EXPECTED_REVISION,
+                contract=contract,
+            )
+        # WHY: a public_files() failure must surface exactly its own cause,
+        # not cascade into "coverage differs"/"canonical paths are absent"
+        # errors synthesized from the empty expected_paths fallback.
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("must not be a symlink", errors[0])
+
 
 class HeaderContractTests(unittest.TestCase):
     SPECULATION_PATH = f"/a/{'1' * 64}.json"
@@ -3287,6 +3523,23 @@ class HeaderContractTests(unittest.TestCase):
         self.assertEqual(bare_sections["/a/*"], {})
         self.assertIn("cache-control", bare_detached["/a/*"])
 
+    def test_repeated_detach_of_the_same_header_in_one_section_fails(self) -> None:
+        # WHY: a second detach of an already-detached name would otherwise
+        # reopen the one-time redeclaration room the first detach granted,
+        # letting a header be silently replaced any number of times with no
+        # duplicate-declaration error ever firing.
+        raw = (
+            "/a/*\n"
+            "  ! Cache-Control\n"
+            "  Cache-Control: public, max-age=1, immutable\n"
+            "  ! Cache-Control\n"
+            "  Cache-Control: public, max-age=2, immutable\n"
+        )
+        _sections, _detached, errors = headers_contract.parse_headers(raw)
+        self.assertTrue(
+            any("duplicate detach" in error for error in errors), errors
+        )
+
     def test_live_direct_header_omission_and_duplicate_fail(self) -> None:
         missing = run_production_fixture(
             self,
@@ -3380,6 +3633,23 @@ class HtmlAuthorityContractTests(unittest.TestCase):
             path.write_bytes(body)
         authority = html_contract.build_authority(output, EXPECTED_REVISION, BASE_URL)
         return authority, html_contract.serialize_authority(authority)
+
+    def test_symlinked_sitemap_fails_as_a_symlink_not_a_parse_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            sitemap = output / "sitemap.xml"
+            sitemap.unlink()
+            # WHY: a dangling target makes the two orderings observably
+            # different. The symlink sweep (SAFETY-first) reports the actual
+            # policy violation; reading sitemap.xml before sweeping instead
+            # surfaces a misleading "cannot parse" failure that never names
+            # the real cause.
+            sitemap.symlink_to(output / "does-not-exist.xml")
+            with self.assertRaisesRegex(
+                ValueError, r"contains a symlink: sitemap\.xml"
+            ):
+                html_contract.build_authority(output, EXPECTED_REVISION, BASE_URL)
 
     def test_authority_covers_sitemap_and_non_sitemap_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -3536,6 +3806,86 @@ class HtmlAuthorityContractTests(unittest.TestCase):
                     write_sitemap(output, *locs)
                     with self.assertRaisesRegex(ValueError, pattern):
                         html_contract.sitemap_paths(output, BASE_URL)
+
+    def test_main_writes_and_self_validates_the_authority_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            argv = [
+                "html_authority.py",
+                str(output),
+                "--revision",
+                EXPECTED_REVISION,
+                "--base-url",
+                BASE_URL,
+            ]
+            stdout = io.StringIO()
+            with mock.patch.object(html_contract.sys, "argv", argv):
+                with mock.patch.object(html_contract.sys, "stdout", stdout):
+                    exit_code = html_contract.main()
+            self.assertEqual(exit_code, 0)
+            self.assertIn("PASS", stdout.getvalue())
+            written = (output / html_contract.AUTHORITY_NAME).read_bytes()
+            expected = html_contract.build_authority(output, EXPECTED_REVISION, BASE_URL)
+            self.assertEqual(written, html_contract.serialize_authority(expected))
+
+    def test_main_reports_a_self_validation_mismatch_and_exits_1(self) -> None:
+        # WHY: main() writes the authority file, then calls validate_authority()
+        # to prove the write matches a fresh rebuild of the tree, failing the
+        # run if it does not. A happy-path fixture can never show that gate
+        # actually gates anything -- nothing has drifted, so validate_authority()
+        # reports no errors whether or not main() honors its result. Force the
+        # one outcome the self-check exists to catch: validate_authority()
+        # itself reporting a mismatch, and prove main() turns that into a
+        # failed run rather than the PASS it would print for a clean one.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            argv = [
+                "html_authority.py",
+                str(output),
+                "--revision",
+                EXPECTED_REVISION,
+                "--base-url",
+                BASE_URL,
+            ]
+            drift = f"{html_contract.AUTHORITY_NAME} differs from the exact retained HTML tree"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with mock.patch.object(
+                html_contract, "validate_authority", return_value=({}, [drift])
+            ):
+                with mock.patch.object(html_contract.sys, "argv", argv):
+                    with mock.patch.object(html_contract.sys, "stdout", stdout):
+                        with mock.patch.object(html_contract.sys, "stderr", stderr):
+                            exit_code = html_contract.main()
+            self.assertEqual(exit_code, 1)
+            self.assertIn(f"ERROR: {drift}", stderr.getvalue())
+            self.assertNotIn("PASS", stdout.getvalue())
+
+    def test_main_reports_build_failure_and_exits_1_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self.make_fixture(output)
+            (output / "sitemap.xml").unlink()
+            argv = [
+                "html_authority.py",
+                str(output),
+                "--revision",
+                EXPECTED_REVISION,
+                "--base-url",
+                BASE_URL,
+            ]
+            stderr = io.StringIO()
+            with mock.patch.object(html_contract.sys, "argv", argv):
+                with mock.patch.object(html_contract.sys, "stderr", stderr):
+                    exit_code = html_contract.main()
+            self.assertEqual(exit_code, 1)
+            self.assertIn("ERROR:", stderr.getvalue())
+            # WHY: the test's own name claims no traceback leaks past the
+            # caught-and-reported failure; assert it, don't just imply it.
+            self.assertNotIn("Traceback (most recent call last):", stderr.getvalue())
+            self.assertFalse((output / html_contract.AUTHORITY_NAME).exists())
 
 
 def _workflow_line_indent(line: str) -> int:
@@ -5392,6 +5742,52 @@ class CacheContractTests(unittest.TestCase):
             )
         self.assertEqual(errors, [])
 
+    def test_indented_header_with_no_preceding_path_rule_fails(self) -> None:
+        with self.assertRaisesRegex(ValueError, "header without path rule"):
+            site.parse_cloudflare_headers("  Cache-Control: no-store\n")
+
+    def test_header_declaration_missing_colon_separator_fails(self) -> None:
+        with self.assertRaisesRegex(ValueError, "malformed header declaration"):
+            site.parse_cloudflare_headers("/*\n  Cache-Control no-store\n")
+
+    def test_malformed_headers_syntax_surfaces_through_cache_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            errors: list[str] = []
+            site.validate_cache_contract(
+                errors, output, "/*\n  Cache-Control no-store\n"
+            )
+        self.assertTrue(
+            any("malformed header declaration" in error for error in errors), errors
+        )
+
+
+class ValidateSiteEntrypointContractTests(unittest.TestCase):
+    def run_main(self, output: Path) -> tuple[int, str]:
+        argv = ["validate-site.py", str(output)]
+        stderr = io.StringIO()
+        with mock.patch.object(site.sys, "argv", argv):
+            with mock.patch.object(site.sys, "stderr", stderr):
+                exit_code = site.main()
+        return exit_code, stderr.getvalue()
+
+    def test_malformed_sitemap_and_atom_report_cleanly_without_crashing(self) -> None:
+        # WHY: the first pass records a parse failure into `errors`; a second,
+        # unconditioned re-parse of the same malformed file used to raise
+        # ET.ParseError uncaught, crashing main() past its structured error
+        # report instead of returning 1 with everything collected.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            (output / "sitemap.xml").write_bytes(
+                b'<?xml version="1.0" encoding="UTF-8"?><urlset'
+            )
+            (output / "atom.xml").write_bytes(
+                b'<?xml version="1.0" encoding="UTF-8"?><feed></feed>'
+            )
+            exit_code, stderr = self.run_main(output)
+        self.assertEqual(exit_code, 1)
+        self.assertIn("strict XML parse failed", stderr)
+
 
 class EvidencePageMarkerGateContractTests(unittest.TestCase):
     """A content regression that drops an /evidence/ marker must fail the
@@ -5576,6 +5972,58 @@ class RecordingContractTests(unittest.TestCase):
             self.assertTrue(
                 any("conditional player CSS/JS" in error for error in errors), errors
             )
+
+    def test_the_same_addressed_asset_repeated_across_pages_is_not_a_conflict(
+        self,
+    ) -> None:
+        # WHY: a content-addressed asset_path IS its own hash, so two pages
+        # sharing one identical /a/<hash>.ext reference -- the ordinary case
+        # for a site-wide stylesheet or script -- must never be reported as
+        # conflicting, no matter how many pages repeat it.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            (output / CSS_OUTPUT).parent.mkdir(parents=True, exist_ok=True)
+            (output / CSS_OUTPUT).write_bytes(CSS_BODY)
+            (output / JS_OUTPUT).parent.mkdir(parents=True, exist_ok=True)
+            (output / JS_OUTPUT).write_bytes(JS_BODY)
+            errors: list[str] = []
+            site.validate_asset_contract(
+                errors,
+                {
+                    Path("index.html"): ASSET_MARKUP,
+                    Path("about/index.html"): ASSET_MARKUP,
+                    Path("hire/index.html"): ASSET_MARKUP,
+                },
+                output,
+            )
+        self.assertEqual(errors, [])
+
+    def test_uppercase_addressed_extension_is_rejected(self) -> None:
+        # WHY: this shape check is now ADDRESSED_PATH_RE (release_manifest.py,
+        # shared with asset_retention.py) rather than a locally-defined,
+        # looser regex -- proving the two contracts actually agree.
+        css_body = b"body{color:red}\n"
+        digest = hashlib.sha256(css_body).hexdigest()
+        uppercase_reference = f"{BASE_URL}/a/{digest}.CSS"
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            path = output / "a" / f"{digest}.CSS"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(css_body)
+            errors: list[str] = []
+            site.validate_asset_contract(
+                errors,
+                {
+                    Path("index.html"): (
+                        f'<link rel="stylesheet" href="{uppercase_reference}">'
+                        f'<script src="{JS_URL}" defer></script>'
+                    )
+                },
+                output,
+            )
+        self.assertTrue(
+            any("full-sha256>.<extension>" in error for error in errors), errors
+        )
 
 
 class CatalogContractTests(unittest.TestCase):
@@ -6535,6 +6983,39 @@ class CareerClaimContractTests(unittest.TestCase):
         )
         self.assertIn("summary", receipt["claims"][0]["scope"])
         self.assertTrue(all("renderings" not in claim for claim in receipt["claims"]))
+
+    def test_strict_json_rejects_duplicate_keys_and_non_json_constants(self) -> None:
+        for label, raw in (
+            ("duplicate keys", b'{"x":1,"x":2}'),
+            ("NaN constant", b'{"x":NaN}'),
+        ):
+            with self.subTest(label=label):
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "authority.json"
+                    path.write_bytes(raw)
+                    document, returned_raw, errors = career.strict_json(path)
+                self.assertIsNone(document)
+                self.assertEqual(returned_raw, raw)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn("not strict JSON", errors[0])
+
+    def test_strict_json_rejects_non_utf8_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "authority.json"
+            path.write_bytes('{"x":1}'.encode("utf-16"))
+            document, _raw, errors = career.strict_json(path)
+        self.assertIsNone(document)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("not strict JSON", errors[0])
+
+    def test_strict_json_reports_unreadable_path_without_raising(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "absent.json"
+            document, raw, errors = career.strict_json(missing)
+        self.assertIsNone(document)
+        self.assertEqual(raw, b"")
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("cannot read authority", errors[0])
 
 
 class SiteEntrypointContractTests(unittest.TestCase):
