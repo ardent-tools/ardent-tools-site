@@ -10,14 +10,19 @@ const { onRequest } = await import(moduleUrl);
 const SPECULATION_DIGEST = "1".repeat(64);
 const SPECULATION_URL = `/a/${SPECULATION_DIGEST}.json`;
 
+// Derived from the Function's own delimited direct-header contract (see
+// pages_runtime.py's identical extraction) rather than hand-copied, so a
+// header change there cannot silently drift this smoke test out of sync.
+const DIRECT_HEADERS_JSON_START = "/* DIRECT_RESPONSE_HEADERS_JSON_START */";
+const DIRECT_HEADERS_JSON_END = "/* DIRECT_RESPONSE_HEADERS_JSON_END */";
+const sourceText = source.toString("utf-8");
+const embeddedHeadersJson = sourceText
+  .split(DIRECT_HEADERS_JSON_START, 2)[1]
+  .split(DIRECT_HEADERS_JSON_END, 2)[0];
+const FUNCTION_DIRECT_HEADERS = JSON.parse(embeddedHeadersJson);
+
 const EXPECTED_DIRECT_HEADERS = Object.freeze({
-  "cache-control": "no-store, no-transform",
-  "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
-  "x-content-type-options": "nosniff",
-  "x-frame-options": "DENY",
-  "referrer-policy": "strict-origin-when-cross-origin",
-  "permissions-policy": "accelerometer=(), browsing-topics=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), web-share=(), xr-spatial-tracking=()",
-  "content-security-policy": "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; manifest-src 'self'; worker-src 'none'; upgrade-insecure-requests",
+  ...FUNCTION_DIRECT_HEADERS,
   "speculation-rules": `"${SPECULATION_URL}"`,
 });
 
