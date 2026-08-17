@@ -41,6 +41,7 @@ pages_limits = sys.modules["pages_limits"]
 catalog = load_script("ardent_generate_catalog", "generate-systems-json.py")
 sbom = load_script("ardent_generate_sbom", "generate-sbom.py")
 fleet_counts = load_script("ardent_fleet_counts", "validate-fleet-counts.py")
+excluded_links = load_script("ardent_verify_excluded_links", "verify-excluded-links.py")
 career = load_script("ardent_career_claims", "validate-career-claims.py")
 site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
@@ -6404,6 +6405,105 @@ class FleetCountWitnessContractTests(unittest.TestCase):
             err,
         )
         self.assertIn("1 repository witnessed directly against the GitHub API", out)
+
+
+class ExcludedLinkWitnessContractTests(unittest.TestCase):
+    """The github.com subpath links .lycheeignore excludes from lychee - a
+    checker limitation, not link rot (lychee 0.24.2's GitHub fallback only
+    ever queries the bare repo root) - must still be witnessed by something.
+    These hold one half of the check fixed and vary the other to prove a
+    missing local file or a missing remote issue each fail closed alone."""
+
+    def issue_url(self, owner: str, repo: str, number: int) -> str:
+        return f"{excluded_links.GITHUB_API}/repos/{owner}/{repo}/issues/{number}"
+
+    def run_main(self, root: Path, fetch_side_effect) -> tuple[int, str, str]:
+        captured_out, captured_err = io.StringIO(), io.StringIO()
+        with (
+            mock.patch.object(excluded_links, "ROOT", root),
+            mock.patch.object(excluded_links, "fetch", side_effect=fetch_side_effect),
+            mock.patch.dict(excluded_links.os.environ, {}, clear=True),
+            mock.patch.object(excluded_links.sys, "stdout", captured_out),
+            mock.patch.object(excluded_links.sys, "stderr", captured_err),
+        ):
+            result = excluded_links.main()
+        return result, captured_out.getvalue(), captured_err.getvalue()
+
+    def touch_all_local_files(self, root: Path) -> None:
+        for name in excluded_links.LOCAL_ROOT_FILES:
+            (root / name).write_text("placeholder\n")
+
+    def fetch_all_issues_ok(self):
+        def fake_fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+            self.assertIsNone(token)
+            for owner, repo, number, _ in excluded_links.REMOTE_ISSUES:
+                if url == self.issue_url(owner, repo, number):
+                    return 200, b"{}"
+            raise AssertionError(f"unexpected GitHub API request: {url}")
+
+        return fake_fetch
+
+    def test_all_present_and_witnessed_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.touch_all_local_files(root)
+            result, out, _ = self.run_main(root, self.fetch_all_issues_ok())
+        self.assertEqual(result, 0)
+        self.assertIn("PASS:", out)
+
+    def test_missing_local_root_file_fails_closed(self) -> None:
+        """A real local witness: one of the repo's own linked root files is
+        deleted. Every other file present, every remote issue reachable -
+        this one absence alone must fail the run."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.touch_all_local_files(root)
+            (root / "LICENSE-DOCS").unlink()
+            result, out, err = self.run_main(root, self.fetch_all_issues_ok())
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("LICENSE-DOCS: not present at repository root", err)
+
+    def test_unreachable_remote_issue_never_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.touch_all_local_files(root)
+
+            def fake_fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+                return None, b"Name or service not known"
+
+            result, out, err = self.run_main(root, fake_fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("UNVERIFIED", err)
+        self.assertIn("GitHub API unreachable", err)
+
+    def test_remote_issue_404_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.touch_all_local_files(root)
+
+            def fake_fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+                return 404, b""
+
+            result, out, err = self.run_main(root, fake_fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("GitHub reports 404", err)
+
+    def test_rate_limited_remote_issue_never_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.touch_all_local_files(root)
+
+            def fake_fetch(url: str, token: str | None) -> tuple[int | None, bytes]:
+                return 403, b""
+
+            result, out, err = self.run_main(root, fake_fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("UNVERIFIED", err)
+        self.assertIn("rate-limited or forbidden", err)
 
 
 class CareerClaimContractTests(unittest.TestCase):
