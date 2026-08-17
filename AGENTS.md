@@ -10,7 +10,7 @@ Consumer of typikon (`forkwright/typikon`, pinned by commit under `themes/typiko
 
 ## Standards
 
-Authoring rules live in typikon's `docs/AGENTIC.md`. Read those before editing content here. Frontmatter must validate against the appropriate schema in `themes/typikon/schemas/` (page / section / journal-entry / faq). Run `themes/typikon/bin/typikon-validate .` to verify.
+Authoring rules live in typikon's `docs/AGENTIC.md`. Read those before editing content here. Frontmatter must validate against the appropriate schema — typikon's own built-ins in `themes/typikon/schemas/` (page / section / journal-entry / faq) for content using one of typikon's shipped templates, or this repo's own `schemas/registry.toml` + `schemas/*.schema.json` for the six custom templates (home, about, consulting, evidence, systems index, system dossier) — see `themes/typikon/docs/SCHEMAS.md#consumer-schema-registry` for the registration contract. Run `themes/typikon/bin/typikon-validate .` to verify either way; a custom template with no registry entry fails closed rather than silently inheriting page's shape.
 
 Voice binds all site copy — content pages, captions, microcopy, the consulting page. The contract is [docs/VOICE.md](docs/VOICE.md).
 
