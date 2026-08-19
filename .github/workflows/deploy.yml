@@ -47,11 +47,13 @@ permissions:
 jobs:
   gate-and-deploy:
     runs-on: ubuntu-latest
-    # WHY 30: comfortably exceeds a normal gate+preview+promote+verify run
-    # (observed well under 20m), while bounding how long a wedged run can
+    # WHY 60: a normal gate+preview+promote+verify run was observed well under
+    # 20m when this was 30, but cold-cache runs after lockfile-moving merges
+    # crossed 30m and died as "canceled" (PR #159's run hit it repeatedly).
+    # 60 restores headroom while still bounding how long a wedged run can
     # hold the non-cancelable production concurrency group below GitHub's
     # 6-hour default (AT-01 remediation).
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
