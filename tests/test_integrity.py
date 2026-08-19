@@ -4841,8 +4841,9 @@ class DeployWorkflowContractTests(unittest.TestCase):
         workflow = parse_workflow_yaml(workflow_text)
         job = workflow["jobs"]["gate-and-deploy"]
         # AT-01 follow-up: a wedged run must not hold the non-cancelable
-        # production concurrency group for GitHub's 6-hour job default.
-        self.assertEqual(job["timeout-minutes"], "30")
+        # production concurrency group for GitHub's 6-hour job default. The
+        # full dependency install needs more than the former 30-minute bound.
+        self.assertEqual(job["timeout-minutes"], "60")
 
     def test_preview_cleanup_is_best_effort_and_gated_on_a_real_preview(
         self,
@@ -7110,7 +7111,6 @@ class SbomNpmBoundaryClaimContractTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(SystemExit, "npm boundary claim"):
                 generate_sbom.build_bom(root)
-
 
 
 def _write_sbom_fixture(root: Path) -> None:
