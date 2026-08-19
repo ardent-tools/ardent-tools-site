@@ -4842,8 +4842,58 @@ class DeployWorkflowContractTests(unittest.TestCase):
         job = workflow["jobs"]["gate-and-deploy"]
         # AT-01 follow-up: a wedged run must not hold the non-cancelable
         # production concurrency group for GitHub's 6-hour job default. The
-        # full dependency install needs more than the former 30-minute bound.
+        # narrower install-step bounds leave this as the outer safety limit.
         self.assertEqual(job["timeout-minutes"], "60")
+
+    def test_network_install_steps_are_locally_bounded(self) -> None:
+        workflow_text = (ROOT / ".github/workflows/deploy.yml").read_text()
+        workflow = parse_workflow_yaml(workflow_text)
+        steps = workflow["jobs"]["gate-and-deploy"]["steps"]
+        step_names = [step.get("name") for step in steps]
+
+        pdf_step = workflow_step(steps, "Install Typst and PDF inspection tools")
+        self.assertEqual(pdf_step["timeout-minutes"], "12")
+        self.assertIn('Acquire::Retries "3";', pdf_step["run"])
+        self.assertIn('Acquire::http::Timeout "20";', pdf_step["run"])
+        self.assertIn('Acquire::https::Timeout "20";', pdf_step["run"])
+        self.assertIn("/etc/apt/apt.conf.d/99ardent-ci-network", pdf_step["run"])
+        self.assertIn("sudo apt-get update", pdf_step["run"])
+        self.assertIn("--retry-all-errors", pdf_step["run"])
+        self.assertIn("--retry-max-time 300", pdf_step["run"])
+        self.assertIn("--max-time 180", pdf_step["run"])
+        self.assertLess(
+            pdf_step["run"].index("/etc/apt/apt.conf.d/99ardent-ci-network"),
+            pdf_step["run"].index("sudo apt-get update"),
+        )
+
+        browser_step = workflow_step(
+            steps, "Install pa11y-ci, lychee, playwright"
+        )
+        self.assertEqual(browser_step["timeout-minutes"], "30")
+        self.assertIn("playwright install --with-deps chromium", browser_step["run"])
+        self.assertIn("--retry-all-errors", browser_step["run"])
+        self.assertIn("--retry-max-time 300", browser_step["run"])
+        self.assertIn("--max-time 180", browser_step["run"])
+        self.assertLess(
+            step_names.index("Install Typst and PDF inspection tools"),
+            step_names.index("Install pa11y-ci, lychee, playwright"),
+        )
+
+        apt_consumers = [
+            step
+            for step in steps
+            if "apt-get" in step.get("run", "")
+            or "playwright install --with-deps" in step.get("run", "")
+        ]
+        self.assertEqual(
+            [step["name"] for step in apt_consumers],
+            [
+                "Install Typst and PDF inspection tools",
+                "Install pa11y-ci, lychee, playwright",
+            ],
+        )
+        for step in apt_consumers:
+            self.assertLessEqual(int(step["timeout-minutes"]), 30)
 
     def test_preview_cleanup_is_best_effort_and_gated_on_a_real_preview(
         self,

@@ -23,7 +23,7 @@
       },
       {
         "name": "ardent:source",
-        "value": ".github/workflows/deploy.yml#sha256:b1eb04cef3ba6eed8a38f7e6d24db4d63de52b649791aab1053cc77d2ff6ba9d"
+        "value": ".github/workflows/deploy.yml#sha256:b154c8bc241b4bc0810f04468a55139766f8a60db24f307668ce76aa39c06ffb"
       },
       {
         "name": "ardent:source",
