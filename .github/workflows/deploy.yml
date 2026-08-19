@@ -47,11 +47,11 @@ permissions:
 jobs:
   gate-and-deploy:
     runs-on: ubuntu-latest
-    # WHY 30: comfortably exceeds a normal gate+preview+promote+verify run
-    # (observed well under 20m), while bounding how long a wedged run can
-    # hold the non-cancelable production concurrency group below GitHub's
-    # 6-hour default (AT-01 remediation).
-    timeout-minutes: 30
+    # WHY 60: this is the outer safety bound for gate + deployment + recovery.
+    # The two apt-capable install steps carry narrower bounds below, so a
+    # stalled package mirror cannot consume this entire production slot.
+    # The outer bound remains well below GitHub's 6-hour default (AT-01).
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -83,18 +83,30 @@ jobs:
           python3 -m pip install --user --require-hashes -r bin/requirements.txt
 
       - name: Install Typst and PDF inspection tools
+        timeout-minutes: 12
         env:
           TYPST_VERSION: 0.14.2
           TYPST_SHA256: a6044cbad2a954deb921167e257e120ac0a16b20339ec01121194ff9d394996d
         run: |
-          curl -L "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
+          # WHY: hosted-runner mirror selection has repeatedly stalled inside
+          # apt-get update. This runner-local policy bounds both the direct apt
+          # calls here and Playwright's later child apt process.
+          printf '%s\n' \
+            'Acquire::Retries "3";' \
+            'Acquire::http::Timeout "20";' \
+            'Acquire::https::Timeout "20";' \
+            | sudo tee /etc/apt/apt.conf.d/99ardent-ci-network >/dev/null
+          curl --fail --show-error --location --retry 3 --retry-all-errors \
+            --retry-max-time 300 --connect-timeout 15 --max-time 180 \
+            --proto '=https' --tlsv1.2 \
+            "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
             -o typst.tar.xz
           echo "${TYPST_SHA256}  typst.tar.xz" | sha256sum -c
           mkdir -p typst-extract
           tar -xJf typst.tar.xz -C typst-extract --strip-components=1
           sudo mv typst-extract/typst /usr/local/bin/
           sudo apt-get update
-          sudo apt-get install -y poppler-utils
+          sudo apt-get install --yes --no-install-recommends poppler-utils
           typst --version
 
       - name: Setup Node.js
@@ -104,6 +116,7 @@ jobs:
           node-version: '22'
 
       - name: Install pa11y-ci, lychee, playwright
+        timeout-minutes: 30
         env:
           # lychee pinned to a specific version (releases/latest is non-reproducible).
           # Refresh when LYCHEE_VERSION bumps via:
@@ -114,7 +127,10 @@ jobs:
           npm ci
           echo "$GITHUB_WORKSPACE/node_modules/.bin" >> "$GITHUB_PATH"
           npx playwright install --with-deps chromium
-          curl -L "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" \
+          curl --fail --show-error --location --retry 3 --retry-all-errors \
+            --retry-max-time 300 --connect-timeout 15 --max-time 180 \
+            --proto '=https' --tlsv1.2 \
+            "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" \
             -o lychee.tar.gz
           echo "${LYCHEE_SHA256}  lychee.tar.gz" | sha256sum -c
           mkdir -p lychee-extract
