@@ -4,7 +4,7 @@ description = "A distance-preservation proof and a communication-complexity lowe
 date = 2026-07-24
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 components = "Distance-preservation is proved for this signal - a different, assumed guarantee is proved impossible."
 tier = "research"
 +++

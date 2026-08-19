@@ -1,20 +1,21 @@
 {# Consumer shadow of typikon's templates/partials/ld-organization.html.
-   Sole delta: the Organization logo is a non-canonical public resource,
+   Primary asset delta: the Organization logo is a non-canonical public resource,
    so it must carry its exact full-digest physical manifest identity via
    asset_url::hashed_raw. JSON-LD script bodies are raw text, and the
    post-build finalizer rewrites the logical URL in that context. Also
    carries the theme's ldjson::str() escaping fix (typikon#92, ported
    from 4f8c1531 -> b61228cb, see partials/ld-json.html) on every field
-   below. Everything else is unchanged; re-diff against the theme
-   partial on every typikon-refresh.
+   below. This shadow also emits the confirmed legal entity as legalName
+   and retains the assertion posture described below. Re-diff against
+   the theme partial on every typikon-refresh.
 
    NOT ported from the same range: the theme's new
    assert::required(config.extra.logo_path) guard, gated behind
    `{% import "partials/assert.html" as assert %}`. This shadow does not
    import assert.html (see AGENTS.md), and porting just this one call
-   would also require importing assert.html into base.html — every
-   child template here overrides ld_json and calls `{{ super() }}` to
-   layer on its own JSON-LD, and Tera's macro-namespace resolution for a
+   would also require importing assert.html into base.html — each child
+   template that overrides ld_json calls `{{ super() }}` to layer on its
+   own JSON-LD, and Tera's macro-namespace resolution for a
    macro called inside an included partial, reached via an inherited
    block's super(), follows the base template's own imports rather than
    the partial's (verified against typikon's own base.html WHY comment

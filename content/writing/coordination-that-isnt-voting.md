@@ -4,7 +4,7 @@ description = "Voting and hub-orchestration are the two default shapes of multi-
 date = 2026-07-20
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 tier = "research"
 components = "Why voting and hub-orchestration both fail on hard tasks, and a third coordination shape that isn't a blend of them."
 figure = "/img/coordination-shapes.svg"

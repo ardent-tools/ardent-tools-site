@@ -4,7 +4,7 @@ description = "A compaction step in this site's own release ledger could carry a
 date = 2026-07-24
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 components = "A second, independent check that a compaction step still keeps every retained file."
 tier = "research"
 +++

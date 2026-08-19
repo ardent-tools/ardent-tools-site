@@ -3,8 +3,8 @@
    chronological siblings at the bottom.
 
    Consumer setup:
-     content/journal/<slug>.md  -- frontmatter has 'template = "journal-entry.html"' OR
-     content/journal/_index.md  -- transparent + page_template default makes children inherit
+     content/writing/<slug>.md  -- entry frontmatter
+     content/writing/_index.md  -- page_template makes children inherit journal-entry.html
 
    The template assumes journal entries have:
      page.title, page.description, page.date (ISO), page.extra.components,

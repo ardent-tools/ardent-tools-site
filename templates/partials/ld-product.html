@@ -1,12 +1,12 @@
 {# Consumer shadow of typikon's templates/partials/ld-product.html.
-   Sole delta: a page's og_image is a non-canonical public resource, so
+   Primary asset delta: a page's og_image is a non-canonical public resource, so
    the Product image field must carry its exact full-digest physical manifest
    identity via asset_url::hashed_raw; JSON-LD script bodies are raw text and
    the post-build finalizer rewrites that logical URL. Also carries the
    theme's ldjson::str() escaping fix (typikon#92, ported from 4f8c1531
-   -> b61228cb, see partials/ld-json.html) on every field below.
-   Everything else is unchanged, including the pre-existing decision NOT
-   to import partials/assert.html here (typikon's own copy already had
+   -> b61228cb, see partials/ld-json.html) on every field below. It also
+   retains the pre-existing decision NOT to import partials/assert.html
+   here (typikon's own copy already had
    assert::required calls, including extra.audience, at 4f8c1531, before
    this bump; this shadow dropped them from the start, per AGENTS.md —
    unaffected by this refresh, and moot in practice since no content in

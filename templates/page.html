@@ -1,17 +1,12 @@
 {# Consumer shadow of typikon's templates/page.html (theme.toml's Zola
-   template-shadow rule). Delta from the theme copy: a designed
-   `.page-header` (h1 + optional lede) renders ahead of page.content,
-   matching every other interior page (about, catalog, evidence,
-   consulting, dossier) instead of leaving the markdown body's own
-   `#` heading to stand in for it; page.content (+ the product-gallery/
-   video partials it already carries) then wraps in .prose (§1.2) —
-   narrows generic content pages (colophon, contact, 404, hire) to the
-   reading measure instead of the full 1200px wide shell. Markdown
-   bodies for pages that render through this template as-is must not
-   carry their own leading `#` heading (about.md set the precedent) or
-   the title doubles. Everything else is unchanged from typikon's
-   own page.html; re-diff against themes/typikon/templates/page.html on
-   every typikon-refresh.
+   template-shadow rule). Primary local deltas: a designed `.page-header`
+   renders ahead of page.content; content and gallery/video furniture
+   wrap in .prose (§1.2); og:image uses its full-digest physical URL;
+   structured data layers through super(); and the standing assertion
+   and product-purchase omissions remain. Markdown bodies rendered
+   through this template as-is must not carry their own leading `#`
+   heading or the title doubles. Re-diff against
+   themes/typikon/templates/page.html on every typikon-refresh.
 
    system.html, faq.html, and consulting.html all extend this template
    too, but each overrides {% block content %} itself (system.html and

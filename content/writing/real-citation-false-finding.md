@@ -4,7 +4,7 @@ description = "Citation-verification confirms a quoted line exists at the place 
 date = 2026-07-24
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 components = "The gap between a verified citation and a true conclusion."
 tier = "research"
 +++

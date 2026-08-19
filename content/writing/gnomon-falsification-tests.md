@@ -4,7 +4,7 @@ description = "Two pre-registered kill tests, run before a line of extraction co
 date = 2026-07-20
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 tier = "research"
 components = "Does routing carry a teacher's trained identity, or just its architecture?"
 +++

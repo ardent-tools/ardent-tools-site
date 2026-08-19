@@ -4,7 +4,7 @@ description = "A build-concurrency gate melted production four times on a shared
 date = 2026-07-24
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 components = "How a build-concurrency gate learned its own real cost, one production failure at a time."
 tier = "notes"
 +++

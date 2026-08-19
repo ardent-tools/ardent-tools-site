@@ -6,14 +6,12 @@
    resulting tags before JSON-encoding, instead of json_encode-ing the
    raw markdown source as if it were prose. Also carries the theme's
    ldjson::str() escaping fix (typikon#92, ported from 4f8c1531 ->
-   b61228cb, see partials/ld-json.html) on both fields below.
-   Everything else is unchanged, including the pre-existing decision NOT
-   to import partials/assert.html here (typikon's own copy already
+   b61228cb, see partials/ld-json.html) on both fields below and retains
+   the pre-existing decision NOT to import partials/assert.html here
+   (typikon's own copy already
    asserted page.title/extra.audience/extra.questions at 4f8c1531,
    before this bump; this shadow dropped them from the start, per
-   AGENTS.md — unaffected by this refresh, and extra.audience in
-   particular is exactly the frontmatter field this repo's content does
-   not carry). Re-diff against
+   AGENTS.md — unaffected by this refresh). Re-diff against
    themes/typikon/templates/partials/ld-faq.html on every typikon-refresh.
 
    Inputs:

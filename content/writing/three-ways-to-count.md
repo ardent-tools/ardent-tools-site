@@ -4,7 +4,7 @@ description = "One number triangulated three ways, a SHA-bound local gate stamp 
 date = 2026-07-21
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 tier = "notes"
 components = "`crates/angelos/src/server.rs`, three counting methods, 131 tools every time."
 +++

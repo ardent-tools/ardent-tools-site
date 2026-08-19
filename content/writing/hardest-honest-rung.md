@@ -4,7 +4,7 @@ description = "Five rungs a rule can live on, from merge gate to one-off prompt 
 date = 2026-07-20
 
 [extra]
-audience = "Essays on how claims become mechanisms: evidence, standards placement, verification, and operating decisions."
+audience = "Readers deciding which claims should govern system behavior."
 tier = "research"
 components = "Five rungs a rule can live on, and the mirror-image failures at either end of the ladder."
 +++
