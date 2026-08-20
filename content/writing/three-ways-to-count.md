@@ -2,11 +2,12 @@
 title = "Three ways to count the same thing"
 description = "One number triangulated three ways, a SHA-bound local gate stamp followed by independent post-push CI, an audit checked against its tracker."
 date = 2026-07-21
+updated = 2026-08-19
 
 [extra]
 audience = "Readers deciding which claims should govern system behavior."
 tier = "notes"
-components = "`crates/angelos/src/server.rs`, three counting methods, 131 tools every time."
+components = "`kanon` revision `9352aa7995c4`, three checks converging on 131 in a dated receipt."
 +++
 
 A number in a README is a report about the day somebody counted. The system underneath keeps moving, and the sentence does not. Tools get deleted and the count survives them, modules merge and the count survives that too. Nobody lied. Someone counted once, wrote the number down, and the writing outlived its truth.
@@ -37,9 +38,11 @@ The distrust behind all this counting was earned. A drift audit ran against the 
 
 ---
 
-The same rule holds in a second codebase that shares no code and no domain with the first. [kanon](/systems/kanon/) - the name is Greek for a measuring rod - runs the git forge and lint engine for my own repositories, plus the audit machinery, where AI agents work alongside me daily.
+Against `kanon` revision `9352aa7995c4`, the same rule held in a second codebase that shares no code and no domain with the first. [kanon](/systems/kanon/) - the name is Greek for a measuring rod - runs the git forge and lint engine for my own repositories, plus the audit machinery, where AI agents work alongside me daily.
 
-kanon's own tool surface counts the same three ways, on code anyone can clone. Each MCP tool is declared by an attribute on its handler, exactly as the private surface was. Grep the registration sites in the server source and the count comes back 131 - a naive whole-repo grep returns 170, but 39 of those are the attribute quoted inside test fixtures and inside the module that parses it, the same false-positive-then-inspect the private count made going from 138 to 137. Regenerate the derived catalog and it agrees:
+kanon's own tool surface carried three checks at that revision. MCP tool declarations use an attribute on their handlers, matching the private surface. Grep the registration sites in the server source and the count comes back 131.
+
+A grep limited to Rust source files returns 170. Of those, 39 come from parser text or test fixtures outside registration sites. The private count needed the same inspect-after-count correction when 138 fell to 137. Regenerate the derived catalog at that revision and it agrees:
 
 ```
 $ grep -rn '#\[tool(' crates/angelos/src/server.rs crates/angelos/src/server/*.rs | wc -l
@@ -48,7 +51,7 @@ $ kanon derive --check --only mcp-catalog-sync
 ok  mcp-catalog-sync: up-to-date
 ```
 
-`--check` writes nothing and exits non-zero on drift; a clean exit means the checked-in catalog, regenerated from the same annotations, still names 131 tools, and the live daemon serves the same 131. Two methods that cannot fail the same way, on a public repository (kanon at `9352aa7995c4`) - the private surface's 137 was counted exactly this way, where the code that proves it cannot be shown.
+`--check` writes nothing and exits non-zero on drift. At `9352aa7995c4`, a clean exit meant the checked-in catalog, regenerated from the same annotations, still named 131 tools. A test in that revision, `claude_md_tool_catalog_matches_registered_surface`, constructed `KanonServer` and required the separate `crates/angelos/CLAUDE.md` catalog total of 131 to match the registered tool router. This is a dated source receipt, not a claim about kanon's current availability or catalog. The private surface's 137 was counted by the same source, runtime, and artifact split, where the code that proves it cannot be shown.
 
 When kanon's local gate stamps a commit, the trailer records the installed Kanon version, the stages that ran, and the exact Git tree SHA it checked. The SHA binding is landed. Reusing that local trailer after changing the tree fails the local clean-tree check. The trailer is still plain text, and any process that can write a commit message can forge its shape.
 
