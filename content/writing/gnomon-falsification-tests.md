@@ -4,9 +4,9 @@ description = "Two pre-registered kill tests, run before a line of extraction co
 date = 2026-07-20
 
 [extra]
+audience = "Readers deciding which claims should govern system behavior."
 tier = "research"
 components = "Does routing carry a teacher's trained identity, or just its architecture?"
-words = "~1490 words"
 +++
 
 A private research project I called Gnomon, after the fixed arm of a sundial, the part that doesn't move and makes the sun's position legible anyway, made one central architectural bet. A large teacher model's routing, the pattern of which internal pathway a given token activates, can be pulled out of its weights, compressed to a few tens of megabytes, and used to specialize thousands of small worker units that all share one frozen backbone. If the bet held, personalizing each unit cost almost nothing beyond that shared backbone.

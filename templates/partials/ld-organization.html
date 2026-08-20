@@ -1,9 +1,28 @@
 {# Consumer shadow of typikon's templates/partials/ld-organization.html.
-   Sole delta: the Organization logo is a non-canonical public resource,
+   Primary asset delta: the Organization logo is a non-canonical public resource,
    so it must carry its exact full-digest physical manifest identity via
    asset_url::hashed_raw. JSON-LD script bodies are raw text, and the
-   post-build finalizer rewrites the logical URL in that context. Everything else is
-   unchanged; re-diff against the theme partial on every typikon-refresh.
+   post-build finalizer rewrites the logical URL in that context. Also
+   carries the theme's ldjson::str() escaping fix (typikon#92, ported
+   from 4f8c1531 -> b61228cb, see partials/ld-json.html) on every field
+   below. This shadow also emits the confirmed legal entity as legalName
+   and retains the assertion posture described below. Re-diff against
+   the theme partial on every typikon-refresh.
+
+   NOT ported from the same range: the theme's new
+   assert::required(config.extra.logo_path) guard, gated behind
+   `{% import "partials/assert.html" as assert %}`. This shadow does not
+   import assert.html (see AGENTS.md), and porting just this one call
+   would also require importing assert.html into base.html — each child
+   template that overrides ld_json calls `{{ super() }}` to layer on its
+   own JSON-LD, and Tera's macro-namespace resolution for a
+   macro called inside an included partial, reached via an inherited
+   block's super(), follows the base template's own imports rather than
+   the partial's (verified against typikon's own base.html WHY comment
+   for the identical situation). config.extra.logo_path is already a
+   hard requirement here regardless — asset_url::hashed_raw dereferences
+   it unconditionally — so the only change skipped is the error message
+   quality on a misconfiguration that already fails the build.
 
    Original theme documentation follows.
 
@@ -16,31 +35,31 @@
      config.base_url          — canonical site root
      config.extra.logo_path   — relative to /; resolves to the exact
                                 full-digest physical resource URL
-     config.extra.author.name — primary maker / founder
      config.extra.brand_greek — optional motto (used in alternateName)
      config.extra.founding_date — optional ISO 8601 year (e.g. "2024")
      config.extra.footer_links — list of {url, rel}; entries with rel="me" emit as sameAs
 #}
 {% import "partials/asset-url.html" as asset_url %}
+{% import "partials/ld-json.html" as ldjson %}
 {%- set logo_url = asset_url::hashed_raw(path=config.extra.logo_path) -%}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": {{ config.title | json_encode | safe }},
-  "description": {{ config.description | json_encode | safe }},
-  "url": {{ config.base_url | json_encode | safe }},
-  "logo": {{ logo_url | json_encode | safe }}
+  "name": {{ ldjson::str(value=config.title) }},
+  "description": {{ ldjson::str(value=config.description) }},
+  "url": {{ ldjson::str(value=config.base_url) }},
+  "logo": {{ ldjson::str(value=logo_url) }}
   {#- Registered legal entity — emitted only once config [extra.footer]
      legal_owner is set post-confirmation (see footer.html). -#}
   {%- if config.extra.footer.legal_owner -%},
-  "legalName": {{ config.extra.footer.legal_owner | json_encode | safe }}
+  "legalName": {{ ldjson::str(value=config.extra.footer.legal_owner) }}
   {%- endif -%}
   {%- if config.extra.brand_greek -%},
-  "alternateName": {{ config.extra.brand_greek | json_encode | safe }}
+  "alternateName": {{ ldjson::str(value=config.extra.brand_greek) }}
   {%- endif -%}
   {%- if config.extra.founding_date -%},
-  "foundingDate": {{ config.extra.founding_date | json_encode | safe }}
+  "foundingDate": {{ ldjson::str(value=config.extra.founding_date) }}
   {%- endif -%}
   {%- if config.extra.footer_links -%}
     {%- set sameas = [] -%}
@@ -51,7 +70,7 @@
       {%- endif -%}
     {%- endfor -%}
     {%- if sameas | length > 0 -%},
-  "sameAs": {{ sameas | json_encode | safe }}
+  "sameAs": {{ ldjson::str(value=sameas) }}
     {%- endif -%}
   {%- endif %}
 }

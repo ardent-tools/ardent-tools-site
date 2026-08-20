@@ -4,12 +4,20 @@
    become real links) — Schema.org's Answer.text wants plain text, not
    markup, so this shadow renders the same markdown then strips the
    resulting tags before JSON-encoding, instead of json_encode-ing the
-   raw markdown source as if it were prose. Re-diff against
+   raw markdown source as if it were prose. Also carries the theme's
+   ldjson::str() escaping fix (typikon#92, ported from 4f8c1531 ->
+   b61228cb, see partials/ld-json.html) on both fields below and retains
+   the pre-existing decision NOT to import partials/assert.html here
+   (typikon's own copy already
+   asserted page.title/extra.audience/extra.questions at 4f8c1531,
+   before this bump; this shadow dropped them from the start, per
+   AGENTS.md — unaffected by this refresh). Re-diff against
    themes/typikon/templates/partials/ld-faq.html on every typikon-refresh.
 
    Inputs:
      page.extra.questions — array of {q, a, anchor?} per faq schema
 #}
+{% import "partials/ld-json.html" as ldjson %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -18,7 +26,7 @@
     {%- for item in page.extra.questions -%}
     {
       "@type": "Question",
-      "name": {{ item.q | json_encode | safe }},
+      "name": {{ ldjson::str(value=item.q) }},
       {%- set_global answer_text = "" %}
       {%- for paragraph in item.a | split(pat="\n\n") %}
         {%- set clean_paragraph = paragraph | trim | markdown(inline=true) | striptags %}
@@ -26,7 +34,7 @@
       {%- endfor %}
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": {{ answer_text | trim | json_encode | safe }}
+        "text": {{ ldjson::str(value=answer_text | trim) }}
       }
     }{%- if not loop.last -%},{%- endif -%}
     {%- endfor %}

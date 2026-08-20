@@ -4,9 +4,9 @@ description = "Citation-verification confirms a quoted line exists at the place 
 date = 2026-07-24
 
 [extra]
+audience = "Readers deciding which claims should govern system behavior."
 components = "The gap between a verified citation and a true conclusion."
 tier = "research"
-words = "~1150 words"
 +++
 
 Citation-verification checks one fact. The string quoted in a finding is really there, at the file and line named. It does not check whether the story built on that string is true. I built the tool that runs this check inside kanon's audit pipeline, and the distinction turned load-bearing the day a run I trusted put 31 findings through it, watched all 31 pass, then refuted 28 of them on a second, harder pass.

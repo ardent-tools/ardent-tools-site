@@ -5,9 +5,9 @@ date = 2026-07-21
 updated = 2026-08-19
 
 [extra]
+audience = "Readers deciding which claims should govern system behavior."
 tier = "notes"
 components = "`kanon` revision `9352aa7995c4`, three checks converging on 131 in a dated receipt."
-words = "~1120 words"
 +++
 
 A number in a README is a report about the day somebody counted. The system underneath keeps moving, and the sentence does not. Tools get deleted and the count survives them, modules merge and the count survives that too. Nobody lied. Someone counted once, wrote the number down, and the writing outlived its truth.

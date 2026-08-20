@@ -4,9 +4,9 @@ description = "Five rungs a rule can live on, from merge gate to one-off prompt 
 date = 2026-07-20
 
 [extra]
+audience = "Readers deciding which claims should govern system behavior."
 tier = "research"
 components = "Five rungs a rule can live on, and the mirror-image failures at either end of the ladder."
-words = "~1600 words"
 +++
 
 A lint rule that blocks a merge cannot rot. A paragraph in a style guide can do little else. Every rule an engineering organization writes down lives somewhere between those two poles, and the standard advice about placement (automate more, shift left, put it in CI) describes travel in one direction only.

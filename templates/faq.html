@@ -1,10 +1,12 @@
-{# Consumer shadow of typikon's templates/faq.html. Delta from the theme
-   copy: the .faq-page article carries .prose too (§1.2) — faq answers
-   are one of the explicit prose contexts (system-page prose, about,
-   writing, faq answers) that narrow to the reading measure inside the
-   1200px wide shell. Everything else is unchanged from typikon's own
-   faq.html; re-diff against themes/typikon/templates/faq.html on every
-   typikon-refresh.
+{# Consumer shadow of typikon's templates/faq.html. The .faq-page article
+   carries .prose (§1.2), answers render inline Markdown, and structured
+   data layers through super(). The duplicate-anchor behavior matches
+   typikon#92. Deliberately NOT ported: the theme's assert import and
+   required/no_h1 calls. This shadow predates partials/assert.html and
+   does not import it (see AGENTS.md's Template shadow delta section);
+   no current content trips no_h1, but adopting a fail-closed build
+   assertion is a separate policy change. Re-diff against
+   themes/typikon/templates/faq.html on every typikon-refresh.
 #}
 {% extends "page.html" %}
 
@@ -29,8 +31,22 @@
   {%- endif %}
 
   <dl class="faq-list">
+    {#- WHY the seen-anchor dedup (typikon#92): two questions (explicit
+       anchor or slugify(item.q)) that resolve to the same string
+       previously produced two elements with the identical `id`, which
+       is invalid HTML and leaves every later element with that id
+       unreachable by fragment. set_global is required
+       for faq_seen_anchors to survive across loop iterations — a plain
+       set re-initializes on every pass. -#}
+    {%- set_global faq_seen_anchors = [] -%}
     {%- for item in page.extra.questions %}
-    {%- set anchor = item.anchor | default(value=item.q | slugify) %}
+    {%- set base_anchor = item.anchor | default(value=item.q | slugify) -%}
+    {%- if base_anchor in faq_seen_anchors -%}
+    {%- set anchor = base_anchor ~ "-" ~ loop.index -%}
+    {%- else -%}
+    {%- set anchor = base_anchor -%}
+    {%- endif -%}
+    {%- set_global faq_seen_anchors = faq_seen_anchors | concat(with=anchor) -%}
     <div class="faq-item" id="{{ anchor }}">
       <dt class="faq-question">
         <a href="#{{ anchor }}" class="faq-anchor">{{ item.q }}</a>

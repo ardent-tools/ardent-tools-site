@@ -4,9 +4,9 @@ description = "A build-concurrency gate melted production four times on a shared
 date = 2026-07-24
 
 [extra]
+audience = "Readers deciding which claims should govern system behavior."
 components = "How a build-concurrency gate learned its own real cost, one production failure at a time."
 tier = "notes"
-words = "~1050 words"
 +++
 
 Two full-workspace builds running at once on a shared build box are enough to push the load average to 184. Add a third and it reaches 223, and for several minutes the box stops answering ssh at all - nothing to kill, nothing to inspect, only a wait for one of the builds to finish on its own. I run a queue of worker agents against that box, and every finished task ends the same expensive way - a full build-and-test pass before anything merges. Nothing stops two of those passes landing in the same minute except a script that has to decide, for each finished task, whether the box has room for one more.

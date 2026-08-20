@@ -1,9 +1,18 @@
 {# Consumer shadow of typikon's templates/partials/ld-product.html.
-   Sole delta: a page's og_image is a non-canonical public resource, so
+   Primary asset delta: a page's og_image is a non-canonical public resource, so
    the Product image field must carry its exact full-digest physical manifest
    identity via asset_url::hashed_raw; JSON-LD script bodies are raw text and
-   the post-build finalizer rewrites that logical URL. Everything else is unchanged;
-   re-diff against the theme partial on every typikon-refresh.
+   the post-build finalizer rewrites that logical URL. Also carries the
+   theme's ldjson::str() escaping fix (typikon#92, ported from 4f8c1531
+   -> b61228cb, see partials/ld-json.html) on every field below. It also
+   retains the pre-existing decision NOT to import partials/assert.html
+   here (typikon's own copy already had
+   assert::required calls, including extra.audience, at 4f8c1531, before
+   this bump; this shadow dropped them from the start, per AGENTS.md —
+   unaffected by this refresh, and moot in practice since no content in
+   this repo currently sets extra.price/extra.stripe_url, so this
+   partial never renders today). Re-diff against the theme partial on
+   every typikon-refresh.
 
    Original theme documentation follows.
 
@@ -22,6 +31,7 @@
      config.base_url       — for image absolute URL
 #}
 {% import "partials/asset-url.html" as asset_url %}
+{% import "partials/ld-json.html" as ldjson %}
 {%- set price_numeric = page.extra.price | trim_start_matches(pat="$") -%}
 {%- set image_url = "" -%}
 {%- if page.extra.og_image -%}
@@ -31,16 +41,16 @@
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": {{ page.title | json_encode | safe }},
-  "description": {{ page.description | json_encode | safe }},
-  "url": {{ page.permalink | json_encode | safe }},
+  "name": {{ ldjson::str(value=page.title) }},
+  "description": {{ ldjson::str(value=page.description) }},
+  "url": {{ ldjson::str(value=page.permalink) }},
   "brand": {
     "@type": "Organization",
-    "name": {{ config.title | json_encode | safe }}
+    "name": {{ ldjson::str(value=config.title) }}
   },
   "offers": {
     "@type": "Offer",
-    "price": {{ price_numeric | json_encode | safe }},
+    "price": {{ ldjson::str(value=price_numeric) }},
     "priceCurrency": "USD",
     {#- WARNING: availability is emitted only when the frontmatter carries BOTH
         page.extra.availability and page.extra.availability_source. Never default
@@ -48,12 +58,12 @@
         about a product nobody has confirmed is in stock. -#}
     {%- if page.extra.availability and page.extra.availability_source -%}
     {%- set availability_url = "https://schema.org/" ~ page.extra.availability -%}
-    "availability": {{ availability_url | json_encode | safe }},
+    "availability": {{ ldjson::str(value=availability_url) }},
     {%- endif %}
-    "url": {{ page.extra.stripe_url | json_encode | safe }}
+    "url": {{ ldjson::str(value=page.extra.stripe_url) }}
   }
   {%- if image_url -%},
-  "image": {{ image_url | json_encode | safe }}
+  "image": {{ ldjson::str(value=image_url) }}
   {%- endif %}
 }
 </script>

@@ -3,16 +3,35 @@
    chronological siblings at the bottom.
 
    Consumer setup:
-     content/journal/<slug>.md  -- frontmatter has 'template = "journal-entry.html"' OR
-     content/journal/_index.md  -- transparent + page_template default makes children inherit
+     content/writing/<slug>.md  -- entry frontmatter
+     content/writing/_index.md  -- page_template makes children inherit journal-entry.html
 
    The template assumes journal entries have:
      page.title, page.description, page.date (ISO), page.extra.components,
-     page.extra.words. See schemas/journal-entry.schema.json.
+     page.extra.audience. See schemas/journal-entry.schema.json.
+
+   NOTE (typikon b61228cb -> af66fa02, ported verbatim): page.extra.words
+   is no longer required. The `.specs` word-count line renders Zola's own
+   page.word_count by default -- a hand-written count can drift from the
+   body it claims to describe; page.word_count cannot, since Zola
+   recomputes it from the rendered body on every build. page.extra.words
+   still overrides it when set (requires page.extra.words_source
+   alongside it, per the schema's dependentRequired). page.extra.audience
+   is rendered in entry-header, alongside entry-components, immediately
+   below -- reader-orienting context belongs where a reader decides
+   whether to keep reading, not buried in a metadata field nothing
+   renders.
 #}
 {% extends "page.html" %}
 
-{% block og_type %}article{% endblock og_type %}
+{# NOTE: no og_type block override here (typikon#92, ported from
+   4f8c1531 -> b61228cb) — the prior hardcoded
+   `{% block og_type %}article{% endblock %}` silently discarded
+   page.extra.og_type, the same settable field journal-entry.schema.json
+   declares and page.html's own block already reads correctly:
+   `page.extra.og_type | default(value="article")`. Inheriting that
+   block keeps the identical default (verified: no content here sets
+   extra.og_type today) while letting a future override through. #}
 
 {% block ld_json %}
   {{ super() }}
@@ -32,6 +51,9 @@
     {%- if page.extra.components %}
     <p class="entry-components">{{ page.extra.components }}</p>
     {%- endif %}
+    {%- if page.extra.audience %}
+    <p class="entry-audience">{{ page.extra.audience }}</p>
+    {%- endif %}
   </header>
 
   {#- Orienting figure (optional): rendered from frontmatter as furniture,
@@ -43,13 +65,18 @@
   </figure>
   {%- endif %}
 
+  {# NOTE: typikon#157 (4f8c1531 -> b61228cb) added
+     assert::no_h1(content=page.content, template="journal-entry.html")
+     immediately before this render. Deliberately not ported here — same
+     reasoning as faq.html: this shadow does not import
+     partials/assert.html, and no current content trips the guard, but
+     adopting a fail-closed build assertion is a deliberate policy
+     choice for a future change, not a drive-by import. -#}
   <div class="prose">
   {{ page.content | safe }}
   </div>
 
-  {%- if page.extra.words %}
-  <p class="specs">{{ page.extra.words }}</p>
-  {%- endif %}
+  <p class="specs">{{ page.extra.words | default(value=page.word_count ~ " words") }}</p>
 
   {#- End mark (§4.4) — the tick that opens sections closes essays. #}
   <div class="essay-end" aria-hidden="true"></div>
