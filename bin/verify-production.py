@@ -44,7 +44,6 @@ REQUIRED_RELEASE_LOGICAL_PATHS = (
     "atom.xml",
     "build-revision.txt",
     "career-claims.json",
-    "llms.txt",
     AUTHORITY_NAME,
     BOUNDARY_NAME,
     "robots.txt",

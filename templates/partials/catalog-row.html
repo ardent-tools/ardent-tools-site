@@ -21,7 +21,7 @@
    placed purely via CSS grid-area, not reordered — the same order is
    what the <900px stacked layout renders as plain block flow.
 #}
-{% macro row(page) %}
+{% component ardent_tools.catalog.row(page) %}
 <li class="catalog-row">
   <h3 class="catalog-row-name"><a href="{{ page.permalink | safe }}" class="vtn-{{ page.slug }}">{{ page.title }}</a></h3>
   {%- if page.description %}
@@ -44,4 +44,4 @@
     {%- endif %}
   </div>
 </li>
-{% endmacro row %}
+{% endcomponent %}

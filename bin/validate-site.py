@@ -1082,7 +1082,6 @@ def main() -> int:
             Path("config.toml"),
             Path("content/colophon.md"),
             Path("content/evidence.md"),
-            Path("static/llms.txt"),
             Path("static/img/og-card.svg"),
         ]
     )

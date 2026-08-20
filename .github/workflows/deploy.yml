@@ -1,8 +1,9 @@
+# typikon: local
 # GitHub Actions deploy workflow for ardent-tools.
 #
 # Runs the strict gate, then deploys to the `ardent-tools` Cloudflare Pages
 # project on green pushes to main and on recovery dispatches. Zola is pinned
-# to 0.22.1; wrangler, pa11y-ci and playwright are pinned in package.json and
+# to 0.23.3; wrangler, pa11y-ci and playwright are pinned in package.json and
 # installed from the lockfile.
 #
 # NOTE: originally generated from typikon's ci/github-workflow.yml.tmpl, and
@@ -53,7 +54,7 @@ jobs:
     # The outer bound remains well below GitHub's 6-hour default (AT-01).
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           submodules: recursive  # Pulls typikon as themes/typikon/
           persist-credentials: false
@@ -64,9 +65,12 @@ jobs:
         env:
           # Pinned per typikon Stage 2a. Refresh when ZOLA_VERSION bumps via:
           #   curl -sL https://github.com/getzola/zola/releases/download/v<X>/zola-v<X>-x86_64-unknown-linux-gnu.tar.gz | sha256sum
-          ZOLA_SHA256: 0ca09aa40376aaa9ddfb512ff9ad963262ef95edb0d0f2d5ec6961b6f5cf22ef
+          ZOLA_SHA256: f07c92607e5745268b576bd325ceef3a582aada253bb64db8d92a8a85303d958
         run: |
-          curl -L "https://github.com/getzola/zola/releases/download/v0.22.1/zola-v0.22.1-x86_64-unknown-linux-gnu.tar.gz" \
+          curl --fail --show-error --location --retry 3 --retry-all-errors \
+            --retry-max-time 120 --connect-timeout 15 --max-time 120 \
+            --proto '=https' --tlsv1.2 \
+            "https://github.com/getzola/zola/releases/download/v0.23.3/zola-v0.23.3-x86_64-unknown-linux-gnu.tar.gz" \
             -o zola.tar.gz
           echo "${ZOLA_SHA256}  zola.tar.gz" | sha256sum -c
           tar -xzf zola.tar.gz
@@ -74,7 +78,7 @@ jobs:
           zola --version
 
       - name: Set up pinned Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
 
@@ -110,10 +114,14 @@ jobs:
           typst --version
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           # WHY: wrangler (deploy step) requires Node >=22; 20 fails the deploy.
           node-version: '22'
+          # setup-node v5 can infer package-manager caching from package.json.
+          # This workflow installs from the reviewed lockfile without an
+          # Actions cache contract.
+          package-manager-cache: false
 
       - name: Install pa11y-ci, lychee, playwright
         timeout-minutes: 30

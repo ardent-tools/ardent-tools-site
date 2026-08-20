@@ -3,10 +3,10 @@ public/
 # themes/typikon/bin/typikon-check does — it builds public-local/ into the
 # consumer worktree — and that script is a documented entry point.
 public-local/
-# Zola 0.22's Giallo highlighter writes its generated theme stylesheet
+# Zola's Giallo highlighter writes its generated theme stylesheet
 # into static/ (not just public/) as a `zola build` side effect when
 # [markdown.highlighting] style = "class" — verified against the
-# installed zola 0.22.1 binary. Unused here: static/css/syntax.css
+# pinned Zola 0.23.3 binary. Unused here: static/css/syntax.css
 # supplies this site's own three-ink pass over the emitted classes
 # instead of this stock theme's colors (config.toml's own comment has
 # the full note). Regenerates deterministically on every build; never

@@ -35,8 +35,6 @@
    existing explicit stylesheet list rather than introducing that
    mechanism here.
 #}
-{% import "partials/ld-breadcrumb.html" as crumb %}
-{% import "partials/asset-url.html" as asset_url %}
 <!DOCTYPE html>
 <html lang="{{ lang | default(value="en") }}">
 <head>
@@ -47,10 +45,10 @@
      manifest raster set alongside it (Safari desktop/iOS don't render
      SVG favicons; source: static/img/logo-flame.svg, rasterized to
      static/img/{favicon-32,apple-touch-icon,icon-512}.png). #}
-  <link rel="icon" href="{{ asset_url::hashed(path='img/logo-flame.svg') | safe }}" type="image/svg+xml">
-  <link rel="icon" href="{{ asset_url::hashed(path='img/favicon-32.png') | safe }}" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="{{ asset_url::hashed(path='img/apple-touch-icon.png') | safe }}">
-  <link rel="manifest" href="{{ asset_url::hashed(path='site.webmanifest') | safe }}">
+  <link rel="icon" href="{{ <ardent_tools.asset_url.hashed path="img/logo-flame.svg" /> }}" type="image/svg+xml">
+  <link rel="icon" href="{{ <ardent_tools.asset_url.hashed path="img/favicon-32.png" /> }}" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{{ <ardent_tools.asset_url.hashed path="img/apple-touch-icon.png" /> }}">
+  <link rel="manifest" href="{{ <ardent_tools.asset_url.hashed path="site.webmanifest" /> }}">
 
   {%- set site_title = config.title | default(value="") -%}
   {%- set default_description = config.description | default(value="") -%}
@@ -77,13 +75,13 @@
   <meta property="og:locale" content="{{ config.extra.og_locale | default(value="en_US") }}">
   {% block og_image -%}
     {%- if config.extra.og_image %}
-  <meta property="og:image" content="{{ asset_url::hashed(path=config.extra.og_image) | safe }}">
+  <meta property="og:image" content="{{ <ardent_tools.asset_url.hashed path={config.extra.og_image} /> }}">
     {%- endif %}
   {%- endblock og_image %}
   {% block twitter_image -%}
     {%- if config.extra.og_image %}
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="{{ asset_url::hashed(path=config.extra.og_image) | safe }}">
+  <meta name="twitter:image" content="{{ <ardent_tools.asset_url.hashed path={config.extra.og_image} /> }}">
     {%- else %}
   <meta name="twitter:card" content="summary">
     {%- endif %}
@@ -101,20 +99,20 @@
      by consumer's [extra.font_preload]); the rest load via fonts.css. #}
   {%- if config.extra.font_preload %}
     {%- for font in config.extra.font_preload %}
-  <link rel="preload" href="{{ asset_url::hashed(path=font) | safe }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ <ardent_tools.asset_url.hashed path={font} /> }}" as="font" type="font/woff2" crossorigin>
     {%- endfor %}
   {%- endif %}
-  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/fonts.css') | safe }}">
-  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/style.css') | safe }}">
+  <link rel="stylesheet" href="{{ <ardent_tools.asset_url.hashed path="css/fonts.css" /> }}">
+  <link rel="stylesheet" href="{{ <ardent_tools.asset_url.hashed path="css/style.css" /> }}">
   {# --- ardent.tools delta begins: the Leatherworks skin core split out
      (typikon#55, see this file's header comment for why this link
      exists), then consumer-side token override + new component CSS,
      loaded after typikon's own stylesheet so equal-specificity
      selectors here win the cascade (see site.css's own header
      comment). --- #}
-  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/skins/leather.css') | safe }}">
-  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/site.css') | safe }}">
-  <link rel="stylesheet" href="{{ asset_url::hashed(path='css/syntax.css') | safe }}">
+  <link rel="stylesheet" href="{{ <ardent_tools.asset_url.hashed path="css/skins/leather.css" /> }}">
+  <link rel="stylesheet" href="{{ <ardent_tools.asset_url.hashed path="css/site.css" /> }}">
+  <link rel="stylesheet" href="{{ <ardent_tools.asset_url.hashed path="css/syntax.css" /> }}">
   {# --- ardent.tools delta ends --- #}
   {# A page may populate this block only when it renders a published cast. #}
   {% block player_css %}{% endblock player_css %}
@@ -143,7 +141,7 @@
      site.js is the site's own external enhancement script and no-ops when
      the optional player library is absent. #}
   {% block player_js %}{% endblock player_js %}
-  <script src="{{ asset_url::hashed(path='js/site.js') | safe }}" defer></script>
+  <script src="{{ <ardent_tools.asset_url.hashed path="js/site.js" /> }}" defer></script>
   {% block scripts %}{% endblock scripts %}
 </body>
 </html>

@@ -1,13 +1,13 @@
-{# Keep these macros as the only template constructors for addressable public
+{# Keep these components as the only template constructors for addressable public
    resources. Zola emits a readable logical URL; bin/content_address.py replaces
    it with the full-SHA-256 physical URL after all dependency rewriting. The two
    names remain because callers distinguish HTML attributes from raw JSON, even
    though a query-free URL has identical bytes in both contexts. #}
-{% macro hashed(path) -%}
-{%- set normalized = path | trim_start_matches(pat="/") -%}
+{% component ardent_tools.asset_url.hashed(path) -%}
+{%- set normalized = path | trim_start(pat="/") -%}
 {{ get_url(path=normalized) | safe }}
-{%- endmacro hashed %}
-{% macro hashed_raw(path) -%}
-{%- set normalized = path | trim_start_matches(pat="/") -%}
+{%- endcomponent %}
+{% component ardent_tools.asset_url.hashed_raw(path) -%}
+{%- set normalized = path | trim_start(pat="/") -%}
 {{ get_url(path=normalized) | safe }}
-{%- endmacro hashed_raw %}
+{%- endcomponent %}

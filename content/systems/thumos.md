@@ -189,4 +189,4 @@ Hardware validation on a physical AGM M7 has not run yet. QEMU exercises the boo
 
 - Repo: [github.com/forkwright/thumos](https://github.com/forkwright/thumos)
 - The CI workflow that runs the boot: `.github/workflows/ci.yml`
-- The kernel wiring audit, tracking what's compiled vs. what's reachable: `docs/KERNEL-WIRING-AUDIT.md`
+- The machine-checked capability inventory, tracking registration, reachability, and gate coverage: [`docs/capability-inventory.toml`](https://github.com/forkwright/thumos/blob/b444eed02a1171ad3ce40d5e59c0caf6c4a432e6/docs/capability-inventory.toml)

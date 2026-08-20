@@ -26,29 +26,29 @@
 {
   "@context": "https://schema.org",
   "@type": "Person",
-  "name": {{ p.name | json_encode | safe }},
-  "url": {{ person_url | json_encode | safe }}
+  "name": {{ <typikon.ldjson.str value={p.name} /> }},
+  "url": {{ <typikon.ldjson.str value={person_url} /> }}
   {%- if p.job_title -%},
-  "jobTitle": {{ p.job_title | json_encode | safe }}
+  "jobTitle": {{ <typikon.ldjson.str value={p.job_title} /> }}
   {%- endif -%}
   {%- if p.email -%}
   {%- set person_email = "mailto:" ~ p.email -%},
-  "email": {{ person_email | json_encode | safe }}
+  "email": {{ <typikon.ldjson.str value={person_email} /> }}
   {%- endif -%}
   {%- set sameas = [] -%}
-  {%- if p.github -%}{%- set_global sameas = sameas | concat(with=p.github) -%}{%- endif -%}
-  {%- if p.linkedin -%}{%- set_global sameas = sameas | concat(with=p.linkedin) -%}{%- endif -%}
-  {%- set_global sameas = sameas | concat(with=config.base_url) -%}
+  {%- if p.github -%}{%- set_global sameas = [...sameas, p.github] -%}{%- endif -%}
+  {%- if p.linkedin -%}{%- set_global sameas = [...sameas, p.linkedin] -%}{%- endif -%}
+  {%- set_global sameas = [...sameas, config.base_url] -%}
   {%- if sameas | length > 0 -%},
-  "sameAs": {{ sameas | json_encode | safe }}
+  "sameAs": {{ <typikon.ldjson.str value={sameas} /> }}
   {%- endif -%}
-  {%- set systems = get_section(path="systems/_index.md") -%}
+  {%- set systems = get_section(path="systems/_index.md", lang=lang) -%}
   {%- set knows = [] -%}
   {%- for system in systems.pages -%}
-  {%- set_global knows = knows | concat(with=system.permalink) -%}
+  {%- set_global knows = [...knows, system.permalink] -%}
   {%- endfor -%}
-  {%- set_global knows = knows | concat(with="https://en.wikipedia.org/wiki/Rust_(programming_language)") -%},
-  "knowsAbout": {{ knows | json_encode | safe }}
+  {%- set_global knows = [...knows, "https://en.wikipedia.org/wiki/Rust_(programming_language)"] -%},
+  "knowsAbout": {{ <typikon.ldjson.str value={knows} /> }}
 }
 </script>
 {%- endif %}

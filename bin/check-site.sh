@@ -51,8 +51,8 @@ readonly SITE_BASE_URL
 KANON_AVAILABLE=0
 if command -v kanon >/dev/null 2>&1; then
   KANON_AVAILABLE=1
-  [[ "$(kanon --version)" == "kanon 0.11.0" ]] || {
-    echo "ERROR: kanon 0.11.0 is required for the pinned writing-floor lint (docs/VOICE.md); found $(kanon --version)" >&2
+  [[ "$(kanon --version)" == "kanon 0.13.0" ]] || {
+    echo "ERROR: kanon 0.13.0 is required for the pinned writing-floor lint (docs/VOICE.md); found $(kanon --version)" >&2
     exit 1
   }
 fi

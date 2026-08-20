@@ -65,14 +65,10 @@
   </figure>
   {%- endif %}
 
-  {# NOTE: typikon#157 (4f8c1531 -> b61228cb) added
-     assert::no_h1(content=page.content, template="journal-entry.html")
-     immediately before this render. Deliberately not ported here — same
-     reasoning as faq.html: this shadow does not import
-     partials/assert.html, and no current content trips the guard, but
-     adopting a fail-closed build assertion is a deliberate policy
-     choice for a future change, not a drive-by import. -#}
+  {# The shared assertion fails closed if rendered body content would
+     introduce a second H1 beside the template-owned heading. -#}
   <div class="prose">
+  {{ <typikon.assert.no_h1 content={page.content} template="journal-entry.html" /> }}
   {{ page.content | safe }}
   </div>
 

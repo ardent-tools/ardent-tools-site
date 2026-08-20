@@ -11,7 +11,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 
 | What | Detail |
 |---|---|
-| Generator | [Zola](https://www.getzola.org/) 0.22.1, static application with no dynamic backend. One bounded Pages Function enforces the error boundary |
+| Generator | [Zola](https://www.getzola.org/) 0.23.3, static application with no dynamic backend. One bounded Pages Function enforces the error boundary |
 | Substrate | [typikon](https://github.com/forkwright/typikon), a shared Zola theme this site consumes as a git submodule and layers its own tokens and templates over |
 | Fonts | Spectral and IBM Plex Mono, both self-hosted from repository WOFF2 sources and served at physical full-digest paths, both OFL-licensed. No Google Fonts, no font CDN - the CSP's `font-src 'self'` blocks one even if referenced by mistake |
 | Resume fonts | Nimbus Sans Regular and Bold are pinned with their hashes and AGPL-with-font-exception notices under `resume/fonts/`. Typst compiles with system and embedded fonts disabled, twice, and the gate byte-compares both PDFs |
@@ -28,7 +28,7 @@ The repo is public: the gate config, CSP, source content, recording plans, and d
 | Color scheme | Light-only, by decision - `color-scheme: light` is declared, not omitted, and no dark palette is built |
 | Construction | AI agents build and maintain this site - the templates, the stylesheet, the prose, the release machinery - under my direction, through the gate below. The gate covers what's automatable. I check the rest by hand |
 | Method | The [essays](/writing/) carry the operating method behind this site and the systems it documents - how the gates, counts, and review loops actually run |
-| Legible to agents | The site's structured surfaces - [llms.txt](/llms.txt), [systems.json](/systems.json), [career-claims.json](/career-claims.json), and this repository's own `AGENTS.md` - are readable by an agent doing live retrieval on a visitor's behalf. The same system frontmatter derives the human catalog and the machine one, diff-checked so they cannot drift. The [AI use policy](https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md) draws a separate line at bulk collection into a training corpus, which stays prohibited without written consent |
+| Legible to agents | The site's generated [systems catalog](/systems.json), generated [career-claims receipt](/career-claims.json), and this repository's `AGENTS.md` are readable by an agent doing live retrieval on a visitor's behalf. The same system frontmatter derives the human catalog and the machine one, diff-checked so they cannot drift. The [AI use policy](https://github.com/ardent-tools/ardent-tools-site/blob/main/AI-USE-POLICY.md) draws a separate line at bulk collection into a training corpus, which stays prohibited without written consent |
 | Ownership | Ardent Works LLC, a Texas company. This practice operates under it. The site and its evidence are the practice's work |
 | Family | Sibling of [Ardent Leatherworks](https://ardentleatherworks.com) - shared paper stock, shared press ink, shared flame mark |
 

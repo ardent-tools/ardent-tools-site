@@ -20,4 +20,4 @@ The second is a medical-code taxonomy engine built over eight days in March 2026
 
 Ardent Tools shares its name with [Ardent Leatherworks](https://ardentleatherworks.com), small-batch leather goods built under the motto "the hand remembers what the mind tries to forget."
 
-{{ resource_link(path="files/cody-kickertz-resume.pdf", label="Resume (PDF)", download="cody-kickertz-resume.pdf") }} · [Contact](/contact/)
+<a href="/files/cody-kickertz-resume.pdf" download="cody-kickertz-resume.pdf">Resume (PDF)</a> · [Contact](/contact/)

@@ -61,7 +61,7 @@ for (const viewport of viewports) {
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           opacity: getComputedStyle(document.body).opacity,
           dataCastCount: document.querySelectorAll('[data-cast]').length,
-          // WHY .pathname, not the raw href/src attribute: asset_url::hashed
+          // WHY .pathname, not the raw href/src attribute: the asset-url component
           // renders an absolute URL (origin + path), while cssUrl/jsUrl from
           // the asset manifest are root-relative paths. The `.href`/`.src`
           // IDL properties (unlike getAttribute) always resolve to an

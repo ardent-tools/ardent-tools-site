@@ -15,20 +15,11 @@
    for pages using page.html as-is, with no template= override and no
    content-block override of their own.
 
-   NOTE (typikon#149 + typikon#157, ported informationally, not adopted,
-   4f8c1531 -> b61228cb): the theme's own page.html now renders its own
-   `<h1>{{ page.title }}</h1>` (previously it rendered none, relying on
-   the consumer's markdown body opening with a `# Title` line), guarded
-   by assert::required(page.title) and assert::no_h1(page.content).
-   This shadow already rendered its own h1 in .page-header before this
-   bump existed (see the file header above) — the underlying gap the
-   theme's fix closes never existed here. Both asserts are skipped for
-   the same assert.html reason as every other shadow (see AGENTS.md); no
-   current content trips no_h1, and page.title is already effectively
-   required by every content page.
+   Typikon owns the qualified-heading metadata and the fail-closed body
+   collision check. This shadow keeps both while retaining its local
+   page-header and prose structure.
 #}
 {% extends "base.html" %}
-{% import "partials/asset-url.html" as asset_url %}
 
 {% block description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock description %}
 {% block og_description %}{{ page.description | default(value=config.description | default(value="")) }}{% endblock og_description %}
@@ -38,7 +29,7 @@
 {% block og_image %}
 {%- set og_image = page.extra.og_image | default(value=config.extra.og_image | default(value="")) -%}
 {%- if og_image %}
-  <meta property="og:image" content="{{ asset_url::hashed(path=og_image) | safe }}">
+  <meta property="og:image" content="{{ <ardent_tools.asset_url.hashed path={og_image} /> }}">
 {%- endif %}
 {% endblock og_image %}
 
@@ -47,16 +38,20 @@
 {% block ld_json %}
   {{ super() }}
   {# Product JSON-LD when frontmatter is product-shaped (per schema). #}
-  {%- if page.extra.price and page.extra.stripe_url -%}
+  {%- if page.extra.price or page.extra.stripe_url or page.extra.price_source -%}
   {%- include "partials/ld-product.html" -%}
   {%- endif -%}
   {# BreadcrumbList for non-home pages. #}
-  {{ crumb::breadcrumb(title=page.title, permalink=page.permalink, ancestors=page.ancestors) }}
+  {{ <typikon.crumb.breadcrumb config={config} lang={page.lang} title={page.title} permalink={page.permalink} ancestors={page.ancestors} /> }}
 {% endblock ld_json %}
 
 {% block content %}
 <header class="page-header reveal">
+{%- if page.extra.greek %}
+<h1 data-greek="{{ page.extra.greek }}"><span>{{ page.title }}</span></h1>
+{%- else %}
 <h1>{{ page.title }}</h1>
+{%- endif %}
 {%- if page.description %}
 <p class="page-lede">{{ page.description }}</p>
 {%- endif %}
@@ -66,6 +61,7 @@
    the operator drops the placeholder <div class="product-images"> from
    markdown when photos arrive and the gallery takes its visual slot. #}
 {%- include "partials/product-gallery.html" -%}
+{{ <typikon.assert.no_h1 content={page.content} template="page.html" /> }}
 {{ page.content | safe }}
 {# Process video renders after page content when extra.video is set. #}
 {%- include "partials/video.html" -%}

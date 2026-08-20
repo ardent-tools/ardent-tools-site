@@ -1,3 +1,0 @@
-{% import "partials/asset-url.html" as asset_url -%}
-{%- set download_name = download | default(value="") -%}
-<a href="{{ asset_url::hashed(path=path) | safe }}"{% if download_name %} download="{{ download_name }}"{% endif %}>{{ label }}</a>

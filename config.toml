@@ -20,7 +20,7 @@ smart_punctuation = true
 # that was Zola's pre-0.22 syntect-based config. Zola 0.22 replaced the
 # highlighter with Giallo (VSCode TextMate grammars) and moved
 # everything under this nested [markdown.highlighting] table with
-# `style = "class"|"inline"`; verified against the installed zola 0.22.1
+# `style = "class"|"inline"`; verified against the pinned Zola 0.23.3
 # binary, which rejects the old flat keys outright. `theme` is required
 # by Zola even in class mode (it still auto-generates a same-named
 # giallo.css into the build output) but this site never links that
@@ -30,6 +30,10 @@ style = "class"
 theme = "github-light"
 
 [extra]
+# The root Atom feed is the writing publication, not a site-wide change log.
+# Typikon fails closed if the owner is missing, empty, or not date-sorted.
+feed_source_section = "writing/_index.md"
+
 # Brand strings - read by typikon's base.html / nav.html / footer.html.
 # No brand_greek, no triad, no home_logo: plain-English register, no
 # Greek-branch templates activated (every Greek path in typikon is

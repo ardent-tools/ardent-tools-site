@@ -22,6 +22,7 @@
 </header>
 <div class="prose">
 {%- include "partials/product-gallery.html" -%}
+{{ <typikon.assert.no_h1 content={page.content} template="about.html" /> }}
 {{ page.content | safe }}
 {%- include "partials/video.html" -%}
 </div>
