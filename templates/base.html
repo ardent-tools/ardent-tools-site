@@ -63,13 +63,12 @@
     {%- set document_title = section.extra.seo_title -%}
   {%- endif -%}
 
-  {# Resolve content titles here and escape once in their final text/attribute
-     contexts. Nested title blocks caused apostrophes to be entity-escaped
-     once by the child and again by this template. #}
-  <title>{{ document_title }}</title>
+  {# Resolve the default content title here while preserving the inherited
+     title hooks that child templates use for their own title authority. #}
+  <title>{% block title %}{{ document_title }}{% endblock title %}</title>
   <meta name="description" content="{% block description %}{{ default_description }}{% endblock description %}">
 
-  <meta property="og:title" content="{{ document_title }}">
+  <meta property="og:title" content="{% block og_title %}{{ document_title }}{% endblock og_title %}">
   <meta property="og:description" content="{% block og_description %}{{ default_description }}{% endblock og_description %}">
   <meta property="og:type" content="{% block og_type %}website{% endblock og_type %}">
   <meta property="og:locale" content="{{ config.extra.og_locale | default(value="en_US") }}">
