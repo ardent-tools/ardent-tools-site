@@ -32,7 +32,8 @@ on:
   workflow_dispatch:
 
 # WHY: a production cutover (preview verify -> promote -> canonical verify)
-# must never be interrupted mid-flight by a newer push (AT-01) - PR/build
+# must never be interrupted mid-flight by a newer push, which would leave
+# production serving a revision nothing verified - PR/build
 # checks keep the prior aggressive-cancel group, while every push or
 # workflow_dispatch run targeting main shares one dedicated, non-cancelable
 # group so a second production run queues behind the first instead of
@@ -50,7 +51,7 @@ jobs:
     # WHY 60: this is the outer safety bound for gate + deployment + recovery.
     # The two apt-capable install steps carry narrower bounds below, so a
     # stalled package mirror cannot consume this entire production slot.
-    # The outer bound remains well below GitHub's 6-hour default (AT-01).
+    # The outer bound remains well below GitHub's 6-hour default.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -243,7 +244,7 @@ jobs:
             --outfile "$RUNNER_TEMP/ardent-pages-worker.js"
 
       # ── Deploy green main revisions ───────────────────────────
-      # AT-01 remediation: production is proved live BEFORE it is cut over.
+      # INVARIANT: production is proved live BEFORE it is cut over.
       # The same gated public/ tree deploys twice - first as a non-production
       # preview (verified in full), then re-uploaded byte-for-byte to the
       # production branch. A failed preview verify never reaches the promote
@@ -268,11 +269,11 @@ jobs:
           # created_on, deployment_trigger.metadata.commit_hash - full
           # 40-hex) - verified against
           # https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/list/
-          # (AT-01 remediation).
+
           #
           # Query params kept minimal: only `page`. The documented `env` and
-          # `per_page` params returned HTTP 400 from the live endpoint (first
-          # AT-01 cutover), so neither is sent - pages_last_deployment.py
+          # `per_page` params returned HTTP 400 from the live endpoint, so
+          # neither is sent - pages_last_deployment.py
           # filters environment==production client-side, and CF's default page
           # size with break-on-empty pagination covers the rest. curl does NOT
           # use --fail (which suppresses the response body); the CF error body
@@ -360,7 +361,7 @@ jobs:
       # preview_verify (or any earlier step) failed, this step is SKIPPED
       # automatically and production is never touched. Do not add
       # `if: always()` or otherwise weaken this condition; that would defeat
-      # the AT-01 fail-safe (preview must verify before promotion).
+      # the fail-safe: a preview must verify before it can be promoted.
       - name: Promote verified preview to production
         id: promote
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
