@@ -1,11 +1,8 @@
 {# Consumer shadow of typikon's templates/faq.html. The .faq-page article
    carries .prose (§1.2), answers render inline Markdown, and structured
    data layers through super(). The duplicate-anchor behavior matches
-   typikon#92. Deliberately NOT ported: the theme's assert import and
-   required/no_h1 calls. This shadow predates partials/assert.html and
-   does not import it (see AGENTS.md's Template shadow delta section);
-   no current content trips no_h1, but adopting a fail-closed build
-   assertion is a separate policy change. Re-diff against
+   typikon#92. The globally namespaced assertion components remain
+   active, including the body-H1 collision guard. Re-diff against
    themes/typikon/templates/faq.html on every typikon-refresh.
 #}
 {% extends "page.html" %}
@@ -26,6 +23,7 @@
 
   {%- if page.content %}
   <div class="faq-intro">
+    {{ <typikon.assert.no_h1 content={page.content} template="faq.html" /> }}
     {{ page.content | safe }}
   </div>
   {%- endif %}
@@ -46,7 +44,7 @@
     {%- else -%}
     {%- set anchor = base_anchor -%}
     {%- endif -%}
-    {%- set_global faq_seen_anchors = faq_seen_anchors | concat(with=anchor) -%}
+    {%- set_global faq_seen_anchors = [...faq_seen_anchors, anchor] -%}
     <div class="faq-item" id="{{ anchor }}">
       <dt class="faq-question">
         <a href="#{{ anchor }}" class="faq-anchor">{{ item.q }}</a>

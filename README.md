@@ -8,11 +8,11 @@ The thesis: evidence belongs beside the claim. System pages publish lifecycle bo
 
 Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme consumed here as a git submodule (`themes/typikon/`, pinned by commit - see `.gitmodules`). This repo holds only the site-specific content, brand tokens, and the small set of consumer-side template shadows the design needs beyond typikon's defaults (see `AGENTS.md` for the exact delta and why each override exists; `CLAUDE.md` is a one-line import stub pointing at it).
 
-Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat nav index for an agent fetching the live site; `AGENTS.md` is the equivalent for an agent cloning the repo.
+Agent-facing surfaces are the generated [systems catalog](https://ardent.tools/systems.json), the generated [career-claim receipt](https://ardent.tools/career-claims.json), and `AGENTS.md` for an agent cloning the repo.
 
 ## Build / run
 
-Requires Python 3.11+, [Zola](https://www.getzola.org/) 0.22.1, and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` and `pdffonts` for the repository-owned résumé check. The exact Nimbus Sans inputs, hashes, provenance, and license notices live under [`resume/fonts/`](resume/fonts/README.md); compilation ignores system and Typst-embedded fonts.
+Requires Python 3.11+, [Zola](https://www.getzola.org/) 0.23.3, and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` and `pdffonts` for the repository-owned résumé check. The exact Nimbus Sans inputs, hashes, provenance, and license notices live under [`resume/fonts/`](resume/fonts/README.md); compilation ignores system and Typst-embedded fonts.
 
 `themes/typikon/` ships as a git submodule - a plain clone leaves it empty and `zola build` fails outright. Initialize it first:
 

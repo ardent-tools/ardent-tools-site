@@ -6,7 +6,6 @@
    element carries that structure for assistive tech instead of an
    aria-hidden header row over a list of unlabeled cells. #}
 {% extends "page.html" %}
-{% import "partials/asset-url.html" as asset_url %}
 
 {% block content %}
 {%- set systems = get_section(path="systems/_index.md") %}
@@ -26,6 +25,7 @@
   {%- set sys_n = systems.pages | length %}
   {%- set ess_n = writing.pages | length %}
   <p class="evidence-count-line">systems {% if sys_n < 10 %}0{% endif %}{{ sys_n }} &middot; essays {% if ess_n < 10 %}0{% endif %}{{ ess_n }} &middot; recordings {% if cast_count < 10 %}0{% endif %}{{ cast_count }}</p>
+  {{ <typikon.assert.no_h1 content={page.content} template="evidence.html" /> }}
   <div class="evidence-intro">{{ page.content | safe }}</div>
 </header>
 
@@ -111,7 +111,7 @@
     <li>
       <div><span class="plan-state">Planned</span>{% if system.extra.demo.tape %}<span class="plan-state plan-state-script">Script published</span>{% endif %}<h3><a href="{{ system.permalink | safe }}">{{ system.title }}</a></h3></div>
       {%- if system.extra.demo.tape %}
-      <p class="recording-plan-primary"><a href="{{ asset_url::hashed(path=system.extra.demo.tape) | safe }}" class="text-action">Read the planned recording script&nbsp;<span class="arrow">&rarr;</span></a></p>
+      <p class="recording-plan-primary"><a href="{{ <ardent_tools.asset_url.hashed path={system.extra.demo.tape} /> }}" class="text-action">Read the planned recording script&nbsp;<span class="arrow">&rarr;</span></a></p>
       {%- endif %}
       <p><strong>Target:</strong> {{ system.extra.demo.action }}{% if system.extra.demo.target %} - {{ system.extra.demo.target }}{% endif %}</p>
       <p><strong>Would show:</strong> {{ system.extra.demo.shows }}</p>

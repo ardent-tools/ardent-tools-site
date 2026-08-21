@@ -2,18 +2,9 @@
    writing links come from content/writing; this template owns only the
    composition. No recording surface renders without a published cast.
 
-   NOTE (typikon#142 + typikon#152, ported informationally, not adopted,
-   4f8c1531 -> b61228cb): the theme added a `<h1 class="sr-only">` tied
-   to section.title plus an assert::no_h1(section.content) guard, since
-   its own home_logo/home_tagline are both optional and could otherwise
-   leave a page with no h1 at all. Not applicable here — this template
-   has always rendered its own real, visible `<h1 class="home-h1">`
-   below (`section.extra.h1`), so the accessibility gap that fix closes
-   never existed on this page. The no_h1 guard is skipped for the same
-   assert.html reason as every other shadow (see AGENTS.md); no current
-   content trips it. #}
+   The local hero owns a visible H1, while the shared body guard rejects a
+   competing H1 in section.content. #}
 {% extends "base.html" %}
-{% import "partials/feature-block.html" as feature_block %}
 
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
@@ -34,6 +25,7 @@
 </header>
 
 <div class="practice-paragraph">
+{{ <typikon.assert.no_h1 content={section.content} template="index.html" /> }}
 {{ section.content | safe }}
 </div>
 
@@ -84,11 +76,11 @@
       {%- set_global feature_i = feature_i + 1 %}
       {%- set feature_idx = "0" ~ feature_i %}
       {%- if p.slug == "thumos" %}
-  {{ feature_block::block(page=p, index=feature_idx, layout="lead") }}
+  {{ <ardent_tools.feature.block page={p} index={feature_idx} layout="lead" /> }}
       {%- elif p.slug == "aletheia" %}
-  {{ feature_block::block(page=p, index=feature_idx, layout="mirror") }}
+  {{ <ardent_tools.feature.block page={p} index={feature_idx} layout="mirror" /> }}
       {%- else %}
-  {{ feature_block::block(page=p, index=feature_idx, layout="stack") }}
+  {{ <ardent_tools.feature.block page={p} index={feature_idx} layout="stack" /> }}
       {%- endif %}
     {%- endif %}
   {%- endfor %}
@@ -138,7 +130,7 @@
     <a href="/writing/">All essays&nbsp;<span class="arrow">&rarr;</span></a>
   </div>
   <ol class="home-writing-list">
-    {%- for entry in writing.pages | slice(end=3) %}
+    {%- for entry in writing.pages[:3] %}
     <li class="reveal">
       <time datetime="{{ entry.date }}">{{ entry.date | date(format="%Y-%m-%d") }}</time>
       <h3><a href="{{ entry.permalink | safe }}">{{ entry.title }}</a></h3>

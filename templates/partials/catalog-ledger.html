@@ -13,7 +13,7 @@
                   to the repo (the one action a design-phase entry needs);
                   meta line carries only the DESIGN PHASE badge (§3.2).
 #}
-{% macro grid(items) %}
+{% component ardent_tools.catalog.grid(items) %}
 <ul class="catalog ledger-grid">
   {%- for item in items %}
   <li class="ledger-cell">
@@ -28,9 +28,9 @@
   </li>
   {%- endfor %}
 </ul>
-{% endmacro grid %}
+{% endcomponent %}
 
-{% macro register(items) %}
+{% component ardent_tools.catalog.register(items) %}
 <ul class="catalog ledger-register">
   {%- for item in items %}
   <li class="ledger-cell">
@@ -41,4 +41,4 @@
   </li>
   {%- endfor %}
 </ul>
-{% endmacro register %}
+{% endcomponent %}

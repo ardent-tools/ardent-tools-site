@@ -9,7 +9,6 @@ canonical_paths = [
   "atom.xml",
   "build-revision.txt",
   "career-claims.json",
-  "llms.txt",
   "release-html.json",
   "robots.txt",
   "runtime-boundary.json",

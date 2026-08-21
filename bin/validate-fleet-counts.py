@@ -263,7 +263,7 @@ def witness(systems: list[dict], token: str | None) -> tuple[list[str], int]:
 
 def surfaces() -> list[Path]:
     out = []
-    for pattern in ("content/**/*.md", "static/llms.txt"):
+    for pattern in ("content/**/*.md",):
         out.extend(p for p in ROOT.glob(pattern) if p.is_file())
     return sorted(out)
 

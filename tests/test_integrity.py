@@ -160,7 +160,6 @@ def run_production_fixture(
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
             "career-claims.json": b"{}\n",
-            "llms.txt": b"release fixture\n",
             "robots.txt": b"User-agent: *\n",
             "runtime-boundary.json": b"{}\n",
             "sbom.cdx.json": b"{}\n",
@@ -1059,9 +1058,14 @@ class ContentAddressContractTests(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
         map_path = root / "asset-map.json"
-        document = content_address.finalize_tree(
-            output, map_path, BASE_URL, self.contract()
-        )
+        contract = self.contract()
+        if "llms.txt" in files:
+            # Synthetic named consumer for the optional Markdown rewriter.
+            # The live site contract deliberately omits this surface (D-068),
+            # while these focused tests keep the generic implementation honest.
+            contract = copy.deepcopy(contract)
+            contract["canonical_paths"].append("llms.txt")
+        document = content_address.finalize_tree(output, map_path, BASE_URL, contract)
         self.assertEqual(document, json.loads(map_path.read_text()))
         return output, document
 
@@ -2915,7 +2919,6 @@ class ReleaseManifestContractTests(unittest.TestCase):
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
             "career-claims.json": b"{}\n",
-            "llms.txt": b"fixture\n",
             "release-html.json": b"{}\n",
             "robots.txt": b"fixture\n",
             "runtime-boundary.json": b"{}\n",
@@ -7323,7 +7326,6 @@ class FleetCountWitnessContractTests(unittest.TestCase):
         }
         (root / "static/systems.json").write_text(json.dumps(catalog_document))
         (root / "content/systems/widget.md").write_text(self.COPY)
-        (root / "static/llms.txt").write_text("")
 
     def metadata_url(self) -> str:
         return f"{fleet_counts.GITHUB_API}/repos/{self.OWNER}/{self.REPO}"
@@ -7460,7 +7462,6 @@ class FleetCountWitnessContractTests(unittest.TestCase):
                 "are featured, and two featured public system repositories "
                 "carry kanon_ci.\n"
             )
-            (root / "static/llms.txt").write_text("")
             fetch = self.make_fetch({
                 self.metadata_url(): (200, json.dumps({"private": False}).encode()),
                 self.contents_url(): (200, b"{}"),
@@ -8369,7 +8370,7 @@ class KanonWritingGateTests(unittest.TestCase):
     """docs/VOICE.md's ban list must be a real gate, not a claim (#105)."""
 
     FIXTURES = ROOT / "tests/fixtures/kanon-writing"
-    PINNED_VERSION = "kanon 0.11.0"
+    PINNED_VERSION = "kanon 0.13.0"
     BASH = shutil.which("bash") or "/bin/bash"
 
     def _require_kanon(self) -> None:
@@ -8561,6 +8562,58 @@ class CssCommentNarrationRegressionTests(unittest.TestCase):
         css = (ROOT / "static/css/site.css").read_text()
         hits = [pattern for pattern in self.BANNED_PATTERNS if re.search(pattern, css, re.IGNORECASE)]
         self.assertEqual(hits, [], f"historical-phase narration reintroduced: {hits}")
+
+
+class TypikonConsumerMigrationContractTests(unittest.TestCase):
+    """Keep the local shadows on the exact shared substrate they consume."""
+
+    def test_hand_authored_agent_corpus_is_not_a_public_surface(self) -> None:
+        self.assertFalse((ROOT / "static/llms.txt").exists())
+        release_contract = (ROOT / "release-resources.toml").read_text()
+        self.assertNotIn('"llms.txt"', release_contract)
+
+    def test_consumer_templates_use_only_tera_2_dialect(self) -> None:
+        patterns = {
+            "macro/import declaration": re.compile(r"{%[- ]*\s*(?:import|macro)\b"),
+            "Tera 1 namespace call": re.compile(r"{{[^}\n]*\b\w+::\w+"),
+            "Tera 1 concat filter": re.compile(r"\|\s*concat\b"),
+            "Tera 1 trim-matches filter": re.compile(
+                r"\|\s*trim_(?:start|end)_matches\b"
+            ),
+        }
+        violations: list[str] = []
+        for path in sorted((ROOT / "templates").rglob("*.html")):
+            source = path.read_text()
+            for label, pattern in patterns.items():
+                if pattern.search(source):
+                    violations.append(f"{path.relative_to(ROOT)}: {label}")
+        self.assertEqual(violations, [])
+        self.assertFalse((ROOT / "templates/atom.xml").exists())
+        self.assertFalse((ROOT / "templates/shortcodes/resource_link.html").exists())
+
+    def test_custom_workflow_keeps_reviewed_node24_action_pins(self) -> None:
+        workflow_path = ROOT / ".github/workflows/deploy.yml"
+        source = workflow_path.read_text()
+        self.assertTrue(source.startswith("# typikon: local\n"))
+        workflow = parse_workflow_yaml(source)
+        steps = workflow["jobs"]["gate-and-deploy"]["steps"]
+        checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout@"))
+        setup_node = next(step for step in steps if step.get("uses", "").startswith("actions/setup-node@"))
+        setup_python = next(step for step in steps if step.get("uses", "").startswith("actions/setup-python@"))
+        self.assertEqual(
+            checkout["uses"],
+            "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+        )
+        self.assertEqual(checkout["with"]["persist-credentials"], "false")
+        self.assertEqual(
+            setup_node["uses"],
+            "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+        )
+        self.assertEqual(setup_node["with"]["package-manager-cache"], "false")
+        self.assertEqual(
+            setup_python["uses"],
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+        )
 
 
 if __name__ == "__main__":

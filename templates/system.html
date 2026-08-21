@@ -9,8 +9,6 @@
    prev/next footer row.
 #}
 {% extends "page.html" %}
-{% import "partials/term-panel.html" as term_panel %}
-{% import "partials/asset-url.html" as asset_url %}
 
 {# SoftwareSourceCode/CreativeWork JSON-LD ships
    alongside page.html's default Organization/Person/Breadcrumb stack —
@@ -22,12 +20,12 @@
 
 {% block player_css %}
   {%- if page.extra.demo and page.extra.demo.cast %}
-  <link rel="stylesheet" href="{{ asset_url::hashed(path='vendor/asciinema/asciinema-player.css') | safe }}">
+  <link rel="stylesheet" href="{{ <ardent_tools.asset_url.hashed path="vendor/asciinema/asciinema-player.css" /> }}">
   {%- endif %}
 {% endblock player_css %}
 {% block player_js %}
   {%- if page.extra.demo and page.extra.demo.cast %}
-  <script src="{{ asset_url::hashed(path='vendor/asciinema/asciinema-player.min.js') | safe }}" defer></script>
+  <script src="{{ <ardent_tools.asset_url.hashed path="vendor/asciinema/asciinema-player.min.js" /> }}" defer></script>
   {%- endif %}
 {% endblock player_js %}
 
@@ -65,12 +63,12 @@
     <span>{{ page.title }} &middot; architecture</span>
   </div>
   <div class="term-mat diagram-plate">
-    <img class="diagram-img" src="{{ asset_url::hashed(path=page.extra.svg_diagram) | safe }}" alt="{{ page.extra.svg_diagram_alt | default(value=page.title ~ ' architecture diagram') }}" width="960" height="540">
+    <img class="diagram-img" src="{{ <ardent_tools.asset_url.hashed path={page.extra.svg_diagram} /> }}" alt="{{ page.extra.svg_diagram_alt | default(value=page.title ~ ' architecture diagram') }}" width="960" height="540">
   </div>
   <figcaption class="term-caption">{{ page.extra.svg_diagram_caption | default(value="No demo. This system is employer property; the patterns are the transferable part.") }}</figcaption>
 </figure>
 {%- elif page.extra.demo and page.extra.demo.cast %}
-{{ term_panel::panel(demo=page.extra.demo, label=page.title ~ " demo") }}
+{{ <ardent_tools.term_panel.panel demo={page.extra.demo} label={page.title ~ " demo"} /> }}
 {%- endif %}
 
 {# System-page prose (§1.2) — "What it is" through "Where to look" narrows
@@ -78,6 +76,7 @@
    shell width. .receipt-table-wrap inside reaches back to shell width on
    its own (site.css's .prose > .receipt-table-wrap breakout, §1.2). #}
 <div class="prose">
+{{ <typikon.assert.no_h1 content={page.content} template="system.html" /> }}
 {{ page.content | safe }}
 </div>
 

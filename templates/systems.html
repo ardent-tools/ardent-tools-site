@@ -13,8 +13,6 @@
    (§8 phase A item 2's whole bug class).
 #}
 {% extends "base.html" %}
-{% import "partials/catalog-row.html" as catalog_row %}
-{% import "partials/catalog-ledger.html" as ledger %}
 
 {% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
 {% block og_description %}{{ section.description | default(value=config.description) }}{% endblock og_description %}
@@ -42,6 +40,7 @@
 <header class="catalog-header reveal">
 <h1>{{ section.title }}</h1>
 <div class="systems-intro">
+{{ <typikon.assert.no_h1 content={section.content} template="systems.html" /> }}
 {{ section.content | safe }}
 </div>
 </header>
@@ -58,7 +57,7 @@
   <p class="group-caption">The flagship layer - an OS, an agent runtime, a standards engine, a media platform, an RF toolkit, a GPU inference stack, a mesh client.</p>
   <ul class="catalog">
     {%- for p in section.pages %}
-    {{ catalog_row::row(page=p) }}
+    {{ <ardent_tools.catalog.row page={p} /> }}
     {%- endfor %}
   </ul>
 </div>
@@ -67,24 +66,24 @@
   <h2><span class="group-index">02</span> &mdash; Libraries <span class="group-count">&middot; {{ lib_count }}</span></h2>
   <p class="group-caption">Shared substrate the systems above are built on: search primitives, sealing, subprocess handling, common scaffolding.</p>
   {%- set_global libs = [] %}
-  {%- for item in section.extra.ledger %}{% if item.group == "libraries" %}{% set_global libs = libs | concat(with=[item]) %}{% endif %}{% endfor %}
-  {{ ledger::grid(items=libs) }}
+  {%- for item in section.extra.ledger %}{% if item.group == "libraries" %}{% set_global libs = [...libs, item] %}{% endif %}{% endfor %}
+  {{ <ardent_tools.catalog.grid items={libs} /> }}
 </div>
 
 <div class="catalog-group zone-web" id="web">
   <h2><span class="group-index">03</span> &mdash; Web <span class="group-count">&middot; {{ web_count }}</span></h2>
   <p class="group-caption">Web-facing infrastructure: this site's own theme, and a self-hosted newsletter service.</p>
   {%- set_global webs = [] %}
-  {%- for item in section.extra.ledger %}{% if item.group == "web" %}{% set_global webs = webs | concat(with=item) %}{% endif %}{% endfor %}
-  {{ ledger::grid(items=webs) }}
+  {%- for item in section.extra.ledger %}{% if item.group == "web" %}{% set_global webs = [...webs, item] %}{% endif %}{% endfor %}
+  {{ <ardent_tools.catalog.grid items={webs} /> }}
 </div>
 
 <div class="catalog-group" id="in-design">
   <h2><span class="group-index">04</span> &mdash; In design <span class="group-count">&middot; {{ design_count }}</span></h2>
   <p class="group-caption">Specification before code - locked design decisions, no shipped implementation yet.</p>
   {%- set_global designs = [] %}
-  {%- for item in section.extra.ledger %}{% if item.group == "in-design" %}{% set_global designs = designs | concat(with=item) %}{% endif %}{% endfor %}
-  {{ ledger::register(items=designs) }}
+  {%- for item in section.extra.ledger %}{% if item.group == "in-design" %}{% set_global designs = [...designs, item] %}{% endif %}{% endfor %}
+  {{ <ardent_tools.catalog.register items={designs} /> }}
 </div>
 
 <p class="catalog-footnote">FLEET CI WORKFLOWS: <a href="https://github.com/forkwright/.github">FORKWRIGHT/.GITHUB <span class="arrow">&rarr;</span></a></p>

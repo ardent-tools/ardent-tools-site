@@ -1,3 +1,4 @@
+# typikon: local
 # archetype:
 # forge-only: false
 # spdx: LicenseRef-PolyForm-Shield-1.0.0
@@ -5,7 +6,7 @@
 # This direct-GitHub repository is not forge-onboarded (#93), so no Kanon
 # post-receive hook consumes this file as a pipeline today. The writing-floor
 # slice of "kanon-lint" below is not dormant, though: bin/check-site.sh runs
-# the pinned equivalent (`kanon lint --writing`, kanon 0.11.0) directly as a
+# the pinned equivalent (`kanon lint --writing`, kanon 0.13.0) directly as a
 # stage of the same strict gate .github/workflows/deploy.yml and a local
 # `python3 bin/site.py gate` both invoke - wherever kanon is installed. kanon
 # has no public release binary and no CI credential to fetch one (#93), so
@@ -20,9 +21,9 @@
 # lives in .github/workflows/deploy.yml — that's where the real CI runs
 # in the authoritative GitHub repository, since Wrangler is the only tested Cloudflare
 # Pages deploy path (matches the pinned typikon SHA's own scaffold
-# output — ci/kanon-ci.toml.tmpl doesn't exist yet at this pin; a later
-# typikon-refresh may replace this stage with a rendered multi-stage
-# file once that template lands). An operator may run this stage locally;
+# output. Typikon now ships ci/kanon-ci.toml.tmpl, but this repository keeps
+# the local two-stage contract above because its custom deploy workflow owns
+# the wider Cloudflare transaction. An operator may run this stage locally;
 # it scopes Kanon lint away from themes/typikon (a separate repository,
 # gated independently) and tests/fixtures/kanon-writing (deliberately-banned
 # regression fixtures) via git-ls-files exclusions piped into --paths-from.

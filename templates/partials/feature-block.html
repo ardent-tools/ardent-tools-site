@@ -17,7 +17,7 @@
    it is .reveal-2 — both inert without @supports(animation-timeline:
    view()) + prefers-reduced-motion: no-preference (site.css).
 #}
-{% macro block(page, index, layout) %}
+{% component ardent_tools.feature.block(page, index, layout) %}
 <section class="feature-block feature-{{ page.slug }} feature-{{ layout }}" aria-labelledby="feature-{{ page.slug }}-title">
   <div class="feature-text reveal">
     <p class="feature-index"><span class="feature-index-n">{{ index }}</span> &middot; <span class="feature-index-name">{{ page.slug }}</span></p>
@@ -47,4 +47,4 @@
   </dl>
   {%- endif %}
 </section>
-{% endmacro block %}
+{% endcomponent %}

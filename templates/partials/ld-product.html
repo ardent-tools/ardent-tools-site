@@ -1,24 +1,17 @@
 {# Consumer shadow of typikon's templates/partials/ld-product.html.
    Primary asset delta: a page's og_image is a non-canonical public resource, so
    the Product image field must carry its exact full-digest physical manifest
-   identity via asset_url::hashed_raw; JSON-LD script bodies are raw text and
-   the post-build finalizer rewrites that logical URL. Also carries the
-   theme's ldjson::str() escaping fix (typikon#92, ported from 4f8c1531
-   -> b61228cb, see partials/ld-json.html) on every field below. It also
-   retains the pre-existing decision NOT to import partials/assert.html
-   here (typikon's own copy already had
-   assert::required calls, including extra.audience, at 4f8c1531, before
-   this bump; this shadow dropped them from the start, per AGENTS.md —
-   unaffected by this refresh, and moot in practice since no content in
-   this repo currently sets extra.price/extra.stripe_url, so this
-   partial never renders today). Re-diff against the theme partial on
+   identity. get_url() supplies the logical URL, and the post-build finalizer
+   rewrites it to the full-digest path inside raw JSON-LD. The shared Tera 2
+   JSON-string and required-field components remain active. Offer URLs render
+   only for sourced purchasable states. Re-diff against the theme partial on
    every typikon-refresh.
 
    Original theme documentation follows.
 
    Schema.org/Product JSON-LD. Override the ld_json block from page.html
-   for any page that resolves to a product (frontmatter has both
-   extra.price AND extra.stripe_url).
+   for any page that carries product-shaped price provenance. A checkout URL
+   additionally requires sourced purchasable availability.
 
    Inputs:
      page.title            — product name
@@ -30,40 +23,48 @@
      config.title          — brand name (Product.brand)
      config.base_url       — for image absolute URL
 #}
-{% import "partials/asset-url.html" as asset_url %}
-{% import "partials/ld-json.html" as ldjson %}
-{%- set price_numeric = page.extra.price | trim_start_matches(pat="$") -%}
+{{ <typikon.assert.required ok={page.title is defined and page.title} field="page.title" template="partials/ld-product.html" /> }}
+{{ <typikon.assert.required ok={page.description is defined and page.description} field="page.description" template="partials/ld-product.html" /> }}
+{{ <typikon.assert.required ok={page.extra.audience is defined and page.extra.audience} field="page.extra.audience" template="partials/ld-product.html" /> }}
+{{ <typikon.assert.required ok={page.extra.price is defined and page.extra.price} field="page.extra.price" template="partials/ld-product.html" /> }}
+{{ <typikon.assert.required ok={page.extra.price_source is defined and page.extra.price_source} field="page.extra.price_source" template="partials/ld-product.html" /> }}
+{%- set price_numeric = page.extra.price | trim_start(pat="$") -%}
+{%- set purchasable = page.extra.stripe_url and page.extra.availability_source and page.extra.availability in ["InStock", "PreOrder", "BackOrder", "LimitedAvailability"] -%}
 {%- set image_url = "" -%}
 {%- if page.extra.og_image -%}
-  {%- set image_url = asset_url::hashed_raw(path=page.extra.og_image) -%}
+  {%- set image_url = get_url(path=page.extra.og_image, trailing_slash=false) -%}
 {%- endif -%}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": {{ ldjson::str(value=page.title) }},
-  "description": {{ ldjson::str(value=page.description) }},
-  "url": {{ ldjson::str(value=page.permalink) }},
+  "name": {{ <typikon.ldjson.str value={page.title} /> }},
+  "description": {{ <typikon.ldjson.str value={page.description} /> }},
+  "url": {{ <typikon.ldjson.str value={page.permalink} /> }},
   "brand": {
     "@type": "Organization",
-    "name": {{ ldjson::str(value=config.title) }}
+    "name": {{ <typikon.ldjson.str value={config.title} /> }}
   },
   "offers": {
     "@type": "Offer",
-    "price": {{ ldjson::str(value=price_numeric) }},
-    "priceCurrency": "USD",
+    "price": {{ <typikon.ldjson.str value={price_numeric} /> }},
+    "priceCurrency": "USD"
     {#- WARNING: availability is emitted only when the frontmatter carries BOTH
         page.extra.availability and page.extra.availability_source. Never default
         it — an unverified stock claim in structured data misleads search engines
         about a product nobody has confirmed is in stock. -#}
     {%- if page.extra.availability and page.extra.availability_source -%}
     {%- set availability_url = "https://schema.org/" ~ page.extra.availability -%}
-    "availability": {{ ldjson::str(value=availability_url) }},
+    ,
+    "availability": {{ <typikon.ldjson.str value={availability_url} /> }}
     {%- endif %}
-    "url": {{ ldjson::str(value=page.extra.stripe_url) }}
+    {%- if purchasable -%}
+    ,
+    "url": {{ <typikon.ldjson.str value={page.extra.stripe_url} /> }}
+    {%- endif %}
   }
   {%- if image_url -%},
-  "image": {{ ldjson::str(value=image_url) }}
+  "image": {{ <typikon.ldjson.str value={image_url} /> }}
   {%- endif %}
 }
 </script>
