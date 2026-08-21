@@ -250,6 +250,21 @@ jobs:
           wrangler pages functions build functions \
             --outfile "$RUNNER_TEMP/ardent-pages-worker.js"
 
+      # ── Agent-corpus boundary (forkwright/typikon#188) ─────────
+      # POSITION IS LOAD-BEARING: after every stage that can still write into
+      # public/, and before the first upload. This site removed its
+      # hand-authored llms.txt in #169 because D-068 decision 4 permits a
+      # public corpus only with a named consumer and a generated freshness
+      # guarantee, neither of which exists. Removing a file is a state;
+      # config.toml's extra.agent_corpus_exposure plus this step is what makes
+      # it a contract, so the removal cannot silently regress.
+      - name: Assert the agent corpus stayed out of the rendered output
+        timeout-minutes: 1
+        run: |
+          python3 themes/typikon/ci/validate-artifact-boundary.py \
+            --root "$GITHUB_WORKSPACE" \
+            public public-local
+
       # ── Deploy green main revisions ───────────────────────────
       # AT-01 remediation: production is proved live BEFORE it is cut over.
       # The same gated public/ tree deploys twice - first as a non-production

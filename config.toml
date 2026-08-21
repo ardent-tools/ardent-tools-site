@@ -30,6 +30,12 @@ style = "class"
 theme = "github-light"
 
 [extra]
+# The agent corpus is repository-only. D-068 decision 4 permits a public
+# llms.txt only alongside a named consumer and a generated freshness
+# guarantee; neither exists, so #169 removed the hand-authored one. Typikon
+# enforces this against the rendered tree rather than trusting the absence.
+agent_corpus_exposure = "repository"
+
 # The root Atom feed is the writing publication, not a site-wide change log.
 # Typikon fails closed if the owner is missing, empty, or not date-sorted.
 feed_source_section = "writing/_index.md"
