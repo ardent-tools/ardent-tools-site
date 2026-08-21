@@ -9,6 +9,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import jsonschema
 import re
 import shutil
 import subprocess
@@ -7150,6 +7151,103 @@ class ResumeWithdrawnClaimGateTests(unittest.TestCase):
         pattern = re.compile(rf"\b{career_claim_contract.QUANTITY_TOKEN}\b", re.IGNORECASE)
         self.assertEqual(pattern.search("1.35M").group(0), "1.35M")
         self.assertEqual(pattern.search("1,350,000").group(0), "1,350,000")
+
+
+class RecordingProvenanceContractTests(unittest.TestCase):
+    """A locally hosted recording is evidence only if it names what it shows.
+
+    forkwright#165: the dossier contract owned terminal casts and had no shape
+    for a video, so publishing one would have split its proof metadata across
+    content, templates and prose. The contract now admits a video only together
+    with the exact revision and the environment it was made in -- footage
+    without those proves something about an unidentified tree.
+    """
+
+    ENV = "metis, zola 0.23.3, cold cache"
+    REVISION = "a" * 40
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        document = json.loads(
+            (ROOT / "schemas/system-dossier.schema.json").read_text(encoding="utf-8")
+        )
+        cls.demo = document["properties"]["extra"]["properties"]["demo"]
+        jsonschema.Draft202012Validator.check_schema(cls.demo)
+        cls.validator = jsonschema.Draft202012Validator(cls.demo)
+
+    def _doc(self, **overrides) -> dict:
+        base = {
+            "system": "example",
+            "action": "run the thing",
+            "target": "a repository",
+            "shows": "one causal claim",
+            "not_shows": "everything else",
+        }
+        base.update(overrides)
+        return base
+
+    def assert_valid(self, **overrides) -> None:
+        self.assertTrue(self.validator.is_valid(self._doc(**overrides)))
+
+    def assert_invalid(self, **overrides) -> None:
+        self.assertFalse(self.validator.is_valid(self._doc(**overrides)))
+
+    def test_existing_shapes_are_unchanged(self) -> None:
+        # The contract gained a medium; it must not have moved the two that
+        # already publish.
+        self.assert_valid()
+        self.assert_valid(cast="/casts/example.cast", recipe="how to reproduce")
+        self.assert_valid(media_kind="cast", cast="/casts/example.cast")
+
+    def test_a_video_requires_its_provenance(self) -> None:
+        self.assert_valid(
+            media_kind="video", video="/media/example.mp4",
+            revision=self.REVISION, environment=self.ENV,
+        )
+        self.assert_invalid(media_kind="video", video="/media/example.mp4", environment=self.ENV)
+        self.assert_invalid(media_kind="video", video="/media/example.mp4", revision=self.REVISION)
+        self.assert_invalid(media_kind="video", revision=self.REVISION, environment=self.ENV)
+
+    def test_a_video_cannot_arrive_unlabelled(self) -> None:
+        # Without media_kind it would inherit cast presentation and publish
+        # with none of the bindings above enforced.
+        self.assert_invalid(video="/media/example.mp4")
+
+    def test_cast_and_video_cannot_both_be_the_evidence(self) -> None:
+        self.assert_invalid(media_kind="cast", video="/media/example.mp4")
+
+    def test_the_recording_must_be_locally_hosted(self) -> None:
+        self.assert_invalid(
+            media_kind="video", video="https://example.test/a.mp4",
+            revision=self.REVISION, environment=self.ENV,
+        )
+
+    def test_provenance_values_must_be_usable(self) -> None:
+        # A short revision is a prefix, and a prefix is not an identity.
+        self.assert_invalid(
+            media_kind="video", video="/media/example.mp4",
+            revision="abc123", environment=self.ENV,
+        )
+        # An environment nobody can judge coverage from is not an environment.
+        self.assert_invalid(
+            media_kind="video", video="/media/example.mp4",
+            revision=self.REVISION, environment="e",
+        )
+
+    def test_supporting_artifacts_are_optional_and_local(self) -> None:
+        self.assert_valid(
+            media_kind="video", video="/media/example.webm",
+            revision=self.REVISION, environment=self.ENV,
+            supporting_artifacts=["/evidence/run.json"],
+        )
+        self.assert_invalid(
+            media_kind="video", video="/media/example.mp4",
+            revision=self.REVISION, environment=self.ENV,
+            supporting_artifacts=["https://example.test/run.json"],
+        )
+
+    def test_unknown_medium_is_refused(self) -> None:
+        self.assert_invalid(media_kind="gif")
 
 class SbomNpmCoverageContractTests(unittest.TestCase):
     """The SBOM must cover the whole lockfile, and say so accurately.
