@@ -3,12 +3,26 @@
   "$id": "https://ardent.tools/schemas/system-dossier.schema.json",
   "title": "ardent tools system dossier",
   "description": "content/systems/<slug>.md — template=\"system.html\", one per featured system (aletheia, akroasis, hamma, harmonia, kanon, logismos, thumos).",
-  "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json" }],
+  "allOf": [
+    {
+      "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json"
+    }
+  ],
   "properties": {
     "extra": {
-      "allOf": [{ "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json#/properties/extra" }],
+      "allOf": [
+        {
+          "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json#/properties/extra"
+        }
+      ],
       "unevaluatedProperties": false,
-      "required": ["gloss", "badge", "stack", "headline_claim", "demo"],
+      "required": [
+        "gloss",
+        "badge",
+        "stack",
+        "headline_claim",
+        "demo"
+      ],
       "properties": {
         "gloss": {
           "type": "string",
@@ -41,36 +55,167 @@
         "headline_claim": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["claim", "receipt"],
+          "required": [
+            "claim",
+            "receipt"
+          ],
           "properties": {
-            "claim": { "type": "string" },
-            "receipt": { "type": "string" }
+            "claim": {
+              "type": "string"
+            },
+            "receipt": {
+              "type": "string"
+            }
           }
         },
         "demo": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["system", "action", "target", "shows", "not_shows"],
-          "description": "Either a planned-recording stub (system/action/target/shows/not_shows/tape) or a published cast (adds cast/recipe/duration/cols/rows/poster/fallback/transcript).",
+          "required": [
+            "system",
+            "action",
+            "target",
+            "shows",
+            "not_shows"
+          ],
+          "description": "Either a planned-recording stub (system/action/target/shows/not_shows/tape), a published terminal cast (adds cast/recipe/duration/cols/rows/poster/fallback/transcript), or a locally hosted video (media_kind=video, which requires video/revision/environment). A video is evidence only when it names the revision and environment it shows, so the contract requires them together rather than letting a recording publish unbound.",
           "properties": {
-            "system": { "type": "string" },
-            "action": { "type": "string" },
-            "target": { "type": "string" },
-            "shows": { "type": "string" },
-            "not_shows": { "type": "string" },
-            "tape": { "type": "string" },
-            "cast": { "type": "string" },
-            "recipe": { "type": "string" },
-            "duration": { "type": "string" },
-            "cols": { "type": "integer" },
-            "rows": { "type": "integer" },
-            "poster": { "type": "string" },
+            "system": {
+              "type": "string"
+            },
+            "action": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "shows": {
+              "type": "string"
+            },
+            "not_shows": {
+              "type": "string"
+            },
+            "tape": {
+              "type": "string"
+            },
+            "cast": {
+              "type": "string"
+            },
+            "recipe": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "string"
+            },
+            "cols": {
+              "type": "integer"
+            },
+            "rows": {
+              "type": "integer"
+            },
+            "poster": {
+              "type": "string"
+            },
             "fallback": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
-            "transcript": { "type": "string" }
-          }
+            "transcript": {
+              "type": "string"
+            },
+            "media_kind": {
+              "type": "string",
+              "enum": [
+                "cast",
+                "video"
+              ],
+              "description": "Which recording medium this dossier publishes. Absent means a terminal cast, the only medium that existed before locally hosted video."
+            },
+            "video": {
+              "type": "string",
+              "pattern": "^/[a-z0-9/_.-]+\\.(?:mp4|webm)$",
+              "description": "Site-relative path to a locally hosted recording. Remote embeds are not a shape this contract admits."
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$",
+              "description": "The exact full-length commit the recording shows. A recording without one proves something about an unidentified tree."
+            },
+            "environment": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200,
+              "description": "The environment the recording was made in, precisely enough for a reader to judge what it does not cover."
+            },
+            "supporting_artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^/[a-z0-9/_.-]+$"
+              },
+              "description": "Optional site-relative artifacts a viewer can check the recording against."
+            }
+          },
+          "allOf": [
+            {
+              "$comment": "A declared video must carry the provenance that makes it evidence rather than footage.",
+              "if": {
+                "properties": {
+                  "media_kind": {
+                    "const": "video"
+                  }
+                },
+                "required": [
+                  "media_kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "video",
+                  "revision",
+                  "environment"
+                ]
+              }
+            },
+            {
+              "$comment": "A video path without media_kind would inherit cast presentation and publish unbound.",
+              "if": {
+                "required": [
+                  "video"
+                ]
+              },
+              "then": {
+                "required": [
+                  "media_kind",
+                  "revision",
+                  "environment"
+                ]
+              }
+            },
+            {
+              "$comment": "Cast and video are different media; carrying both leaves which one is the evidence undecided.",
+              "if": {
+                "properties": {
+                  "media_kind": {
+                    "const": "cast"
+                  }
+                },
+                "required": [
+                  "media_kind"
+                ]
+              },
+              "then": {
+                "not": {
+                  "required": [
+                    "video"
+                  ]
+                }
+              }
+            }
+          ]
         }
       }
     }
