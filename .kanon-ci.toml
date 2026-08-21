@@ -1,6 +1,6 @@
 # archetype:
 # forge-only: false
-# spdx:
+# spdx: LicenseRef-PolyForm-Shield-1.0.0
 
 # This direct-GitHub repository is not forge-onboarded (#93), so no Kanon
 # post-receive hook consumes this file as a pipeline today. The writing-floor
