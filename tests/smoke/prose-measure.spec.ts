@@ -1,10 +1,11 @@
-// prose-measure.spec.ts — DESIGN-v1.3 §1.5 verification gate.
+// prose-measure.spec.ts — proves the prose measure in a real browser.
 //
-// The fontTools numbers behind the 680px@19px prose tier (§1.2) are
+// The fontTools numbers behind the 680px@19px prose tier are
 // static analysis against Spectral's measured glyph widths, not a live
 // render. This closes the loop in an actual browser: at a representative
 // desktop viewport, .prose paragraphs on a long-form page should average
-// 70-85 real characters per rendered line (the guideline band §1 cites).
+// 70-85 real characters per rendered line, the band typography
+// guidance gives for sustained reading.
 //
 // Runs against every *.spec.ts under tests/smoke/ per
 // themes/typikon/ci/playwright.config.ts (static server on :8080).
