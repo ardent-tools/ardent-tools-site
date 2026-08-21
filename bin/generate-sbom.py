@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import hashlib
 import json
 import re
@@ -51,7 +53,16 @@ ACTION_LICENSES = {
     "actions/setup-python": "MIT",
     "actions/setup-node": "MIT",
 }
-NPM_COMPONENTS = ("@playwright/test", "pa11y-ci", "wrangler")
+# WHY these three are named: they are the lockfile's ROOTS, not its boundary.
+# Every package below is emitted (forkwright#101); these say which execution
+# tier a package inherits by being reachable from one of them. A package
+# reachable from two roots carries two tiers, because it genuinely runs in
+# both and collapsing that to one would be a tidier lie.
+NPM_TIER_ROOTS = {
+    "wrangler": "deploy",
+    "@playwright/test": "test",
+    "pa11y-ci": "test",
+}
 PLAYER_VERSION_RE = re.compile(
     r"\[asciinema-player\]\([^)]*\)\s+v(\d+\.\d+\.\d+)\s+is vendored"
 )
@@ -223,56 +234,221 @@ def python_interpreter_component(deploy_yml: str) -> dict:
 
 
 def verify_npm_boundary_claim(root: Path) -> None:
-    # WARNING: NPM_COMPONENTS is the closed authority for npm coverage; the
-    # colophon states that exact boundary in prose (issue #101 found the two
-    # disagreeing - the colophon claimed lockfile-wide coverage while this
-    # generator only ever emitted these three named packages). Fail loudly
-    # the moment either side changes without the other.
+    """The colophon must claim exactly the coverage this generator produces.
+
+    WHY it is checked rather than trusted: forkwright#101 found the two
+    disagreeing in the direction that flatters — the colophon described a
+    lockfile-derived bill of materials while the generator emitted three named
+    packages. The coverage is now genuinely lockfile-wide, so the claim the
+    colophon must carry is the count, and a count is checkable.
+    """
     colophon = read_text(root, COLOPHON)
     match = NPM_BOUNDARY_RE.search(colophon)
     if match is None:
         raise SystemExit(
-            f"{COLOPHON}: no \"npm toolchain packages (...)\" boundary claim "
-            "found; state the exact npm coverage boundary in backticks"
+            f"{COLOPHON}: no \"npm toolchain packages (...)\" boundary claim found; "
+            "state the exact npm coverage in that phrase"
         )
-    claimed = tuple(sorted(re.findall(r"`([^`]+)`", match.group(1))))
-    actual = tuple(sorted(NPM_COMPONENTS))
+    claimed = match.group(1).strip()
+    actual = f"all {len(npm_package_entries(root))} from the lockfile"
     if claimed != actual:
         raise SystemExit(
-            f"{COLOPHON}: npm boundary claim {claimed!r} does not match "
-            f"generate-sbom.py NPM_COMPONENTS {actual!r} - update whichever "
-            "one is stale"
+            f"{COLOPHON}: npm boundary claim {claimed!r} does not match the "
+            f"generated coverage {actual!r} - regenerate or correct the prose"
         )
+
+
+def npm_package_entries(root: Path) -> dict[str, dict]:
+    """Every installed package in the lockfile, keyed by its node_modules path.
+
+    The root entry (key "") is the site itself, not a dependency, and is
+    excluded — it is the SBOM's metadata component rather than a component.
+    """
+    document = json.loads(read_text(root, PACKAGE_LOCK))
+    if document.get("lockfileVersion") != 3:
+        raise SystemExit(
+            f"{PACKAGE_LOCK}: this reader speaks lockfileVersion 3, found "
+            f"{document.get('lockfileVersion')!r}"
+        )
+    packages = document.get("packages")
+    if not isinstance(packages, dict) or not packages:
+        raise SystemExit(f"{PACKAGE_LOCK}: no packages object")
+    return {path: entry for path, entry in packages.items() if path}
+
+
+def npm_name_from_path(path: str) -> str:
+    """`node_modules/a/node_modules/@scope/b` -> `@scope/b`."""
+    return path.rsplit("node_modules/", 1)[-1]
+
+
+def npm_purl(name: str, version: str) -> str:
+    return f"pkg:npm/{name.replace('@', '%40', 1)}@{version}"
+
+
+def npm_resolve(entries: dict[str, dict], from_path: str, dep_name: str) -> str | None:
+    """The path npm would resolve `dep_name` to from `from_path`.
+
+    npm's rule is nearest-wins: look in the requiring package's own
+    node_modules, then each ancestor's, out to the root. Reproducing that is
+    what makes the emitted edges the real graph rather than a name-matching
+    approximation — a lockfile can legitimately hold two versions of one
+    package, and a by-name lookup would attribute both edges to whichever it
+    happened to find.
+    """
+    prefix = from_path
+    while True:
+        candidate = f"{prefix}/node_modules/{dep_name}"
+        if candidate in entries:
+            return candidate
+        head, sep, _ = prefix.rpartition("/node_modules/")
+        if not sep:
+            # `node_modules/x` has no "/node_modules/" to partition on, so the
+            # walk ends here and the top level is tried explicitly. Folding
+            # that into the loop is what made the first version return None for
+            # every top-level package's dependencies.
+            break
+        prefix = head
+    top_level = f"node_modules/{dep_name}"
+    return top_level if top_level in entries else None
+
+
+def npm_edge_names(entry: dict) -> list[tuple[str, str]]:
+    """Every dependency this package declares, with whether it must resolve.
+
+    WHY three fields and not just `dependencies`: 62 of this lockfile's
+    packages are reachable ONLY through `optionalDependencies` or
+    `peerDependencies` -- the platform-specific workerd binaries among them.
+    Walking `dependencies` alone left those unreachable from any root, so they
+    silently took the fallback tier and the SBOM asserted they build the site
+    when they in fact belong to the deploy tool. A graph that omits an edge
+    kind does not report less, it reports wrong.
+    """
+    names: list[tuple[str, str]] = []
+    for dep_name in sorted(entry.get("dependencies") or {}):
+        names.append((dep_name, "required"))
+    for field in ("optionalDependencies", "peerDependencies"):
+        for dep_name in sorted(entry.get(field) or {}):
+            names.append((dep_name, "optional"))
+    return names
+
+
+def npm_tiers(entries: dict[str, dict]) -> dict[str, set[str]]:
+    """Which execution tiers each package is reachable in.
+
+    A set rather than a value: a package pulled in by both wrangler and
+    playwright genuinely runs at deploy AND at test, and recording one would
+    misstate where its code executes.
+    """
+    tiers: dict[str, set[str]] = {path: set() for path in entries}
+    for root_name, tier in NPM_TIER_ROOTS.items():
+        start = f"node_modules/{root_name}"
+        if start not in entries:
+            raise SystemExit(f"{PACKAGE_LOCK}: missing tier root {start}")
+        queue = [start]
+        seen = {start}
+        while queue:
+            path = queue.pop()
+            tiers[path].add(tier)
+            for dep_name, _kind in npm_edge_names(entries[path]):
+                resolved = npm_resolve(entries, path, dep_name)
+                if resolved and resolved not in seen:
+                    seen.add(resolved)
+                    queue.append(resolved)
+    return tiers
+
+
+def npm_hashes(entry: dict) -> list[dict]:
+    """CycloneDX hashes from the lockfile's Subresource-Integrity string."""
+    integrity = entry.get("integrity")
+    if not isinstance(integrity, str) or "-" not in integrity:
+        return []
+    algorithm, _, encoded = integrity.partition("-")
+    alg = {"sha512": "SHA-512", "sha256": "SHA-256", "sha1": "SHA-1"}.get(algorithm)
+    if alg is None:
+        return []
+    try:
+        content = base64.b64decode(encoded, validate=True).hex()
+    except (ValueError, binascii.Error):
+        return []
+    return [{"alg": alg, "content": content}]
 
 
 def npm_components(root: Path) -> list[dict]:
-    document = json.loads(read_text(root, PACKAGE_LOCK))
-    packages = document.get("packages", {})
+    """Every package in the lockfile, with its tier, licence, and integrity."""
+    entries = npm_package_entries(root)
+    tiers = npm_tiers(entries)
     components = []
-    for name in NPM_COMPONENTS:
-        entry = packages.get(f"node_modules/{name}")
-        if not isinstance(entry, dict):
-            raise SystemExit(f"package-lock.json: missing node_modules/{name}")
+    for path, entry in entries.items():
+        name = npm_name_from_path(path)
+        if not tiers[path]:
+            # WHY this is an error rather than a "build" default: every package
+            # here was installed because something asked for it, so one that is
+            # reachable from no root means NPM_TIER_ROOTS is incomplete. A
+            # default would paper over that and publish a tier nobody derived.
+            raise SystemExit(
+                f"{PACKAGE_LOCK}: {path} is reachable from no entry in "
+                "NPM_TIER_ROOTS, so its execution tier cannot be derived; add "
+                "the root that pulls it in"
+            )
         version = entry.get("version")
-        license_id = entry.get("license")
         if not isinstance(version, str) or not version:
-            raise SystemExit(f"package-lock.json: node_modules/{name} has no version")
-        if not isinstance(license_id, str) or not license_id:
-            raise SystemExit(f"package-lock.json: node_modules/{name} has no license")
-        purl = f"pkg:npm/{name.replace('@', '%40', 1)}@{version}"
-        components.append(
-            {
-                "type": "library",
-                "bom-ref": purl,
-                "name": name,
-                "version": version,
-                "purl": purl,
-                "scope": "optional",
-                "licenses": [license_field(license_id)],
-                "properties": [{"name": "ardent:tier", "value": "build"}],
-            }
-        )
+            raise SystemExit(f"{PACKAGE_LOCK}: {path} has no version")
+        license_id = entry.get("license")
+        purl = npm_purl(name, version)
+        component = {
+            "type": "library",
+            "bom-ref": path,
+            "name": name,
+            "version": version,
+            "purl": purl,
+            "scope": "optional",
+            "properties": [
+                {"name": "ardent:tier", "value": tier} for tier in sorted(tiers[path])
+            ],
+        }
+        # WHY a property rather than an omission when a licence is absent: the
+        # lockfile records no licence for some packages, and silently dropping
+        # the field makes an unreviewed licence indistinguishable from one that
+        # was checked. Say which it is.
+        if isinstance(license_id, str) and license_id:
+            component["licenses"] = [license_field(license_id)]
+        else:
+            component["properties"].append(
+                {"name": "ardent:license_status", "value": "absent-from-lockfile"}
+            )
+        hashes = npm_hashes(entry)
+        if hashes:
+            component["hashes"] = hashes
+        components.append(component)
+    components.sort(key=lambda c: c["bom-ref"])
     return components
+
+
+def npm_dependency_edges(root: Path) -> list[dict]:
+    """The CycloneDX dependency graph, resolved the way npm resolves it."""
+    entries = npm_package_entries(root)
+    edges = []
+    for path, entry in sorted(entries.items()):
+        depends_on = set()
+        for dep_name, kind in npm_edge_names(entry):
+            resolved = npm_resolve(entries, path, dep_name)
+            if resolved is None:
+                if kind == "required":
+                    # A required dependency that resolves to nothing is a
+                    # lockfile this SBOM cannot describe truthfully, not a row
+                    # to quietly omit.
+                    raise SystemExit(
+                        f"{PACKAGE_LOCK}: {path} requires {dep_name!r}, which "
+                        "resolves to no entry in this lockfile"
+                    )
+                # Optional and peer dependencies legitimately go uninstalled --
+                # platform-specific binaries for other operating systems, peers
+                # the consumer is expected to supply. An absent one is not an
+                # edge in THIS installation, so it is not asserted as one.
+                continue
+            depends_on.add(resolved)
+        edges.append({"ref": path, "dependsOn": sorted(depends_on)})
+    return edges
 
 
 def python_dependency_components(root: Path) -> list[dict]:
@@ -342,15 +518,21 @@ def build_bom(root: Path = ROOT) -> dict:
                     "name": "ardent:purpose",
                     "value": (
                         "Build-provenance and product-composition receipt. Covers "
-                        "the one runtime-shipped third-party dependency and the "
-                        "pinned build toolchain; the toolchain itself never ships "
-                        "to a visitor's browser."
+                        "the one runtime-shipped third-party dependency, the pinned "
+                        "build toolchain, and every package in package-lock.json "
+                        "with the dependency edges npm resolves between them; the "
+                        "toolchain itself never ships to a visitor's browser."
                     ),
                 },
                 *source_provenance(root),
             ],
         },
         "components": components,
+        # WHY the graph and not just the list: a list of packages says what is
+        # installed; only the edges say what pulls what. A vulnerability in a
+        # transitive package is actionable when you can see which direct
+        # dependency reaches it, and unactionable otherwise.
+        "dependencies": npm_dependency_edges(root),
     }
 
 

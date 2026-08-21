@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import datetime as dt
 import hashlib
@@ -7075,38 +7076,56 @@ class CatalogContractTests(unittest.TestCase):
         )
 
 
-class SbomNpmBoundaryClaimContractTests(unittest.TestCase):
-    """The colophon's stated npm coverage must equal generate-sbom.py's closed
-    NPM_COMPONENTS authority (issue #101: the colophon claimed lockfile-wide
-    coverage while the generator only ever emitted three named packages)."""
+class SbomNpmCoverageContractTests(unittest.TestCase):
+    """The SBOM must cover the whole lockfile, and say so accurately.
 
-    def _root_with_colophon(self, directory: Path, boundary_clause: str) -> Path:
+    Issue #101 found the colophon claiming lockfile-wide coverage while the
+    generator emitted three named packages. The coverage is now genuinely
+    lockfile-wide, so what the colophon must carry is the count -- and a count
+    is checkable, which a prose claim about completeness is not.
+    """
+
+    LOCK = {
+        "lockfileVersion": 3,
+        "packages": {
+            "": {"devDependencies": {"wrangler": "^1"}},
+            "node_modules/wrangler": {
+                "version": "1.0.0",
+                "license": "MIT",
+                "integrity": "sha512-" + base64.b64encode(b"a" * 64).decode(),
+                "dependencies": {"shared": "^1"},
+                "optionalDependencies": {"platform-binary": "^1"},
+            },
+            "node_modules/@playwright/test": {
+                "version": "2.0.0",
+                "license": "Apache-2.0",
+                "dependencies": {"shared": "^1"},
+            },
+            "node_modules/pa11y-ci": {"version": "3.0.0", "license": "LGPL-3.0-only"},
+            "node_modules/shared": {"version": "4.0.0", "license": "ISC"},
+            "node_modules/platform-binary": {"version": "5.0.0", "license": "MIT"},
+        },
+    }
+
+    def _root(self, directory: str, *, boundary: str, lock: dict | None = None) -> Path:
         root = Path(directory)
         (root / "content").mkdir(parents=True, exist_ok=True)
         (root / "content/colophon.md").write_text(
-            f"prose before, npm toolchain packages ({boundary_clause}), prose after\n"
+            f"prose before, npm toolchain packages ({boundary}), prose after\n"
+        )
+        (root / "package-lock.json").write_text(
+            json.dumps(lock if lock is not None else self.LOCK)
         )
         return root
 
-    def test_matching_boundary_passes(self) -> None:
+    def test_matching_count_passes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            root = self._root_with_colophon(
-                directory, "`@playwright/test`, `pa11y-ci`, `wrangler`"
-            )
+            root = self._root(directory, boundary="all 5 from the lockfile")
             generate_sbom.verify_npm_boundary_claim(root)
 
-    def test_missing_package_in_claim_fails(self) -> None:
+    def test_stale_count_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            root = self._root_with_colophon(directory, "`@playwright/test`, `pa11y-ci`")
-            with self.assertRaises(SystemExit):
-                generate_sbom.verify_npm_boundary_claim(root)
-
-    def test_extra_package_in_claim_fails(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = self._root_with_colophon(
-                directory,
-                "`@playwright/test`, `pa11y-ci`, `wrangler`, `left-pad`",
-            )
+            root = self._root(directory, boundary="all 3 from the lockfile")
             with self.assertRaises(SystemExit):
                 generate_sbom.verify_npm_boundary_claim(root)
 
@@ -7118,50 +7137,73 @@ class SbomNpmBoundaryClaimContractTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 generate_sbom.verify_npm_boundary_claim(root)
 
-    def test_live_colophon_matches_live_generator_authority(self) -> None:
-        # Guards the real files, not a fixture: fails the moment
-        # content/colophon.md and bin/generate-sbom.py's NPM_COMPONENTS
-        # disagree about which npm packages the SBOM covers.
-        generate_sbom.verify_npm_boundary_claim(ROOT)
-
-    def test_build_bom_enforces_the_claim(self) -> None:
-        # build_bom() is what both `generate-sbom.py` and `--check` run;
-        # the boundary check must fire on that path, not just standalone.
+    def test_every_lockfile_package_is_emitted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for relative in (
-                ".github/workflows",
-                "bin",
-                "content",
-                "static/vendor/asciinema",
-            ):
-                (root / relative).mkdir(parents=True, exist_ok=True)
-            shutil.copy2(
-                ROOT / ".github/workflows/deploy.yml",
-                root / ".github/workflows/deploy.yml",
-            )
-            shutil.copy2(ROOT / "package-lock.json", root / "package-lock.json")
-            shutil.copy2(ROOT / "bin/requirements.txt", root / "bin/requirements.txt")
-            shutil.copy2(
-                ROOT / "static/vendor/asciinema/asciinema-player.min.js",
-                root / "static/vendor/asciinema/asciinema-player.min.js",
-            )
-            shutil.copy2(
-                ROOT / "static/vendor/asciinema/asciinema-player.css",
-                root / "static/vendor/asciinema/asciinema-player.css",
-            )
-            # WHY: a valid player-version line (so player_component() would
-            # otherwise succeed) paired with a WRONG npm boundary claim -
-            # isolates the failure to verify_npm_boundary_claim rather than
-            # letting an unrelated missing match produce a false-positive
-            # SystemExit.
-            (root / "content/colophon.md").write_text(
-                "[asciinema-player](https://x) v3.17.0 is vendored. "
-                "npm toolchain packages (`@playwright/test`, `pa11y-ci`), more prose\n"
-            )
-            with self.assertRaisesRegex(SystemExit, "npm boundary claim"):
-                generate_sbom.build_bom(root)
+            root = self._root(directory, boundary="all 5 from the lockfile")
+            refs = {c["bom-ref"] for c in generate_sbom.npm_components(root)}
+            self.assertEqual(refs, set(self.LOCK["packages"]) - {""})
 
+    def test_edges_include_optional_dependencies(self) -> None:
+        # The defect this catches is silent: walking `dependencies` alone left
+        # 62 real packages reachable from no root in the live lockfile, and
+        # they took a default tier that misstated where their code runs.
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory, boundary="all 5 from the lockfile")
+            edges = {e["ref"]: e["dependsOn"] for e in generate_sbom.npm_dependency_edges(root)}
+            self.assertIn("node_modules/platform-binary", edges["node_modules/wrangler"])
+            self.assertIn("node_modules/shared", edges["node_modules/wrangler"])
+
+    def test_tier_follows_the_root_that_reaches_a_package(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory, boundary="all 5 from the lockfile")
+            tiers = {
+                c["bom-ref"]: sorted(
+                    p["value"] for p in c["properties"] if p["name"] == "ardent:tier"
+                )
+                for c in generate_sbom.npm_components(root)
+            }
+            self.assertEqual(tiers["node_modules/platform-binary"], ["deploy"])
+            self.assertEqual(tiers["node_modules/pa11y-ci"], ["test"])
+            # Reached by BOTH wrangler and @playwright/test, so it carries both.
+            # Collapsing this to one value would misstate where it executes.
+            self.assertEqual(tiers["node_modules/shared"], ["deploy", "test"])
+
+    def test_package_reachable_from_no_root_fails(self) -> None:
+        lock = copy.deepcopy(self.LOCK)
+        lock["packages"]["node_modules/orphan"] = {"version": "1.0.0", "license": "MIT"}
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory, boundary="all 6 from the lockfile", lock=lock)
+            with self.assertRaises(SystemExit):
+                generate_sbom.npm_components(root)
+
+    def test_a_required_dependency_that_resolves_to_nothing_fails(self) -> None:
+        lock = copy.deepcopy(self.LOCK)
+        lock["packages"]["node_modules/wrangler"]["dependencies"]["absent"] = "^1"
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory, boundary="all 5 from the lockfile", lock=lock)
+            with self.assertRaises(SystemExit):
+                generate_sbom.npm_dependency_edges(root)
+
+    def test_adding_a_package_changes_the_output(self) -> None:
+        # The stale-output guarantee: any package or edge change must move the
+        # generated bytes, or `--check` cannot detect drift.
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory, boundary="all 5 from the lockfile")
+            before = generate_sbom.npm_components(root)
+            lock = copy.deepcopy(self.LOCK)
+            lock["packages"]["node_modules/wrangler"]["dependencies"]["pa11y-ci"] = "^3"
+            (root / "package-lock.json").write_text(json.dumps(lock))
+            after_edges = {
+                e["ref"]: e["dependsOn"] for e in generate_sbom.npm_dependency_edges(root)
+            }
+            self.assertIn("node_modules/pa11y-ci", after_edges["node_modules/wrangler"])
+            after = generate_sbom.npm_components(root)
+            self.assertNotEqual(before, after)
+
+    def test_live_colophon_matches_live_coverage(self) -> None:
+        # Guards the real files, not a fixture: fails the moment
+        # content/colophon.md and the generated coverage disagree.
+        generate_sbom.verify_npm_boundary_claim(ROOT)
 
 def _write_sbom_fixture(root: Path) -> None:
     """Populate a temp worktree with the real SBOM authority inputs and hook,
