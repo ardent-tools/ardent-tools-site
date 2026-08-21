@@ -21,6 +21,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "bin"))
+import career_claim_contract  # noqa: E402
 
 
 def load_script(name: str, filename: str):
@@ -46,6 +47,7 @@ excluded_links = load_script("ardent_verify_excluded_links", "verify-excluded-li
 career = load_script("ardent_career_claims", "validate-career-claims.py")
 site_entrypoint = load_script("ardent_site_entrypoint", "site.py")
 resume_fonts = load_script("ardent_resume_fonts", "validate-resume-fonts.py")
+validate_resume = load_script("ardent_validate_resume", "validate-resume.py")
 link_check_contract = load_script("ardent_link_check_contract", "link_check_contract.py")
 release = load_script("ardent_release_manifest", "release_manifest.py")
 content_address = load_script("ardent_content_address", "content_address.py")
@@ -7075,6 +7077,79 @@ class CatalogContractTests(unittest.TestCase):
             completed.stderr,
         )
 
+
+
+class ResumeWithdrawnClaimGateTests(unittest.TestCase):
+    """A withdrawn figure must fail in any rendering, not just the one recorded.
+
+    forkwright#168: the gate forbade the literal string "1.35 million" while a
+    LinkedIn pass published "1.35M". The claim was back and the guard's
+    spelling did not match it -- so the check reported green about a fact it
+    was built to withdraw. A guard keyed to one rendering guards a spelling.
+    """
+
+    REQUIRED = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        source = (ROOT / "bin/validate-resume.py").read_text(encoding="utf-8")
+        block = re.search(r"required = \((.*?)\)\n", source, re.S).group(1)
+        cls.REQUIRED = " ".join(re.findall(r'"([^"]+)"', block))
+
+    def _run(self, snippet: str) -> int:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "resume.txt"
+            path.write_text(f"{self.REQUIRED}\n{snippet}\n", encoding="utf-8")
+            completed = subprocess.run(
+                [sys.executable, str(ROOT / "bin/validate-resume.py"), str(path)],
+                capture_output=True,
+                text=True,
+            )
+        return completed.returncode
+
+    def assert_rejected(self, snippet: str) -> None:
+        self.assertNotEqual(self._run(snippet), 0, f"gate accepted {snippet!r}")
+
+    def assert_accepted(self, snippet: str) -> None:
+        self.assertEqual(self._run(snippet), 0, f"gate rejected {snippet!r}")
+
+    def test_training_pair_count_in_every_rendering(self) -> None:
+        # "1.35M" is the one that shipped publicly while the gate said green.
+        for snippet in (
+            "fine-tuned on 1.35 million training pairs",
+            "fine-tuned on 1.35M training pairs",
+            "fine-tuned on 1.35 M training pairs",
+            "fine-tuned on 1,350,000 training pairs",
+            "fine-tuned on one point three five million training pairs",
+            "training pairs numbered 1.35M in total",
+        ):
+            with self.subTest(snippet=snippet):
+                self.assert_rejected(snippet)
+
+    def test_cluster_purity_figure_in_every_rendering(self) -> None:
+        for snippet in (
+            "landing 97.5% cluster purity",
+            "cluster purity reached 97.5 %",
+        ):
+            with self.subTest(snippet=snippet):
+                self.assert_rejected(snippet)
+
+    def test_unrelated_quantities_are_not_rejected(self) -> None:
+        # The other half of the contract: a guard that fails everything is as
+        # useless as one that fails nothing, and harder to notice.
+        for snippet in (
+            "",
+            "matched 4,000 code pairs for review",
+            "we did not publish a cluster purity number",
+            "the platform is 1.2 times faster now",
+        ):
+            with self.subTest(snippet=snippet):
+                self.assert_accepted(snippet)
+
+    def test_magnitude_suffix_is_recognised_by_the_shared_token(self) -> None:
+        pattern = re.compile(rf"\b{career_claim_contract.QUANTITY_TOKEN}\b", re.IGNORECASE)
+        self.assertEqual(pattern.search("1.35M").group(0), "1.35M")
+        self.assertEqual(pattern.search("1,350,000").group(0), "1,350,000")
 
 class SbomNpmCoverageContractTests(unittest.TestCase):
     """The SBOM must cover the whole lockfile, and say so accurately.

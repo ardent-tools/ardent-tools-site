@@ -13,7 +13,13 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from career_claim_contract import FORBIDDEN_PUBLIC_VARIANTS
+from career_claim_contract import (
+    FORBIDDEN_PUBLIC_VARIANTS,
+    NUMBER_SCALES,
+    NUMBER_TOKEN,
+    NUMBER_WORD_VALUES,
+    QUANTITY_TOKEN,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -207,53 +213,6 @@ REVIEW_BASIS_SUMMARY = (
 PROVENANCE_SUMMARY = (
     "This claim is part of the operator-authorized public subset bound to the "
     "recorded truth-release digest."
-)
-SMALL_NUMBER_WORDS = {
-    "zero": 0,
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "four": 4,
-    "five": 5,
-    "six": 6,
-    "seven": 7,
-    "eight": 8,
-    "nine": 9,
-    "ten": 10,
-    "eleven": 11,
-    "twelve": 12,
-    "thirteen": 13,
-    "fourteen": 14,
-    "fifteen": 15,
-    "sixteen": 16,
-    "seventeen": 17,
-    "eighteen": 18,
-    "nineteen": 19,
-    "twenty": 20,
-}
-TENS_NUMBER_WORDS = {
-    "thirty": 30,
-    "forty": 40,
-    "fifty": 50,
-    "sixty": 60,
-    "seventy": 70,
-    "eighty": 80,
-    "ninety": 90,
-}
-NUMBER_WORD_VALUES = SMALL_NUMBER_WORDS | TENS_NUMBER_WORDS
-NUMBER_SCALES = {"hundred": 100, "thousand": 1_000, "million": 1_000_000}
-NUMBER_WORD_ATOM = (
-    r"(?:"
-    + "|".join(sorted((*NUMBER_WORD_VALUES, *NUMBER_SCALES), key=len, reverse=True))
-    + r")"
-)
-NUMBER_WORD_SEQUENCE = (
-    rf"{NUMBER_WORD_ATOM}(?:(?:\s+|-)(?:and(?:\s+|-))?{NUMBER_WORD_ATOM})*"
-)
-NUMBER_TOKEN = rf"(?:[0-9][0-9,]*(?:\.[0-9]+)?|{NUMBER_WORD_SEQUENCE})"
-QUANTITY_TOKEN = (
-    rf"(?:{NUMBER_TOKEN}|(?:a\s+)?(?:couple|dozen|score)|dozens?|scores?|"
-    r"few|half(?:\s+(?:a|an))?|many|multiple|several)"
 )
 DISPLAY_NUMBER = re.compile(rf"\$?(?P<number>{NUMBER_TOKEN})(?=\b)", re.IGNORECASE)
 RANK_TOKEN = (

@@ -22,6 +22,18 @@ Voice binds all site copy — content pages, captions, microcopy, the consulting
 - **No contact form, no newsletter**: `_headers`' `form-action` carries no third-party entry — unlike the sibling site's Buttondown allowlist, this site has no form at all.
 - **Class-based syntax highlighting**: `config.toml [markdown.highlighting] style = "class"` (not the flat `highlight_code`/`highlight_theme` keys some design docs reference — those were Zola's pre-0.22 syntect config; Zola 0.22 moved to the Giallo highlighter under `[markdown.highlighting]`. See the comment in `config.toml` for the full note).
 - **Deploy**: Cloudflare Pages via GitHub Actions on green `main` pushes. Cloudflare Pages project name: `ardent-tools`.
+- **Career-claim authority, and what it does NOT reach**: `data/career-claims.json` plus
+  `bin/validate-career-claims.py` and `bin/validate-resume.py` bind the employment and service facts
+  this repository publishes. Their scope is exactly the surfaces in this repository — the résumé
+  source and shipped PDF, About, Hire, FAQ, Contact. **They cannot reach a hosted profile**, so
+  LinkedIn, a conference bio, or a third-party directory is outside enforcement and stays a manual
+  reconciliation. Say that rather than implying coverage the mechanism does not have.
+
+  A withdrawn claim is matched as a **claim**, not a phrase. `career_claim_contract.QUANTITY_TOKEN`
+  is the one definition of what a number looks like, shared by both validators, and it carries the
+  magnitude suffix so `1.35M` fails wherever `1.35 million` does. Add a withdrawn *figure* as a
+  pattern pairing the quantity with what it quantifies; reserve the literal lists for phrases that
+  have no other rendering.
 
 ## Template shadow delta (the maintenance surface)
 
