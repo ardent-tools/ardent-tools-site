@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "377453dd7731a3de2d9ae2d306dfafcf294f0de848862a8b3b8ebba9ace199e9",
+    "input_sha256": "d169a60a2a3bd2f938deb06c6780419ef741d44bf8cef11d53381a3e9eb9572c",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -36,7 +36,7 @@
       },
       {
         "path": "content/systems/thumos.md",
-        "sha256": "1f4c9504bee6d9d39cbedff9b9caf26765be311a6fbe3807f8a772e13a6b4602"
+        "sha256": "10b73bf213d4ec04e645f03f97ae6086ab9b38f4288ef70ec5b34d6fa10fc77f"
       },
       {
         "path": "data/exact-system-licenses.json",
