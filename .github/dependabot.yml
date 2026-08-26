@@ -1,0 +1,38 @@
+version: 2
+
+# Two ecosystems here, deliberately not three. github-actions stays out: every
+# action in .github/workflows/deploy.yml is already pinned by SHA with a
+# version comment, hand-maintained per the fleet's action-pin convention.
+# themes/typikon stays out too: it is a git submodule bumped through the
+# documented manual process in AGENTS.md (re-diff every shadowed template
+# against the new commit before committing) -- a bot-opened PR on the pin
+# alone would skip exactly the review step that process exists for.
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        update-types: [patch]
+      minor-updates:
+        update-types: [minor]
+    reviewers:
+      - forkwright
+
+  - package-ecosystem: pip
+    directory: /bin
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      patch-updates:
+        update-types: [patch]
+      minor-updates:
+        update-types: [minor]
+    reviewers:
+      - forkwright
