@@ -117,6 +117,7 @@ def run_production_fixture(
     custom_404_content_type: str = "text/html; charset=utf-8",
     tombstone_status: int = 404,
     tombstone_cache: str = GOOD_CACHE,
+    extra_tombstones: list[dict] | None = None,
     live_manifest_body: bytes | None = None,
     resource_overrides: dict[str, tuple[int, str, bytes]] | None = None,
     redirect_statuses: dict[str, int] | None = None,
@@ -232,6 +233,8 @@ def run_production_fixture(
             ROOT / "release-resources.toml"
         )
         test.assertEqual(contract_errors, [])
+        if extra_tombstones:
+            contract["tombstones"] = [*contract["tombstones"], *extra_tombstones]
         manifest = release.build_manifest(
             output, EXPECTED_REVISION, asset_map, contract
         )
@@ -2910,11 +2913,14 @@ class ReleaseManifestContractTests(unittest.TestCase):
         self,
         output: Path,
         addressed_bodies: dict[str, bytes] | None = None,
+        extra_tombstones: list[dict] | None = None,
     ) -> tuple[dict, dict, bytes]:
         contract, contract_errors = release.read_contract(
             ROOT / "release-resources.toml"
         )
         self.assertEqual(contract_errors, [])
+        if extra_tombstones:
+            contract["tombstones"] = [*contract["tombstones"], *extra_tombstones]
         bodies = {
             "atom.xml": b"<feed/>\n",
             "build-revision.txt": f"{EXPECTED_REVISION}\n".encode(),
@@ -3440,10 +3446,20 @@ class ReleaseManifestContractTests(unittest.TestCase):
         self.assertIn("site.webmanifest", reference_errors[0])
 
     def test_tombstone_resurrection_fails_local_and_live(self) -> None:
+        # The repo contract carries no live tombstone today, so both fixtures
+        # inject a synthetic one: the fail-closed behavior under test belongs
+        # to the mechanism, not to any particular retired path.
+        tombstone = {
+            "path": "/tapes/aletheia-memory.tape",
+            "retain_through": "2099-01-01",
+            "reason": "Synthetic fixture entry standing in for a live tombstone.",
+        }
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             contract, _manifest, raw = self.make_fixture(
-                output, {"tapes/aletheia-memory.tape": b"old tape\n"}
+                output,
+                {"tapes/aletheia-memory.tape": b"old tape\n"},
+                extra_tombstones=[tombstone],
             )
             _, errors = release.validate_manifest(
                 raw,
@@ -3454,7 +3470,9 @@ class ReleaseManifestContractTests(unittest.TestCase):
         self.assertTrue(
             any("tombstone is present" in error for error in errors), errors
         )
-        live_errors = run_production_fixture(self, tombstone_status=200)
+        live_errors = run_production_fixture(
+            self, tombstone_status=200, extra_tombstones=[tombstone]
+        )
         self.assertTrue(
             any(
                 "tombstone /tapes/aletheia-memory.tape returned 200" in error

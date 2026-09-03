@@ -18,7 +18,7 @@ canonical_paths = [
   "systems.json",
 ]
 
-[[tombstones]]
-path = "/tapes/aletheia-memory.tape"
-retain_through = "2026-08-21"
-reason = "Removed after an immutable predecessor response; retain through its 30-day browser-cache window."
+# A tombstone is a promise that a removed path stays absent through its
+# retain_through date (bin/release_manifest.py enforces the transition); the
+# schema requires the key even while no promise is live.
+tombstones = []
