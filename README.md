@@ -185,8 +185,7 @@ paths. They can remain externally retrievable until their old freshness lifetime
 ends, but they are not members of or dependencies of the current release. The
 pre-upload manifest validation proves the uploaded tree contains no logical
 aliases; the immutable-origin tombstone pass separately proves fresh
-deployment-origin behavior. The release
-tombstone keeps `/tapes/aletheia-memory.tape` absent through 2026-08-21. See
+deployment-origin behavior. See
 [Cloudflare Pages serving behavior](https://developers.cloudflare.com/pages/configuration/serving-pages/).
 
 ## License
