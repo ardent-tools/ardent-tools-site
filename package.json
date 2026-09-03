@@ -4,8 +4,8 @@
   "private": true,
   "description": "CI toolchain lock for the site gate and deploy. Not a site runtime dependency; the built site ships no JavaScript from these. npm ci installs the pinned tree; devDependencies are the gate/deploy CLIs.",
   "devDependencies": {
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.1",
     "pa11y-ci": "4.1.1",
-    "wrangler": "4.112.0"
+    "wrangler": "4.127.1"
   }
 }
