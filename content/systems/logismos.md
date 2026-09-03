@@ -1,12 +1,12 @@
 +++
 title = "logismos"
-description = "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven. GPU cutover waits on hardware access."
+description = "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven. GPU cutover is next."
 weight = 6
 template = "system.html"
 
 [extra]
 gloss = "λογισμός - reasoning, calculation"
-badge = "PHASE 4 BLOCKED ON HARDWARE"
+badge = "PHASE 4: GPU CUTOVER NEXT"
 repo = "https://github.com/forkwright/logismos"
 stack = "Rust · HIP/hipBLASLt · AMD gfx1100"
 kanon_ci = true
@@ -22,7 +22,7 @@ action = "CPU golden-fixture parity test"
 target = "phase_3_stella_parity, against embeddings_dim1024.safetensors"
 tape = "/tapes/logismos-parity.tape"
 shows = "The ignored parity test executing on CPU with `/models/stella-1.5b-v5` available, rather than a zero-test green exit."
-not_shows = "Any GPU run. Phase 4 remains hardware-blocked."
+not_shows = "Any GPU run. The Phase 4 gate has not run yet."
 +++
 
 ## What it is
@@ -33,7 +33,7 @@ Candle has no ROCm backend, and AMD deprecated ONNX Runtime's ROCm support, so l
 
 ### Build the correctness harness before the GPU is available to prove performance
 
-Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is blocked on hardware - the AMD W7900 host used for this work is down for recovery, so GPU code paths are unverified until it returns.
+Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is next: the GPU code paths exist and wait on the real-hardware gate.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
@@ -44,7 +44,7 @@ Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end
 
 **Solid:** Phases 0 through 3 - the full CPU inference path for Stella 1.5B, verified against a committed golden fixture. The parity test is marked `#[ignore]`. The proof command must include `-- --ignored`, and it requires the Stella model at `/models/stella-1.5b-v5`.
 
-**Open:** Phase 4, the GPU cutover, is blocked on hardware. The AMD W7900 host this work targets is down for recovery. GPU-specific code paths exist but are unverified until it's back.
+**Open:** Phase 4, the GPU cutover. GPU-specific code paths exist but stay unverified until the real-hardware gate runs.
 
 ## Numbers, and how they were measured
 
