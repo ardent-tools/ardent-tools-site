@@ -1,50 +1,54 @@
 +++
 title = "logismos"
-description = "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven. GPU cutover is next."
+description = "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. CPU model parity exists; native text serving remains open."
 weight = 6
 template = "system.html"
 
 [extra]
 gloss = "λογισμός - reasoning, calculation"
-badge = "PHASE 4: GPU CUTOVER NEXT"
+badge = "GPU QUALIFICATION NEXT"
 repo = "https://github.com/forkwright/logismos"
-stack = "Rust · HIP/hipBLASLt · AMD gfx1100"
+stack = "Rust · HIP/WMMA · AMD gfx1100"
 kanon_ci = true
-license = "PolyForm Shield 1.0.0"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
 
 [extra.headline_claim]
-claim = "Phases 0-3 complete - Stella 1.5B v5 runs end-to-end on CPU with golden-fixture parity"
-receipt = "cargo test -p logismos --test phase_3_stella_parity -- --ignored, with /models/stella-1.5b-v5 present"
+claim = "Stella CPU golden-fixture parity recorded; native text serving remains unqualified"
+receipt = "The CPU reproduction target is crates/logismos/tests/phase_3_stella_parity.rs; this evidence does not qualify a GPU serving runtime"
 
 [extra.demo]
 system = "logismos"
 action = "CPU golden-fixture parity test"
 target = "phase_3_stella_parity, against embeddings_dim1024.safetensors"
 tape = "/tapes/logismos-parity.tape"
-shows = "The ignored parity test executing on CPU with `/models/stella-1.5b-v5` available, rather than a zero-test green exit."
-not_shows = "Any GPU run. The Phase 4 gate has not run yet."
+shows = "The retained CPU-parity recording target; it is historical evidence, not a current GPU qualification result."
+not_shows = "A GPU serving run, scheduler, GDN, emulator, HSA integration, or multi-GPU service. These require separate evidence."
 +++
 
 ## What it is
 
-Candle has no ROCm backend, and AMD deprecated ONNX Runtime's ROCm support, so logismos builds the stack from the device upward in Rust and HIP, targeting the gfx1100 architecture (the W7900).
+Logismos is under development as an agent-aware operating environment for local AI compute. Aletheia supplies workload intent; Logismos is to own inference admission, placement and residency through to native execution. The Rust foundation targets gfx1100 through HIP and owned WMMA kernels. Host modes, display ownership and external service lifecycle stay with Arche/Tropos and systemd.
 
 ## Decisions and trade-offs
 
-### Build the correctness harness before the GPU is available to prove performance
+### Establish the CPU model path before hardware qualification
 
-Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end on CPU with parity against a committed golden fixture. Phase 4, the GPU cutover, is next: the GPU code paths exist and wait on the real-hardware gate.
+Stella CPU golden-fixture parity is recorded in the project history. Earlier W7900 kernel measurements are evidence for those kernels, not for the new serving program. The available W7900 48 GB remains the single-device baseline. Agent-led iteration uses GPU-denied checks; the original bounded emulator is under development and cannot establish hardware timing or performance.
+
+With the Stella model directory at `/models/stella-1.5b-v5`, run `cargo test -p logismos --test phase_3_stella_parity -- --ignored`. It executes one ignored CPU parity test against the checked-in safetensors fixture. It does not start native Qwen serving.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
-| Scope boundary | Tensor ops on HIP, transformer inference, Stella 1.5B end to end, the `EmbeddingModel` contract - named explicitly | Growing into training, non-AMD GPUs, runtime graph optimization, multi-GPU | Not reusable for training, non-AMD GPUs, or multi-GPU without new work |
-| Framework scope | Scoped exactly to the knowledge substrate's actual consumer need | Building a general-purpose inference framework | Less reusable for a different model or a different GPU vendor |
+| First delivery | Text and retrieval on one GPU | Training, non-AMD GPUs, automatic cutover | A second GPU does not change the first delivery boundary |
+| Hardware baseline | gfx1100 on the available W7900 48 GB | Calling qualification complete before a device run | Hardware capability still needs qualification |
+| Future topology | An XTX 24 GB as a planned, separately qualified second card | A 72 GB unified device or implicit sharding | Independent dual-GPU services require explicit work and verification |
+| Runtime scope | Agent-aware inference, with ordinary inference clients still supported | A general training framework or a second host-mode executor | Native model support needs artifact-specific correctness and quality evidence |
 
 ## What's solid / what's open
 
-**Solid:** Phases 0 through 3 - the full CPU inference path for Stella 1.5B, verified against a committed golden fixture. The parity test is marked `#[ignore]`. The proof command must include `-- --ignored`, and it requires the Stella model at `/models/stella-1.5b-v5`.
+**Current:** the Rust and AMD foundation, Stella CPU model path, and golden-fixture parity record. The retained CPU-parity tape is a recording target, not a new measurement.
 
-**Open:** Phase 4, the GPU cutover. GPU-specific code paths exist but stay unverified until the real-hardware gate runs.
+**Open:** Qwen3.8 hybrid text serving and Qwen3 embedding/reranking continuity, with exact artifacts and local quality evaluation. Planning, device selection and GPU-safe testing are the foundation increment; native serving and the experimental HSA provider still need implementation and qualification. A planned XTX 24 GB needs separate qualification before independent dual-GPU services can run. There is no automatic cutover, 72 GB unified memory, or sharding claim.
 
 ## Numbers, and how they were measured
 
@@ -52,8 +56,9 @@ Phases 0 through 3 are complete and CPU-verified. Stella 1.5B v5 runs end-to-end
 
 | Claim | Reproduction method | Where to check |
 |---|---|---|
-| CPU golden-fixture parity test executes | `cargo test -p logismos --test phase_3_stella_parity -- --ignored` with `/models/stella-1.5b-v5` present; reject output reporting zero executed tests | `phases/03-stella/golden/embeddings_dim1024.safetensors` and the ignored test in the repo |
-| Three GPU test targets exist and no workflow runs them | `crates/hipcore/tests/device_smoke.rs` and `crates/kernels/tests/{matmul_parity,op_parity}.rs` are present, and no workflow declares a gfx1100 or ROCm runner | `.github/workflows/` at `94e4e97dce6e` |
+| CPU model path and golden-fixture harness are present | inspect `crates/logismos/tests/phase_3_stella_parity.rs` and `phases/03-stella/golden/embeddings_dim1024.safetensors` | the logismos repository |
+| GPU qualification remains open | inspect the device-smoke and kernel-parity targets; no current qualification result is published | `crates/hipcore/tests/device_smoke.rs` and `crates/kernels/tests/{matmul_parity,op_parity}.rs` |
+| First delivery is single-GPU text and retrieval | compare this delivery boundary with the planned second-card entry above | this system record |
 | 10,947 Rust code lines; 12,689 physical Rust lines | `tokei -o json . | jq '.Rust | {code, comments, blanks, physical: (.code + .comments + .blanks)}'` at `94e4e97dce6e`, 2026-07-20 | run from that revision |
 | 27 Cargo workspace members | `cargo metadata --no-deps --format-version 1 | jq '.workspace_members | length'` at `94e4e97dce6e` | run from that revision |
 

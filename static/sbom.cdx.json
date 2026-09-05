@@ -27,7 +27,7 @@
       },
       {
         "name": "ardent:source",
-        "value": "package-lock.json#sha256:cf078146846a6a3e53a04c6e5c343f96f65102dd94337c9d53ebd858cda07a06"
+        "value": "package-lock.json#sha256:9bbff714ff4c237fcf2076046eb9f9f7cd01d96970601374e3205ec638f59de9"
       },
       {
         "name": "ardent:source",
@@ -341,8 +341,8 @@
       "type": "library",
       "bom-ref": "node_modules/@cloudflare/workerd-darwin-64",
       "name": "@cloudflare/workerd-darwin-64",
-      "version": "1.20260828.1",
-      "purl": "pkg:npm/%40cloudflare/workerd-darwin-64@1.20260828.1",
+      "version": "1.20260903.1",
+      "purl": "pkg:npm/%40cloudflare/workerd-darwin-64@1.20260903.1",
       "scope": "optional",
       "properties": [
         {
@@ -360,7 +360,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "09577ec4f86a5044a0f1786ad3d4d9c74c25e054a2adf2463b3bdb3f3db21e1048be634714542448ddeb91def01309e1410937ed78b4fda0faca43cb25b98689"
+          "content": "146fb8986c405e12a22ffd6d7a61f8d9a95ebc892e9ad6173627614dafffdf250ba73bb1e803f0e54355a1c23fbc2435c86d583846517db572f25cae8a933d31"
         }
       ]
     },
@@ -368,8 +368,8 @@
       "type": "library",
       "bom-ref": "node_modules/@cloudflare/workerd-darwin-arm64",
       "name": "@cloudflare/workerd-darwin-arm64",
-      "version": "1.20260828.1",
-      "purl": "pkg:npm/%40cloudflare/workerd-darwin-arm64@1.20260828.1",
+      "version": "1.20260903.1",
+      "purl": "pkg:npm/%40cloudflare/workerd-darwin-arm64@1.20260903.1",
       "scope": "optional",
       "properties": [
         {
@@ -387,7 +387,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "e470cf5d1335e76bd4e49bde072185937e17e7b4d5c88b1fa7871a6dea407f8e430b430abe6e76b9c26a0235b587c6ef5b85fecd1c3d194df938717d1440bd5b"
+          "content": "a36e3555e7e78c6f1e1be9066a9e428e0578cce4f951a0264b7391d55642a4d8fbbe45c6c6fa7d29fb4abed420702b08a8929a2b1fbb5ddef1ab42f50e391f3d"
         }
       ]
     },
@@ -395,8 +395,8 @@
       "type": "library",
       "bom-ref": "node_modules/@cloudflare/workerd-linux-64",
       "name": "@cloudflare/workerd-linux-64",
-      "version": "1.20260828.1",
-      "purl": "pkg:npm/%40cloudflare/workerd-linux-64@1.20260828.1",
+      "version": "1.20260903.1",
+      "purl": "pkg:npm/%40cloudflare/workerd-linux-64@1.20260903.1",
       "scope": "optional",
       "properties": [
         {
@@ -414,7 +414,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "310d4b97d3fb17bd871d42a2cdb6fb0650df6d8f1f46834ca5b22966853ab8ab129277852025922afe9496053d11067ec348bb4cc6b5da252027c976f5e448f4"
+          "content": "fd512fbed43f5ca7fa1e505b83a15bbe9c1ca5f614731e85bfa46401263c0f2126532b89f2b73b4318a5f370a5445a01cf3fc6634055f78519e85fb07abb3f86"
         }
       ]
     },
@@ -422,8 +422,8 @@
       "type": "library",
       "bom-ref": "node_modules/@cloudflare/workerd-linux-arm64",
       "name": "@cloudflare/workerd-linux-arm64",
-      "version": "1.20260828.1",
-      "purl": "pkg:npm/%40cloudflare/workerd-linux-arm64@1.20260828.1",
+      "version": "1.20260903.1",
+      "purl": "pkg:npm/%40cloudflare/workerd-linux-arm64@1.20260903.1",
       "scope": "optional",
       "properties": [
         {
@@ -441,7 +441,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "1414da510d71714f63729e0ec813dc1fcc7442216f7358ae64bd86903f33a76ab55b24d51d83a9b510d0514f9cb878edd2b4361082953c18da84fc5f6b48e807"
+          "content": "3968628460ba2a84d7178bb60b50289dfa605de338ffba7fd485ee00ba971129855292cb3f9819851ce34a4fe0596fa6ac26437d2aef9e389f97e951aac7a56c"
         }
       ]
     },
@@ -449,8 +449,8 @@
       "type": "library",
       "bom-ref": "node_modules/@cloudflare/workerd-windows-64",
       "name": "@cloudflare/workerd-windows-64",
-      "version": "1.20260828.1",
-      "purl": "pkg:npm/%40cloudflare/workerd-windows-64@1.20260828.1",
+      "version": "1.20260903.1",
+      "purl": "pkg:npm/%40cloudflare/workerd-windows-64@1.20260903.1",
       "scope": "optional",
       "properties": [
         {
@@ -468,7 +468,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "cafafbee10bb7546ef2b92be482834eb69243eadecc7e76b5753dc807b25cc70d870906d4f45775fcd2a2c4e3d2d6d6fab6b2f69e366b15412faf1eca96bbc71"
+          "content": "b283cc17dfda30794728aeccd2fab91eb45189c3db9d93b517a659ec958df0496dc56254e4bec212aec2c633bcefc0f3c8fc7b818bea045cb749581d64a66331"
         }
       ]
     },
@@ -2871,8 +2871,8 @@
       "type": "library",
       "bom-ref": "node_modules/brace-expansion",
       "name": "brace-expansion",
-      "version": "1.1.16",
-      "purl": "pkg:npm/brace-expansion@1.1.16",
+      "version": "1.1.18",
+      "purl": "pkg:npm/brace-expansion@1.1.18",
       "scope": "optional",
       "properties": [
         {
@@ -2890,7 +2890,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "203c38f0adbfda446483d2dd271babbeade557768182ad11118f3d76e12a151b618e53dd5c728c8fb12740e5d5724c73822b229dfde71dfadc13616e7c52d733"
+          "content": "11d7a9fd7f5f1aa54d9b328156c0d820eb43fb3d6db9ecd5ef42c18dd0acb7d4eabbbea5b27bd1899ea84e27359fefc12305fa4031803bde0f3783764800efb7"
         }
       ]
     },
@@ -4518,8 +4518,8 @@
       "type": "library",
       "bom-ref": "node_modules/ip-address",
       "name": "ip-address",
-      "version": "10.2.0",
-      "purl": "pkg:npm/ip-address@10.2.0",
+      "version": "10.7.0",
+      "purl": "pkg:npm/ip-address@10.7.0",
       "scope": "optional",
       "properties": [
         {
@@ -4537,7 +4537,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ffe4ba8f813d007bd6f5258c48463d5dfcbae8ee4f5af544274f0ed32e491b210a429a236f42b418aa73fefe4727f1b4be2dc3dac8c62bbf35d7da1765e134a8"
+          "content": "04616cc897799a95e9deb2ba8c87400cb360a4950ad639e3cef605f252be5720da6fd2409aa37460e28374fd7b1e580a6f6f9e84f80373c12d9d12db18200c84"
         }
       ]
     },
@@ -4653,8 +4653,8 @@
       "type": "library",
       "bom-ref": "node_modules/js-yaml",
       "name": "js-yaml",
-      "version": "4.3.0",
-      "purl": "pkg:npm/js-yaml@4.3.0",
+      "version": "4.3.2",
+      "purl": "pkg:npm/js-yaml@4.3.2",
       "scope": "optional",
       "properties": [
         {
@@ -4672,7 +4672,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "d6d77bf3c6809e7679aaced5d90211975a308ed6296cab7be3d637c5abaa420c0820617fc575b3d70313101c793b72cade55cb56ea973dd3f18f6068147696f5"
+          "content": "48534ebd227e0e07fff409fdd38631f828129483c2908a5aa38aa8e7596979edb94c845e8dd1f7ae1478119306a0dc77fd33f73bec335ae893165e2ca9b96dcc"
         }
       ]
     },
@@ -4819,8 +4819,8 @@
       "type": "library",
       "bom-ref": "node_modules/miniflare",
       "name": "miniflare",
-      "version": "5.20260828.0-alpha",
-      "purl": "pkg:npm/miniflare@5.20260828.0-alpha",
+      "version": "5.20260903.0-alpha",
+      "purl": "pkg:npm/miniflare@5.20260903.0-alpha",
       "scope": "optional",
       "properties": [
         {
@@ -4838,7 +4838,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ea76f185911ccff5044f76353a760fb2b0148d49ae16889bdf29d4aad791767d589c3c6c2e0f1cc2064964293d426b4e986cd7c335f3804fddfc2d1d2403ed57"
+          "content": "5426481713aa1577a26d10495b04e5a69a9bbf696478ed74217dd005118af63d5088c01f1ff392b02bdb8e9d4cb2504c855666cb655346555a567b0a9db0e9e8"
         }
       ]
     },
@@ -6792,8 +6792,8 @@
       "type": "library",
       "bom-ref": "node_modules/workerd",
       "name": "workerd",
-      "version": "1.20260828.1",
-      "purl": "pkg:npm/workerd@1.20260828.1",
+      "version": "1.20260903.1",
+      "purl": "pkg:npm/workerd@1.20260903.1",
       "scope": "optional",
       "properties": [
         {
@@ -6811,7 +6811,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "a41f72bedd249306430066479a9639f6bd28de13340f3756e8124446ac193a1ba7677b2c3b20d2810c4e41eaf6712656e1808578e4c8418375ab084ae70bff0b"
+          "content": "c49cedd919c2cbbba53942e6672ff824b6c43e0d6e8aca7d955a0e52c133f945610ec4e6ad2434ac15d9306717ba1af61c218ab3cf5b83c9e76dbcef0525f522"
         }
       ]
     },
@@ -6819,8 +6819,8 @@
       "type": "library",
       "bom-ref": "node_modules/wrangler",
       "name": "wrangler",
-      "version": "4.127.1",
-      "purl": "pkg:npm/wrangler@4.127.1",
+      "version": "4.129.0",
+      "purl": "pkg:npm/wrangler@4.129.0",
       "scope": "optional",
       "properties": [
         {
@@ -6836,7 +6836,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "3b3b22360688f22ebcd4bffe2a700a73eb846790f9ef12b926e36f08ea51288085e3fe50dc2bb5a131ae5224ff7f718352a41bde0cd7353d2d7ce1c6304b649f"
+          "content": "3c63efb3d50fa05af0c53d15a20a44492646bd921cb40b932b7c06b0b2cf1ed1ec4a04bce6435dbeda5ad9dd785331bc8302d60fae1750614f186f6d3971bd55"
         }
       ]
     },

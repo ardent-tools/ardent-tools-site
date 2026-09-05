@@ -10,7 +10,7 @@ Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme c
 
 Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat nav index for an agent fetching the live site; `AGENTS.md` is the equivalent for an agent cloning the repo.
 
-## Build / run
+## Build / run <!-- kanon:ignore WRITING/elegant-variation -- SBOM components, quantity units and HTML elements are distinct technical referents; kanon#3879. -->
 
 Requires Python 3.11+, [Zola](https://www.getzola.org/) 0.22.1, and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` and `pdffonts` for the repository-owned résumé check. The exact Nimbus Sans inputs, hashes, provenance, and license notices live under [`resume/fonts/`](resume/fonts/README.md); compilation ignores system and Typst-embedded fonts.
 
@@ -130,7 +130,7 @@ revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
 Repository-owned Wrangler config makes the project name, validated output
 directory, and compatibility date 2026-07-21 production source of truth. The
-Function compile and deploy both use Wrangler 4.112.0 and that same config, so
+Function compile and deploy both use the exact Wrangler pin in `package.json` and that same config, so
 runtime behavior does not silently depend on the day or external dashboard
 defaults.
 
