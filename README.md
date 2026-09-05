@@ -130,7 +130,7 @@ revalidates the retained tree after installing Wrangler and immediately before
 upload, so the uploaded directory is checked after the last dependency mutation.
 Repository-owned Wrangler config makes the project name, validated output
 directory, and compatibility date 2026-07-21 production source of truth. The
-Function compile and deploy both use Wrangler 4.112.0 and that same config, so
+Function compile and deploy both use the exact Wrangler pin in `package.json` and that same config, so
 runtime behavior does not silently depend on the day or external dashboard
 defaults.
 

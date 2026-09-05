@@ -65,7 +65,7 @@ def strict_array(raw: str) -> list:
     # WHY: `wrangler ... --json` has been observed elsewhere to print either
     # a bare result array or the full CF API envelope depending on command
     # and version; accept both shapes explicitly rather than guessing
-    # silently. UNVERIFIED against a live wrangler 4.112.0 run - see AT-01
+    # silently. UNVERIFIED against a live Wrangler run - see AT-01
     # report.
     if isinstance(value, dict) and isinstance(value.get("result"), list):
         value = value["result"]
