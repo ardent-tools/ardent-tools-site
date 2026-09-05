@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "923ddb2418225b9efb2ccedc74606c884c849b7e0d0a21c5cd52cdb954d2442a",
+    "input_sha256": "f74efda983e89963977899f36a03e779ff26de6fdb8ce6469e5fa0b31e35cdfc",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -32,7 +32,7 @@
       },
       {
         "path": "content/systems/logismos.md",
-        "sha256": "d06d618290d1b59227da316249c432c9c7a221256798edd309ec0ae91ac442e7"
+        "sha256": "2d818259bc035ae2d480d476fd20f2cc0ccc8371d1b20953a15f8927cd370978"
       },
       {
         "path": "content/systems/thumos.md",
@@ -116,8 +116,8 @@
       "name": "logismos",
       "group": "systems",
       "url": "https://ardent.tools/systems/logismos/",
-      "one_liner": "A GPU inference stack for transformer embedding models, built from the device upward in Rust and HIP for AMD hardware. CPU correctness proven. GPU cutover is next.",
-      "badge": "PHASE 4: GPU CUTOVER NEXT",
+      "one_liner": "GPU compute for an agent-aware operating environment for local AI compute. The Rust and AMD foundation has a CPU model path; GPU qualification is next.",
+      "badge": "GPU QUALIFICATION NEXT",
       "repo": "https://github.com/forkwright/logismos",
       "license": "PolyForm Shield 1.0.0",
       "stack": "Rust · HIP/hipBLASLt · AMD gfx1100",
