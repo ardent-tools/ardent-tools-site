@@ -27,7 +27,7 @@
       },
       {
         "name": "ardent:source",
-        "value": "package-lock.json#sha256:4e31154c4c3f5c45c752be78f358c24ff7916df74ac9aacbd4ff8326c5dba6ee"
+        "value": "package-lock.json#sha256:9b688b6d73c7857c2fd386a8e3bf9e928f753646228cfaefa994cf807026ad18"
       },
       {
         "name": "ardent:source",
@@ -2817,8 +2817,8 @@
       "type": "library",
       "bom-ref": "node_modules/brace-expansion",
       "name": "brace-expansion",
-      "version": "1.1.16",
-      "purl": "pkg:npm/brace-expansion@1.1.16",
+      "version": "1.1.18",
+      "purl": "pkg:npm/brace-expansion@1.1.18",
       "scope": "optional",
       "properties": [
         {
@@ -2836,7 +2836,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "203c38f0adbfda446483d2dd271babbeade557768182ad11118f3d76e12a151b618e53dd5c728c8fb12740e5d5724c73822b229dfde71dfadc13616e7c52d733"
+          "content": "11d7a9fd7f5f1aa54d9b328156c0d820eb43fb3d6db9ecd5ef42c18dd0acb7d4eabbbea5b27bd1899ea84e27359fefc12305fa4031803bde0f3783764800efb7"
         }
       ]
     },
@@ -4464,8 +4464,8 @@
       "type": "library",
       "bom-ref": "node_modules/ip-address",
       "name": "ip-address",
-      "version": "10.2.0",
-      "purl": "pkg:npm/ip-address@10.2.0",
+      "version": "10.7.0",
+      "purl": "pkg:npm/ip-address@10.7.0",
       "scope": "optional",
       "properties": [
         {
@@ -4483,7 +4483,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "ffe4ba8f813d007bd6f5258c48463d5dfcbae8ee4f5af544274f0ed32e491b210a429a236f42b418aa73fefe4727f1b4be2dc3dac8c62bbf35d7da1765e134a8"
+          "content": "04616cc897799a95e9deb2ba8c87400cb360a4950ad639e3cef605f252be5720da6fd2409aa37460e28374fd7b1e580a6f6f9e84f80373c12d9d12db18200c84"
         }
       ]
     },
@@ -4599,8 +4599,8 @@
       "type": "library",
       "bom-ref": "node_modules/js-yaml",
       "name": "js-yaml",
-      "version": "4.3.0",
-      "purl": "pkg:npm/js-yaml@4.3.0",
+      "version": "4.3.2",
+      "purl": "pkg:npm/js-yaml@4.3.2",
       "scope": "optional",
       "properties": [
         {
@@ -4618,7 +4618,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "d6d77bf3c6809e7679aaced5d90211975a308ed6296cab7be3d637c5abaa420c0820617fc575b3d70313101c793b72cade55cb56ea973dd3f18f6068147696f5"
+          "content": "48534ebd227e0e07fff409fdd38631f828129483c2908a5aa38aa8e7596979edb94c845e8dd1f7ae1478119306a0dc77fd33f73bec335ae893165e2ca9b96dcc"
         }
       ]
     },
