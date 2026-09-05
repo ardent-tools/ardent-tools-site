@@ -57,7 +57,7 @@
 #v(0.28em)
 #system("Kanon", [#text(weight: "bold")[Private case study.] Standards-and-dispatch control plane for a multi-repository fleet: standards-as-code linting, Rust-analyzer HIR checks, MCP tooling, git forge, CI, and a compare-and-swap work queue. Public receipt: six featured public repositories carry repository-owned `.kanon-ci.toml`; enforcement scope differs by repository.])
 #v(0.28em)
-#system("Logismos", [GPU compute foundation for an agent-aware operating environment for local AI compute: greenfield Rust and AMD gfx1100 work, hand-written HIP FFI and WMMA kernels, a custom GGUF loader, and a CPU model path with a golden-fixture harness. The W7900 48 GB baseline is available; GPU qualification has not run. Text and retrieval on one GPU is the first delivery.])
+#system("Logismos", [An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. HIP FFI, owned WMMA kernels, a GGUF loader, and Stella CPU golden-fixture parity form the foundation. Native text and retrieval serving need qualification on the W7900 48 GB baseline; a planned XTX 24 GB is optional.])
 #v(0.28em)
 #system("Hamma", [Clean-room Rust implementation of a Tailscale-compatible control protocol—not a translation of the Go source. Noise IK handshake, control-plane wire types, TCP/TLS registration, and map streaming have landed with byte-level tests; the BoringTun-backed WireGuard data plane is planned.])
 #v(0.28em)

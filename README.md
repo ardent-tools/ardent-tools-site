@@ -10,7 +10,7 @@ Built on [typikon](https://github.com/forkwright/typikon), a shared Zola theme c
 
 Agent-facing surfaces: [`/llms.txt`](https://ardent.tools/llms.txt) is the flat nav index for an agent fetching the live site; `AGENTS.md` is the equivalent for an agent cloning the repo.
 
-## Build / run
+## Build / run <!-- kanon:ignore WRITING/elegant-variation -- SBOM components, quantity units and HTML elements are distinct technical referents; kanon#3879. -->
 
 Requires Python 3.11+, [Zola](https://www.getzola.org/) 0.22.1, and [Typst](https://typst.app/) 0.14.2 (both pinned in `.github/workflows/deploy.yml`), plus `pdftotext` and `pdffonts` for the repository-owned résumé check. The exact Nimbus Sans inputs, hashes, provenance, and license notices live under [`resume/fonts/`](resume/fonts/README.md); compilation ignores system and Typst-embedded fonts.
 

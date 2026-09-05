@@ -1,6 +1,6 @@
 +++
 title = "logismos"
-description = "GPU compute for an agent-aware operating environment for local AI compute. The Rust and AMD foundation has a CPU model path; GPU qualification is next."
+description = "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. CPU model parity exists; native text serving remains open."
 weight = 6
 template = "system.html"
 
@@ -8,13 +8,13 @@ template = "system.html"
 gloss = "λογισμός - reasoning, calculation"
 badge = "GPU QUALIFICATION NEXT"
 repo = "https://github.com/forkwright/logismos"
-stack = "Rust · HIP/hipBLASLt · AMD gfx1100"
+stack = "Rust · HIP/WMMA · AMD gfx1100"
 kanon_ci = true
-license = "PolyForm Shield 1.0.0"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
 
 [extra.headline_claim]
-claim = "CPU model path and golden-fixture harness present; GPU qualification has not run"
-receipt = "The ignored parity harness is in crates/logismos/tests/phase_3_stella_parity.rs; its GPU counterpart remains unrun"
+claim = "Stella CPU golden-fixture parity recorded; native text serving remains unqualified"
+receipt = "The CPU reproduction target is crates/logismos/tests/phase_3_stella_parity.rs; this evidence does not qualify a GPU serving runtime"
 
 [extra.demo]
 system = "logismos"
@@ -22,31 +22,31 @@ action = "CPU golden-fixture parity test"
 target = "phase_3_stella_parity, against embeddings_dim1024.safetensors"
 tape = "/tapes/logismos-parity.tape"
 shows = "The retained CPU-parity recording target; it is historical evidence, not a current GPU qualification result."
-not_shows = "Any GPU run, scheduler, serving surface, GDN, emulator, HSA integration, or multi-GPU service. GPU qualification has not run yet."
+not_shows = "A GPU serving run, scheduler, GDN, emulator, HSA integration, or multi-GPU service. These require separate evidence."
 +++
 
 ## What it is
 
-Agent intent is intended to pass through placement and residency decisions to native kernels. The greenfield Rust and AMD stack targets gfx1100, using HIP and hipBLASLt where the hardware boundary requires them. It provides the GPU-compute layer for an agent-aware operating environment for local AI compute.
+Logismos is under development as an agent-aware operating environment for local AI compute. Aletheia supplies workload intent; Logismos is to own inference admission, placement and residency through to native execution. The Rust foundation targets gfx1100 through HIP and owned WMMA kernels. Host modes, display ownership and external service lifecycle stay with Arche/Tropos and systemd.
 
 ## Decisions and trade-offs
 
 ### Establish the CPU model path before hardware qualification
 
-The foundation and CPU model path exist, including a golden-fixture parity harness. The W7900 with 48 GB is the working hardware baseline and is available for qualification. That qualification has not run. GPU-safe emulation is planned; it does not establish device behavior.
+Stella CPU golden-fixture parity is recorded in the project history. Earlier W7900 kernel measurements are evidence for those kernels, not for the new serving program. The available W7900 48 GB remains the single-device baseline. Agent-led iteration uses GPU-denied checks; the original bounded emulator is under development and cannot establish hardware timing or performance.
 
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
 | First delivery | Text and retrieval on one GPU | Training, non-AMD GPUs, automatic cutover | A second GPU does not change the first delivery boundary |
 | Hardware baseline | gfx1100 on the available W7900 48 GB | Calling qualification complete before a device run | Hardware capability still needs qualification |
 | Future topology | An XTX 24 GB as a planned, separately qualified second card | A 72 GB unified device or implicit sharding | Independent dual-GPU services require explicit work and verification |
-| Framework scope | Scoped exactly to the knowledge substrate's actual consumer need | Building a general-purpose inference framework | Less reusable for a different model or a different GPU vendor |
+| Runtime scope | Agent-aware inference, with ordinary inference clients still supported | A general training framework or a second host-mode executor | Native model support needs artifact-specific correctness and quality evidence |
 
 ## What's solid / what's open
 
-**Current:** the Rust and AMD foundation, CPU model path, and ignored golden-fixture harness. The retained CPU-parity tape remains part of the record.
+**Current:** the Rust and AMD foundation, Stella CPU model path, and golden-fixture parity record. The retained CPU-parity tape is a recording target, not a new measurement.
 
-**Open:** hardware qualification on the W7900 baseline. Scheduling, serving, GDN, emulator work, and HSA integration are planned or in progress, not delivered. The first service boundary is text and retrieval on one GPU. A future XTX 24 GB card is not installed; when present, it needs separate qualification before independent dual-GPU services can run. There is no automatic cutover, 72 GB unified memory, or sharding claim.
+**Open:** Qwen3.8 hybrid text serving and Qwen3 embedding/reranking continuity, with exact artifacts and local quality evaluation. Planning, device selection and GPU-safe testing are the foundation increment; native serving and the experimental HSA provider still need implementation and qualification. A planned XTX 24 GB needs separate qualification before independent dual-GPU services can run. There is no automatic cutover, 72 GB unified memory, or sharding claim.
 
 ## Numbers, and how they were measured
 

@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "f74efda983e89963977899f36a03e779ff26de6fdb8ce6469e5fa0b31e35cdfc",
+    "input_sha256": "09d755b86bb489ae533339b9fdd0fef28cd4d0330751f077ef46fc5e8c5034c0",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -32,7 +32,7 @@
       },
       {
         "path": "content/systems/logismos.md",
-        "sha256": "2d818259bc035ae2d480d476fd20f2cc0ccc8371d1b20953a15f8927cd370978"
+        "sha256": "b6d5f0854da7f6fb160d81dffc7f8f4acc8274f638d5992ce1272ac3f519ff6f"
       },
       {
         "path": "content/systems/thumos.md",
@@ -40,7 +40,7 @@
       },
       {
         "path": "data/exact-system-licenses.json",
-        "sha256": "7396f532d2d7949de7f93221a7983c1bdd0c43b196c4f41599ef2b88cdab6469"
+        "sha256": "9bf8c11687ed77551478fdefea514f8ff687b43a56a3122c50b5af246e6180e4"
       }
     ]
   },
@@ -116,11 +116,11 @@
       "name": "logismos",
       "group": "systems",
       "url": "https://ardent.tools/systems/logismos/",
-      "one_liner": "GPU compute for an agent-aware operating environment for local AI compute. The Rust and AMD foundation has a CPU model path; GPU qualification is next.",
+      "one_liner": "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. CPU model parity exists; native text serving remains open.",
       "badge": "GPU QUALIFICATION NEXT",
       "repo": "https://github.com/forkwright/logismos",
-      "license": "PolyForm Shield 1.0.0",
-      "stack": "Rust · HIP/hipBLASLt · AMD gfx1100",
+      "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+      "stack": "Rust · HIP/WMMA · AMD gfx1100",
       "private": false,
       "gloss": "λογισμός - reasoning, calculation",
       "kanon_ci": true

@@ -49,10 +49,11 @@ readonly SITE_BASE_URL
 # below runs it when found and reports UNVERIFIED, never silently, when
 # it is not (docs/VOICE.md).
 KANON_AVAILABLE=0
+readonly REQUIRED_KANON_VERSION="0.13.0"
 if command -v kanon >/dev/null 2>&1; then
   KANON_AVAILABLE=1
-  [[ "$(kanon --version)" == "kanon 0.11.0" ]] || {
-    echo "ERROR: kanon 0.11.0 is required for the pinned writing-floor lint (docs/VOICE.md); found $(kanon --version)" >&2
+  [[ "$(kanon --version)" == "kanon $REQUIRED_KANON_VERSION" ]] || {
+    echo "ERROR: kanon $REQUIRED_KANON_VERSION is required for the pinned writing-floor lint (docs/VOICE.md); found $(kanon --version)" >&2
     exit 1
   }
 fi

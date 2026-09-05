@@ -34,7 +34,7 @@ Dependencies you control stay yours: enabling CI, provisioning a scoped database
 
 I send an engagement agreement before the work starts. It sets scope, who owns what I deliver, payment terms, and how either side ends it.
 
-## Proof of work
+## Proof of work <!-- kanon:ignore WRITING/elegant-variation -- an agent system/platform and a client's owned work product are distinct referents; kanon#3879. -->
 
 The public systems and their source-linked receipts are the track record. [kanon](/systems/kanon/)'s public receipt is `.kanon-ci.toml` in six featured public system repositories, each setting its own enforcement scope - presence of the config is not a claim that they run the same checks. [harmonia](/systems/harmonia/) runs the five-app *arr pattern as one server, with a capability table naming its ten remaining stubs and the admin route that returns 202 without doing the work. [thumos](/systems/thumos/) boots a bare-metal phone OS under QEMU, and CI runs that boot on pushes to main and on pull requests targeting main.
 
