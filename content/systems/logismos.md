@@ -35,6 +35,8 @@ Logismos is under development as an agent-aware operating environment for local 
 
 Stella CPU golden-fixture parity is recorded in the project history. Earlier W7900 kernel measurements are evidence for those kernels, not for the new serving program. The available W7900 48 GB remains the single-device baseline. Agent-led iteration uses GPU-denied checks; the original bounded emulator is under development and cannot establish hardware timing or performance.
 
+With the Stella model directory at `/models/stella-1.5b-v5`, run `cargo test -p logismos --test phase_3_stella_parity -- --ignored`. It executes one ignored CPU parity test against the checked-in safetensors fixture. It does not start native Qwen serving.
+
 | Decision | Chose | Rejected | Cost accepted |
 |---|---|---|---|
 | First delivery | Text and retrieval on one GPU | Training, non-AMD GPUs, automatic cutover | A second GPU does not change the first delivery boundary |

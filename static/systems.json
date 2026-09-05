@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "09d755b86bb489ae533339b9fdd0fef28cd4d0330751f077ef46fc5e8c5034c0",
+    "input_sha256": "aa90c32d38a71c5683240e33ac5f383045cc897449a2cc72577320651b77e7bc",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -32,7 +32,7 @@
       },
       {
         "path": "content/systems/logismos.md",
-        "sha256": "b6d5f0854da7f6fb160d81dffc7f8f4acc8274f638d5992ce1272ac3f519ff6f"
+        "sha256": "135255cf836f63f9205b6985dfe1f784fafa335d552bc99af25d48e4794ce1df"
       },
       {
         "path": "content/systems/thumos.md",

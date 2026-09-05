@@ -807,19 +807,18 @@ def main() -> int:
     )
     ledger_licenses = {entry["name"]: entry.get("license") for entry in ledger}
     for name, expected in exact_licenses.items():
-        if name == "akroasis":
-            continue
-        if ledger_licenses.get(name) != expected:
+        dossier_path = Path("content/systems") / f"{name}.md"
+        if dossier_path.is_file():
+            actual = frontmatter(dossier_path).get("extra", {}).get("license")
+            authority = dossier_path
+        else:
+            actual = ledger_licenses.get(name)
+            authority = Path("content/systems/_index.md")
+        if actual != expected:
             fail(
                 errors,
-                f"content/systems/_index.md: {name} license must be exact SPDX {expected}",
+                f"{authority}: {name} license must be exact SPDX {expected}",
             )
-    akroasis_extra = frontmatter(Path("content/systems/akroasis.md")).get("extra", {})
-    if akroasis_extra.get("license") != exact_licenses.get("akroasis"):
-        fail(
-            errors,
-            "content/systems/akroasis.md: license differs from canonical mapping",
-        )
 
     akroasis = Path("content/systems/akroasis.md").read_text()
     if "23,569 Rust code lines; 24,538 Rust code-plus-comment lines" not in akroasis:
@@ -1001,7 +1000,7 @@ def main() -> int:
     ):
         if required not in kanon_recipe:
             fail(errors, f"Kanon recipe lacks reproduction contract: {required}")
-    seed_at = kanon_recipe.find("seed $PROOF_FILE")
+    seed_at = kanon_recipe.find('seed "$PROOF_FILE"')
     clean_assertions = [
         match.start() for match in re.finditer(r"git status --porcelain", kanon_recipe)
     ]
@@ -1010,10 +1009,10 @@ def main() -> int:
             errors,
             "Kanon recipe must assert a clean tree exactly once before seeding",
         )
-    violation_at = kanon_recipe.find("test $rc -eq 1 && ok VIOLATION_OK", seed_at)
-    fix_at = kanon_recipe.find("kanon lint --fix $PROOF_FILE && ok FIX_OK", violation_at)
+    violation_at = kanon_recipe.find('test "$rc" -eq 1 && ok VIOLATION_OK', seed_at)
+    fix_at = kanon_recipe.find('kanon lint --fix "$PROOF_FILE" && ok FIX_OK', violation_at)
     clean_lint_at = kanon_recipe.find(
-        "kanon lint $PROOF_FILE && ok LINT_CLEAN_OK", fix_at
+        'kanon lint "$PROOF_FILE" && ok LINT_CLEAN_OK', fix_at
     )
     gate_at = kanon_recipe.find("kanon gate . && ok GATE_OK", clean_lint_at)
     if not (0 <= seed_at < violation_at < fix_at < clean_lint_at < gate_at):
