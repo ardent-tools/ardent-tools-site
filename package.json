@@ -6,6 +6,6 @@
   "devDependencies": {
     "@playwright/test": "1.61.1",
     "pa11y-ci": "4.1.1",
-    "wrangler": "4.112.0"
+    "wrangler": "4.129.0"
   }
 }
