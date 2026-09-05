@@ -8602,7 +8602,6 @@ class KanonWritingGateTests(unittest.TestCase):
     """docs/VOICE.md's ban list must be a real gate, not a claim (#105)."""
 
     FIXTURES = ROOT / "tests/fixtures/kanon-writing"
-    PINNED_VERSION = "kanon 0.11.0"
     BASH = shutil.which("bash") or "/bin/bash"
 
     def _require_kanon(self) -> None:
@@ -8625,13 +8624,52 @@ class KanonWritingGateTests(unittest.TestCase):
     def test_gate_names_the_pinned_mechanism_and_version(self) -> None:
         gate = (ROOT / "bin/check-site.sh").read_text()
         voice = (ROOT / "docs/VOICE.md").read_text()
+        version = re.search(
+            r'^readonly REQUIRED_KANON_VERSION="(?P<version>[^"\\n]+)"$',
+            gate,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(version)
+        assert version is not None
+        self.assertRegex(version.group("version"), r"^\d+\.\d+\.\d+$")
         self.assertIn("kanon lint --writing", gate)
-        self.assertIn(f'"{self.PINNED_VERSION}"', gate)
+        self.assertIn('"kanon $REQUIRED_KANON_VERSION"', gate)
         self.assertIn("kanon lint --writing", voice)
-        self.assertIn(self.PINNED_VERSION, voice)
+        self.assertIn("REQUIRED_KANON_VERSION", voice)
         self.assertIn("bin/check-site.sh", voice)
         self.assertIn("UNVERIFIED", gate)
         self.assertIn("UNVERIFIED", voice)
+
+    def test_kanon_version_preflight_rejects_a_stale_binary(self) -> None:
+        gate = (ROOT / "bin/check-site.sh").read_text()
+        version = re.search(
+            r'^readonly REQUIRED_KANON_VERSION="(?P<version>[^"\\n]+)"$',
+            gate,
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(version)
+        assert version is not None
+        start = gate.index("KANON_AVAILABLE=0")
+        end = gate.index("readonly KANON_AVAILABLE", start) + len(
+            "readonly KANON_AVAILABLE"
+        )
+        preflight = gate[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            fake_kanon = Path(directory) / "kanon"
+            fake_kanon.write_text("#!/bin/sh\necho 'kanon 0.0.0'\n")
+            fake_kanon.chmod(0o755)
+            result = subprocess.run(
+                [self.BASH, "-c", f"set -euo pipefail\n{preflight}\n"],
+                cwd=ROOT,
+                env={"PATH": f"{directory}:/usr/bin:/bin"},
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            f"kanon {version.group('version')} is required", result.stderr
+        )
 
     def test_content_surface_is_configured_for_enforcement(self) -> None:
         # WHY: without this mapping every page under content/ resolves to
@@ -8715,7 +8753,7 @@ class KanonWritingGateTests(unittest.TestCase):
 
 
 class KanonLintDebtTests(unittest.TestCase):
-    """Full-category `kanon lint .` findings triaged in #128."""
+    """Current source is linted; immutable receipts are ledger-validated (#128)."""
 
     def _require_kanon(self) -> None:
         # WHY skip, not fail: same UNVERIFIED-by-design posture as
@@ -8732,22 +8770,30 @@ class KanonLintDebtTests(unittest.TestCase):
             timeout=30,
         )
 
-    def test_ignore_file_scopes_out_published_artifact_directories(self) -> None:
-        # WHY: retained-assets/ and static/tapes/ are site content (published
-        # cast driver scripts and their reproduction recipes), not repo
-        # tooling - SHELL/* findings there are a category error, not a defect.
+    def test_ignore_file_scopes_out_immutable_historical_receipts_only(self) -> None:
+        # WHY: retained assets are published historical receipts. The current
+        # tape recipes remain owned source, so a broad ignore must not hide
+        # their findings from normal lint invocations.
         ignore = (ROOT / ".kanon-lint-ignore").read_text()
         self.assertIn("SHELL/*:retained-assets/**", ignore)
-        self.assertIn("SHELL/*:static/tapes/**", ignore)
+        self.assertNotIn("SHELL/*:static/tapes/**", ignore)
         self.assertIn("#128", ignore)
 
-    def test_no_shell_findings_in_published_artifact_directories(self) -> None:
+    def test_retained_shell_receipts_validate_against_ledger(self) -> None:
+        # The retention validator proves the exact receipt inventory and the
+        # SHA-256 of every retained body. That is the applicable contract for
+        # immutable published artifacts, not a mutable-source shell lint.
+        _, bodies = asset_retention.validate_ledger(
+            ROOT / "asset-retention.json", ROOT / "retained-assets"
+        )
+        receipts = sorted(path for path in bodies if path.endswith(".sh"))
+        self.assertTrue(receipts, "expected retained shell receipts")
+
+    def test_current_tape_sources_have_no_shell_findings(self) -> None:
         self._require_kanon()
-        result = self._lint(".")
-        for scope in ("retained-assets/", "static/tapes/"):
-            for line in result.stdout.splitlines():
-                if scope in line:
-                    self.assertNotIn("[SHELL/", line, result.stdout)
+        result = self._lint("static/tapes")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("[SHELL/", result.stdout, result.stdout)
 
     def test_check_external_links_has_no_shell_findings(self) -> None:
         self._require_kanon()
