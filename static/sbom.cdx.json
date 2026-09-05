@@ -27,7 +27,7 @@
       },
       {
         "name": "ardent:source",
-        "value": "package-lock.json#sha256:19fbdf399ab7e26144628791fb79c1d4ecdd78071db8deb4fa270ba8a9c63e6f"
+        "value": "package-lock.json#sha256:9bbff714ff4c237fcf2076046eb9f9f7cd01d96970601374e3205ec638f59de9"
       },
       {
         "name": "ardent:source",
@@ -2061,8 +2061,8 @@
       "type": "library",
       "bom-ref": "node_modules/@playwright/test",
       "name": "@playwright/test",
-      "version": "1.61.1",
-      "purl": "pkg:npm/%40playwright/test@1.61.1",
+      "version": "1.62.1",
+      "purl": "pkg:npm/%40playwright/test@1.62.1",
       "scope": "optional",
       "properties": [
         {
@@ -2080,7 +2080,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "f272afebed112522fd144e2360e1065e73de33f1e0d76a99a66ab3663461dea33463b737cf59ab3937c52e276cef6443418561f56a4b11f47959da4d5f87e48a"
+          "content": "0d371473caa28be7291efb4ec2080cb4144c8ca6475d859dc3cb32458bb6bedceeab85b1a61aaae0d7c2b3966de382fa980f2b7c37e3f8f1e7c4573f15e2ba99"
         }
       ]
     },
@@ -5654,8 +5654,8 @@
       "type": "library",
       "bom-ref": "node_modules/playwright",
       "name": "playwright",
-      "version": "1.61.1",
-      "purl": "pkg:npm/playwright@1.61.1",
+      "version": "1.62.1",
+      "purl": "pkg:npm/playwright@1.62.1",
       "scope": "optional",
       "properties": [
         {
@@ -5673,7 +5673,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "0d69d8e68dd86cb58ae06a2fb80570a6a2fed55c0635d506ad1afefbc8fc3ed410cef01565420c8ca43dd1f63af3db042592416d9570d6b5da38a4938ad9333d"
+          "content": "d0cf8bdcb003f3f9e6e79e0b3a56bd032c748f4b66159d0505ca10ec5d55b951e933f5e9882f11703cc1401f16e7e840f0bdb64c7c442f3785fb659c533bdc2e"
         }
       ]
     },
@@ -5681,8 +5681,8 @@
       "type": "library",
       "bom-ref": "node_modules/playwright-core",
       "name": "playwright-core",
-      "version": "1.61.1",
-      "purl": "pkg:npm/playwright-core@1.61.1",
+      "version": "1.62.1",
+      "purl": "pkg:npm/playwright-core@1.62.1",
       "scope": "optional",
       "properties": [
         {
@@ -5700,7 +5700,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "87b425b7a9b8444a76e6abc876f6c3b55983e0ba955dfa51c61391bfd2f48f3113334e69e1fb8f27774acae4974310d26d79e64bbf470208bde7cf65192a4b92"
+          "content": "c0f612c0404963d187ada2125eacaab71d276b42e93b75c45fb8cd0e19ed6dec7bb73512ee42e766c3a516bb85241e078bfae10cc8d71aa1dec0367af2761957"
         }
       ]
     },
