@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "aa90c32d38a71c5683240e33ac5f383045cc897449a2cc72577320651b77e7bc",
+    "input_sha256": "42502f9ce5c00cf872cb6d6a189372672e5957cced768f88b563ef06580387d0",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -32,7 +32,7 @@
       },
       {
         "path": "content/systems/logismos.md",
-        "sha256": "135255cf836f63f9205b6985dfe1f784fafa335d552bc99af25d48e4794ce1df"
+        "sha256": "d25d72ff39df496861c23b9608cb1f686805c31dc8d0f06e654d84ce3d0a8c9e"
       },
       {
         "path": "content/systems/thumos.md",
@@ -116,7 +116,7 @@
       "name": "logismos",
       "group": "systems",
       "url": "https://ardent.tools/systems/logismos/",
-      "one_liner": "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. CPU model parity exists; native text serving remains open.",
+      "one_liner": "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. Stella CPU golden-fixture parity exists; native text serving remains open.",
       "badge": "GPU QUALIFICATION NEXT",
       "repo": "https://github.com/forkwright/logismos",
       "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
