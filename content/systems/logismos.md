@@ -1,6 +1,6 @@
 +++
 title = "logismos"
-description = "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. CPU model parity exists; native text serving remains open."
+description = "An agent-aware operating environment for local AI compute, under development in Rust for AMD gfx1100. Stella CPU golden-fixture parity exists; native text serving remains open."
 weight = 6
 template = "system.html"
 
@@ -48,7 +48,7 @@ With the Stella model directory at `/models/stella-1.5b-v5`, run `cargo test -p 
 
 **Current:** the Rust and AMD foundation, Stella CPU model path, and golden-fixture parity record. The retained CPU-parity tape is a recording target, not a new measurement.
 
-**Open:** Qwen3.8 hybrid text serving and Qwen3 embedding/reranking continuity, with exact artifacts and local quality evaluation. Planning, device selection and GPU-safe testing are the foundation increment; native serving and the experimental HSA provider still need implementation and qualification. A planned XTX 24 GB needs separate qualification before independent dual-GPU services can run. There is no automatic cutover, 72 GB unified memory, or sharding claim.
+**Open:** Qwen3.8 hybrid text serving and Qwen3 embedding/reranking continuity, with exact artifacts and local quality evaluation. Bounded process-local admission/residency, recurrent GDN, and instruction-emulation primitives exist; they do not constitute a serving system or hardware qualification. Native serving and the experimental HSA provider still need implementation and qualification. A planned XTX 24 GB needs separate qualification before independent dual-GPU services can run. There is no automatic cutover, 72 GB unified memory, or sharding claim.
 
 ## Numbers, and how they were measured
 
