@@ -1,6 +1,6 @@
 +++
 title = "Systems"
-description = "Seven systems, the libraries underneath them, and what's on the drawing board: seventeen public repositories and one private tool with a public track record."
+description = "Systems, shared libraries, web tooling, and design work with source links, lifecycle labels, and stated limits."
 sort_by = "weight"
 template = "systems.html"
 
@@ -105,4 +105,4 @@ repo = "https://github.com/forkwright/dioptron"
 group = "in-design"
 +++
 
-The catalog groups by maturity, not chronology - the seven flagship systems first, then the libraries, then the web tooling, then what is specification only. Each row carries its license, its badge, and a link to source.
+The catalog groups by maturity, not chronology. System dossiers carry their present boundary, source paths, and next proof where one remains open. Libraries and web tooling follow; specification-only work stays separate.

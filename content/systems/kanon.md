@@ -11,8 +11,8 @@ private = true
 stack = "Rust · MCP server · standards-as-code"
 
 [extra.headline_claim]
-claim = "Six featured public system repos carry kanon configuration - each repo declares its own enforcement scope"
-receipt = ".kanon-ci.toml in aletheia, thumos, harmonia, akroasis, logismos, and hamma"
+claim = "Featured public system repos carry kanon configuration - each repo declares its own enforcement scope"
+receipt = ".kanon-ci.toml in aletheia, thumos, harmonia, akroasis, logismos, hamma, Ardent Politeia, and cheirismos"
 
 [extra.demo]
 system = "kanon"
@@ -101,7 +101,7 @@ $ # not shown: kanon's own source - the engine ran against a public clone
 
 ## What it is
 
-Every repository in this fleet answers to the same control plane. kanon carries it - a lint engine, a CI-exact gate system, a code-intelligence layer, and a PR/issue-orchestration MCP server. Its source is private. The public receipt is narrower and directly inspectable - the six featured public system repositories carry `.kanon-ci.toml`, while each repository chooses its own enforcement scope. Presence of configuration is not a claim that every repository runs the same checks or blocks on the same rules.
+Every repository in this fleet answers to the same control plane. kanon carries it - a lint engine, a CI-exact gate system, a code-intelligence layer, and a PR/issue-orchestration MCP server. Its source is private. The public receipt is narrower and directly inspectable - featured public system repositories carry `.kanon-ci.toml`, while each repository chooses its own enforcement scope. Presence of configuration is not a claim that every repository runs the same checks or blocks on the same rules.
 
 Concretely, `kanon lint` finds mechanical rule violations across a repo (`--fix` auto-resolves the fixable class, and diff-aware use supplies both `--diff-base <base>` and `--diff-head <head>`, or one `--rev-range <base>..<head>`), and `kanon gate` runs the fast-feedback check (format, compile check, lint), with a `--full` mode that adds clippy, the full test suite, and a Gate-Passed commit trailer once everything's clean.
 
@@ -118,7 +118,7 @@ Publishing a control plane commits me to an issue tracker and a contribution pat
 
 ## What's solid / what's open
 
-**Solid:** `kanon lint` and `kanon lint --fix` for mechanical rule violations, `kanon gate` and `kanon gate --full` for fast-feedback and full-verification paths, an MCP server surface for PR/issue orchestration and code intelligence, and repository-owned `.kanon-ci.toml` configuration in the six featured public system repositories.
+**Solid:** `kanon lint` and `kanon lint --fix` for mechanical rule violations, `kanon gate` and `kanon gate --full` for fast-feedback and full-verification paths, an MCP server surface for PR/issue orchestration and code intelligence, and repository-owned `.kanon-ci.toml` configuration in featured public system repositories.
 
 **Open:** the source is unpublished, so every number below rests on a dated artifact rather than a repository you can clone. No public issue tracker or contribution path exists.
 
@@ -148,3 +148,5 @@ Publishing a control plane commits me to an issue tracker and a contribution pat
 | [akroasis](/systems/akroasis/) | [`.kanon-ci.toml`](https://github.com/forkwright/akroasis/blob/main/.kanon-ci.toml) | Declared by that repository's configuration |
 | [logismos](/systems/logismos/) | [`.kanon-ci.toml`](https://github.com/forkwright/logismos/blob/main/.kanon-ci.toml) | Declared by that repository's configuration |
 | [hamma](/systems/hamma/) | [`.kanon-ci.toml`](https://github.com/forkwright/hamma/blob/main/.kanon-ci.toml) | Declared by that repository's configuration |
+| [Ardent Politeia](/systems/politeia/) | [`.kanon-ci.toml`](https://github.com/ardent-tools/politeia/blob/main/.kanon-ci.toml) | Declared by that repository's configuration |
+| [cheirismos](/systems/cheirismos/) | [`.kanon-ci.toml`](https://github.com/forkwright/cheirismos/blob/main/.kanon-ci.toml) | Declared by that repository's configuration |

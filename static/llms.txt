@@ -18,9 +18,9 @@ written consent.
 
 ## Systems
 
-- [Systems catalog](https://ardent.tools/systems/): seven systems, the
-  libraries underneath them, and what's on the drawing board — seventeen
-  public repositories and one private tool with a public track record.
+- [Systems catalog](https://ardent.tools/systems/): system dossiers, shared
+  libraries, web tooling, and design work, each with source links, lifecycle
+  labels, and stated limits.
 - [Systems catalog, machine-readable](https://ardent.tools/systems.json):
   the same catalog as structured JSON.
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ardent.tools/schemas/system-dossier.schema.json",
   "title": "ardent tools system dossier",
-  "description": "content/systems/<slug>.md — template=\"system.html\", one per featured system (aletheia, akroasis, hamma, harmonia, kanon, logismos, thumos).",
+  "description": "content/systems/<slug>.md — template=\"system.html\", one per featured system dossier.",
   "allOf": [
     {
       "$ref": "https://github.com/forkwright/typikon/schemas/page.core.schema.json"
