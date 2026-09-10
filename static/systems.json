@@ -4,7 +4,7 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "d5c99eb58d49c7932364987e19d68919b2fd5dd4b67deead215c78471ead48d6",
+    "input_sha256": "0c0cd09f1b45af813f48ce3537c24c9078d5a07d894977a5bfcade06824a90ce",
     "sources": [
       {
         "path": "content/systems/_index.md",
@@ -40,7 +40,7 @@
       },
       {
         "path": "content/systems/politeia.md",
-        "sha256": "02b884553b607900fc48e7c9aa6083744ac829cd6b7b90e817112fd26123cfce"
+        "sha256": "d7ba20cb25118f8077500d0e39fdf0852021f6c70153c68811159e05243802a5"
       },
       {
         "path": "content/systems/thumos.md",
@@ -150,8 +150,8 @@
       "name": "Ardent Politeia",
       "group": "systems",
       "url": "https://ardent.tools/systems/politeia/",
-      "one_liner": "A development-stage institutional control plane for human and machine work. Public source defines commissioning, policy, evidence, and handoff; the first end-to-end proof remains open.",
-      "badge": "DEVELOPMENT · FIRST VERTICAL SLICE OPEN",
+      "one_liner": "A development-stage institutional control plane for human and machine work. Its planned first package learns approved knowledge before specific use; no deployment proof exists.",
+      "badge": "DEVELOPMENT · COMMISSIONING PACKAGE OPEN",
       "repo": "https://github.com/ardent-tools/politeia",
       "license": "MPL-2.0",
       "stack": "Rust · JSON Schema · TLA+",

@@ -7601,6 +7601,23 @@ class FleetCountWitnessContractTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertIn("PASS:", out)
 
+    def test_wrong_stated_count_fails(self) -> None:
+        """A count remains checked whenever a public surface chooses to state it."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.build_fixture(root, declared_private=False)
+            (root / "content/systems/widget.md").write_text(
+                "Two systems, the libraries below.\n"
+            )
+            fetch = self.make_fetch({
+                self.metadata_url(): (200, json.dumps({"private": False}).encode()),
+                self.contents_url(): (200, b"{}"),
+            })
+            result, out, err = self.run_main(root, fetch)
+        self.assertEqual(result, 1)
+        self.assertNotIn("PASS:", out)
+        self.assertIn("states Two for featured_systems; derived value is 1", err)
+
     def test_frontmatter_only_privacy_flip_cannot_reach_pass(self) -> None:
         """The catalog and copy both declare the repository public - a
         self-consistent, frontmatter-only edit. GitHub still reports it
