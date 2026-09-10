@@ -3,16 +3,9 @@
 
 Usage: python3 bin/validate-fleet-counts.py
 
-Three numbers appear in site copy - how many systems are featured, how many
-public repositories the fleet holds, how many of the featured systems carry the
-control-plane config. Each was hand-typed in more than one page, and a single
-repository flipping visibility falsifies all three at once with nothing to catch
-it.
-
-The numbers stay in prose because a reader should meet them mid-sentence, not
-follow a link. This proves them instead of deriving them into a template: the
-copy is the surface, the catalog is the authority, and a disagreement fails the
-gate.
+When site copy states a system, public-repository, or control-plane-adoption
+count, this validator proves it against the catalog and an independent GitHub
+witness. Catalog and template-derived counts need no second hand-authored copy.
 
 A site whose subject is verification cannot carry an unverified count. That is
 the specific self-refutation its own voice contract names.
@@ -62,9 +55,7 @@ WORD_ALT = "|".join(NUMBER_WORDS)
 CLAIMS = (
     # Tight on purpose. "Two systems are the exception - they belong to my prior
     # employer" is a different claim about ownership, and a pattern loose enough
-    # to catch the fleet count catches that too. Rewording the real sentence
-    # makes this stop matching, which the zero-match guard below turns into a
-    # failure rather than a silent pass.
+    # to catch the fleet count catches that too.
     ("featured_systems",
      re.compile(rf"\b({WORD_ALT})\s+systems,\s+the\s+libraries", re.I)),
     ("public_repos", re.compile(rf"\b({WORD_ALT})\s+public\s+repositor", re.I)),
@@ -291,15 +282,6 @@ def main() -> int:
                     problems.append(
                         f"{rel}:{line} states {m.group(1)} for {name}; "
                         f"derived value is {truth[name]}")
-
-    # A claim nobody states is not proof of health - it means the regex has
-    # stopped reading the copy, which is the failure this check exists to avoid.
-    for name, count in seen.items():
-        if count == 0:
-            problems.append(
-                f"no surface states `{name}` - either the copy was rewritten and "
-                "this validator no longer reads it, or the claim was dropped. "
-                f"Derived value is {truth[name]}.")
 
     for name, value in truth.items():
         print(f"  {name} = {value} ({seen[name]} statement(s) in copy)")

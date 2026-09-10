@@ -4,11 +4,11 @@
   "provenance": {
     "generator": "bin/generate-systems-json.py",
     "generator_version": 1,
-    "input_sha256": "42502f9ce5c00cf872cb6d6a189372672e5957cced768f88b563ef06580387d0",
+    "input_sha256": "d5c99eb58d49c7932364987e19d68919b2fd5dd4b67deead215c78471ead48d6",
     "sources": [
       {
         "path": "content/systems/_index.md",
-        "sha256": "2f3eafdc1ebb94491b10626819b9610ac5d7b62b81fa8d8890bf2317162fcba0"
+        "sha256": "64a6ebfa2648b3767838f49b267c59af43416a052202035dc29b871fea7bb019"
       },
       {
         "path": "content/systems/akroasis.md",
@@ -17,6 +17,10 @@
       {
         "path": "content/systems/aletheia.md",
         "sha256": "ecdbbe2e0594735233d8b7f0a16674b79c292f80e5c179080ad661254a3617fa"
+      },
+      {
+        "path": "content/systems/cheirismos.md",
+        "sha256": "bcfe7975e1fb502e87d30641f37e4c859e92235186acade1b074aeffddb0ac17"
       },
       {
         "path": "content/systems/hamma.md",
@@ -28,11 +32,15 @@
       },
       {
         "path": "content/systems/kanon.md",
-        "sha256": "2a144e7d0a210d135956445e8b399da3010c5634790f66a48b2df5ff1523d41f"
+        "sha256": "1c7cdd56b86baf7c9f7fad303b8becc78251269945935ea39647d62b3547ba49"
       },
       {
         "path": "content/systems/logismos.md",
         "sha256": "d25d72ff39df496861c23b9608cb1f686805c31dc8d0f06e654d84ce3d0a8c9e"
+      },
+      {
+        "path": "content/systems/politeia.md",
+        "sha256": "02b884553b607900fc48e7c9aa6083744ac829cd6b7b90e817112fd26123cfce"
       },
       {
         "path": "content/systems/thumos.md",
@@ -40,7 +48,7 @@
       },
       {
         "path": "data/exact-system-licenses.json",
-        "sha256": "9bf8c11687ed77551478fdefea514f8ff687b43a56a3122c50b5af246e6180e4"
+        "sha256": "e4418202a5610d641cc7924424dc407137241c6b57a9a4e9ffb0d6869393b1ee"
       }
     ]
   },
@@ -71,6 +79,19 @@
       "stack": "Rust · single binary · Datalog-backed memory",
       "private": false,
       "gloss": "ἀλήθεια - unconcealment",
+      "kanon_ci": true
+    },
+    {
+      "name": "cheirismos",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/cheirismos/",
+      "one_liner": "A development-stage local control plane for agents that observe, experiment on, and manipulate physical computing devices under explicit, durable governance.",
+      "badge": "ALPHA · FIXTURE QUALIFICATION PENDING",
+      "repo": "https://github.com/forkwright/cheirismos",
+      "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+      "stack": "Rust · local supervisor · SQLite",
+      "private": false,
+      "gloss": "χειρισμός - deliberate handling",
       "kanon_ci": true
     },
     {
@@ -123,6 +144,19 @@
       "stack": "Rust · HIP/WMMA · AMD gfx1100",
       "private": false,
       "gloss": "λογισμός - reasoning, calculation",
+      "kanon_ci": true
+    },
+    {
+      "name": "Ardent Politeia",
+      "group": "systems",
+      "url": "https://ardent.tools/systems/politeia/",
+      "one_liner": "A development-stage institutional control plane for human and machine work. Public source defines commissioning, policy, evidence, and handoff; the first end-to-end proof remains open.",
+      "badge": "DEVELOPMENT · FIRST VERTICAL SLICE OPEN",
+      "repo": "https://github.com/ardent-tools/politeia",
+      "license": "MPL-2.0",
+      "stack": "Rust · JSON Schema · TLA+",
+      "private": false,
+      "gloss": "πολιτεία - an institutional order",
       "kanon_ci": true
     },
     {
